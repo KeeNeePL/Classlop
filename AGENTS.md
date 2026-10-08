@@ -1,6 +1,6 @@
 # Classlop
 
-A daily dashboard for one mathematics teacher in a Polish school, built on the teacher's own Microsoft 365 tenant. The teacher is a persona the team speaks for; the team runs a demo tenant. Lessons are online Teams meetings; students only ever use Teams, and Classlop talks to Teams on their behalf. AI grades every submission and the teacher spot-checks.
+A daily dashboard for one mathematics teacher in a Polish liceum, built on the teacher's own Microsoft 365 tenant. The teacher is a persona the team speaks for; the team runs a demo tenant. Lessons are online Teams meetings; students only ever use Teams, and Classlop talks to Teams on their behalf. AI grades every submission and the teacher spot-checks.
 
 **Phase: charting.** Issue #1 (`gh issue view 1 --json body`) is the product map and the single source of truth for scope, settled decisions, open questions and out-of-scope items. Read it before proposing anything.
 

@@ -1,6 +1,6 @@
 # Classlop
 
-A daily dashboard for a mathematics teacher in a Polish school, built on the teacher's own Microsoft 365 tenant. Lessons run as Teams meetings and students only ever use Teams; Classlop works with Teams on their behalf, generates and assigns tasks, and uses AI to grade submissions (including handwritten work) while the teacher spot-checks.
+A daily dashboard for a mathematics teacher in a Polish liceum, built on the teacher's own Microsoft 365 tenant. Lessons run as Teams meetings and students only ever use Teams; Classlop works with Teams on their behalf, generates and assigns tasks, and uses AI to grade submissions (including handwritten work) while the teacher spot-checks.
 
 ## Status
 

@@ -1,6 +1,6 @@
 # Classlop
 
-A teacher's dashboard for orchestrating day-to-day teaching in a Polish school: classes, lessons, assignments, grading and progress, in one place instead of many. Students never use it directly; they work through Microsoft Teams.
+A teacher's dashboard for orchestrating day-to-day teaching in a Polish liceum: classes, lessons, assignments, grading and progress, in one place instead of many. Students never use it directly; they work through Microsoft Teams.
 
 ## Language
 
@@ -33,7 +33,7 @@ _Avoid_: Comment, observation
 ### Curriculum
 
 **Curriculum topic**:
-One requirement of the mathematics podstawa programowa; the unit that items are tagged with and progress is measured in.
+One requirement of the liceum mathematics podstawa programowa (basic or extended level); the unit that items are tagged with and progress is measured in.
 _Avoid_: Topic (unqualified), chapter, skill, standard
 
 **Knowledge base**:
