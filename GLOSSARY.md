@@ -33,7 +33,7 @@ _Avoid_: Comment, observation
 ### Curriculum
 
 **Curriculum topic**:
-One requirement of the liceum mathematics podstawa programowa (basic or extended level); the unit that items are tagged with and progress is measured in.
+One requirement of the liceum mathematics podstawa programowa at basic level; the unit that items are tagged with and progress is measured in.
 _Avoid_: Topic (unqualified), chapter, skill, standard
 
 **Knowledge base**:
