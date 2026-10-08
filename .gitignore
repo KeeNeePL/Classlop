@@ -1,0 +1,39 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Private data: student work and textbooks never leave this machine
+/data/
+*.pdf
+
+# LangGraph
+.langgraph_api/
+
+# Playwright
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# Agents
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
