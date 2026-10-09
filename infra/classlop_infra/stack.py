@@ -17,7 +17,6 @@ from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_sqs as sqs
 from constructs import Construct
 
-PUNCTUATION = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ "
 APP_SECRETS = [
     "M365_CLIENT_SECRET",
     "LLM_API_KEY",
@@ -60,6 +59,19 @@ class ClasslopStack(Stack):
             auto_delete_objects=True,
         )
 
+        # Letters and digits only, so the password drops into DATABASE_URL unescaped.
+        db_secret = secretsmanager.Secret(
+            self,
+            "DatabaseSecret",
+            secret_name="classlop/db",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template='{"username": "classlop"}',
+                generate_string_key="password",
+                exclude_punctuation=True,
+                password_length=32,
+            ),
+            removal_policy=RemovalPolicy.DESTROY,
+        )
         self.database = rds.DatabaseInstance(
             self,
             "Database",
@@ -71,10 +83,7 @@ class ClasslopStack(Stack):
             vpc_subnets=isolated,
             security_groups=[data_sg],
             database_name="classlop",
-            # Letters and digits only, so the password drops into DATABASE_URL unescaped.
-            credentials=rds.Credentials.from_generated_secret(
-                "classlop", secret_name="classlop/db", exclude_characters=PUNCTUATION
-            ),
+            credentials=rds.Credentials.from_secret(db_secret),
             allocated_storage=20,
             multi_az=False,
             deletion_protection=False,

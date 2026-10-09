@@ -157,3 +157,15 @@ def test_load_balancer_is_reachable_only_from_cloudfront(template):
 def test_stack_outputs_the_sign_in_callback_url(template):
     outputs = template.find_outputs("CallbackUrl")
     assert "/auth/callback" in str(outputs)
+
+
+def test_database_password_fits_a_url_unescaped(template):
+    template.has_resource_properties(
+        "AWS::SecretsManager::Secret",
+        {
+            "Name": "classlop/db",
+            "GenerateSecretString": Match.object_like(
+                {"ExcludePunctuation": True, "GenerateStringKey": "password"}
+            ),
+        },
+    )
