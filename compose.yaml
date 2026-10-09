@@ -12,6 +12,7 @@ x-backend: &backend
     OPENSEARCH_URL: http://opensearch:9200
     S3_ENDPOINT_URL: http://s3:8333
     S3_PUBLIC_ENDPOINT_URL: http://localhost:8333
+    SQS_ENDPOINT_URL: http://elasticmq:9324
     AWS_ACCESS_KEY_ID: dev
     AWS_SECRET_ACCESS_KEY: dev
 
@@ -83,6 +84,21 @@ services:
       migrate: {condition: service_completed_successfully}
       s3-init: {condition: service_completed_successfully}
       opensearch: {condition: service_healthy}
+
+  worker:
+    <<: *backend
+    command: ["classlop", "worker"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      elasticmq: {condition: service_started}
+
+  # Dev only: prod's timed triggers are EventBridge Scheduler.
+  scheduler:
+    <<: *backend
+    command: ["classlop", "scheduler"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      elasticmq: {condition: service_started}
 
 volumes:
   postgres:

@@ -28,6 +28,7 @@ dev = [
     "httpx>=0.28.1",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "ruff>=0.16.10",
 ]
 
@@ -42,3 +43,6 @@ typeCheckingMode = "basic"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"

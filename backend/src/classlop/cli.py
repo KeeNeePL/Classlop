@@ -7,6 +7,9 @@ def main(argv: list[str] | None = None) -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("web", help="serve the API and the dashboard on :8000")
     commands.add_parser("migrate", help="apply every area's migrations")
+    commands.add_parser("worker", help="run background jobs from the queue")
+    commands.add_parser("scheduler", help="dev only: fire due schedules onto the queue")
+    commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -22,3 +25,21 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.shared.migrate import migrate
 
         migrate()
+    elif args.command == "worker":
+        import asyncio
+
+        from classlop.shared.worker import run
+
+        asyncio.run(run())
+    elif args.command == "scheduler":
+        import asyncio
+
+        from classlop.shared.schedule import run_scheduler
+
+        asyncio.run(run_scheduler())
+    elif args.command == "ping":
+        import asyncio
+
+        from classlop.shared.jobs import ping
+
+        raise SystemExit(0 if asyncio.run(ping()) else 1)
