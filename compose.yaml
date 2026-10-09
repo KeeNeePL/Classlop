@@ -1,0 +1,90 @@
+# Dev stand-ins for the AWS services; `docker compose up --build`, then http://localhost:8000/healthz
+name: classlop
+
+x-backend: &backend
+  image: classlop
+  build: .
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgresql+psycopg://classlop:classlop@postgres:5432/classlop
+    OPENSEARCH_URL: http://opensearch:9200
+    S3_ENDPOINT_URL: http://s3:8333
+    S3_PUBLIC_ENDPOINT_URL: http://localhost:8333
+    AWS_ACCESS_KEY_ID: dev
+    AWS_SECRET_ACCESS_KEY: dev
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: classlop
+      POSTGRES_PASSWORD: classlop
+      POSTGRES_DB: classlop
+    ports: ["5432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "classlop"]
+      interval: 2s
+      retries: 30
+
+  opensearch:
+    build:
+      dockerfile_inline: |
+        FROM opensearchproject/opensearch:2.19.6
+        RUN bin/opensearch-plugin install --batch analysis-stempel
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports: ["9200:9200"]
+    volumes: [opensearch:/usr/share/opensearch/data]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9200/_cluster/health"]
+      interval: 5s
+      retries: 30
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.7.1
+    ports: ["9324:9324"]
+
+  # SeaweedFS stands in for S3: MinIO no longer publishes images.
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    command: server -s3 -dir=/data -ip.bind=0.0.0.0
+    ports: ["8333:8333"]
+    volumes: [s3:/data]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8333/healthz"]
+      interval: 2s
+      retries: 30
+
+  s3-init:
+    image: chrislusf/seaweedfs:4.48
+    entrypoint: >-
+      sh -c 'echo s3.bucket.list | weed shell -master=s3:9333 | grep -qw classlop
+      || echo "s3.bucket.create -name classlop" | weed shell -master=s3:9333'
+    depends_on:
+      s3: {condition: service_healthy}
+
+  migrate:
+    <<: *backend
+    command: ["classlop", "migrate"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  web:
+    <<: *backend
+    command: ["classlop", "web"]
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      s3-init: {condition: service_completed_successfully}
+      opensearch: {condition: service_healthy}
+
+volumes:
+  postgres:
+  opensearch:
+  s3:
