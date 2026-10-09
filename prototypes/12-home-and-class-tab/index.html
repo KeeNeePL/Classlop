@@ -1,0 +1,315 @@
+<!doctype html>
+<!--
+PROTOTYPE, throwaway (issue #12). Three variants of the home screen and Class tab,
+switchable via ?variant=A|B|C and the floating bar (or arrow keys). Invented data only.
+Read-only apart from in-memory stubs; nothing is persisted.
+-->
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYP: pulpit i klasa (#12)</title>
+<style>
+:root{--bg:#f5f6f8;--panel:#fff;--ink:#1c2128;--muted:#6b7280;--line:#e3e6ea;--accent:#2457d6;--live:#c2410c;--soft:#eef3ff}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);padding-bottom:90px}
+a,[data-act]{cursor:pointer}
+button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer}
+button.ghost{background:none;color:var(--accent)}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--muted);font-size:12px}
+.muted{color:var(--muted)}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eceff3;color:#374151;white-space:nowrap}
+.badge.live{background:#ffedd5;color:var(--live)}
+.badge.warn{background:#fef3c7;color:#92400e}
+.badge.exam{background:#fee2e2;color:#991b1b}
+.badge.quiz{background:#e0e7ff;color:#3730a3}
+.badge.homework{background:#dcfce7;color:#166534}
+.bar{height:8px;background:#eceff3;border-radius:4px;overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+h2{font-size:15px;margin:0 0 10px}
+h1{font-size:20px;margin:0}
+
+/* A: Plan dnia */
+.top{display:flex;gap:20px;align-items:center;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+.top nav{display:flex;gap:4px;flex:1}
+.top nav a{padding:5px 12px;border-radius:6px}
+.top nav a.on{background:var(--soft);color:var(--accent);font-weight:600}
+.a-home{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;padding:20px 24px;max-width:1200px}
+.ev{display:grid;grid-template-columns:60px 1fr;gap:12px;margin-bottom:12px}
+.ev .time{font-weight:600;text-align:right;padding-top:12px}
+.ev .time small{display:block;color:var(--muted);font-weight:400}
+.ev.done .panel{opacity:.6}
+.ev.live .panel{border-color:var(--live);box-shadow:0 0 0 2px #ffedd5}
+.now{display:grid;grid-template-columns:60px 1fr;gap:12px;margin:4px 0 12px;color:var(--live);font-size:12px;font-weight:600}
+.now hr{border:0;border-top:2px solid var(--live);margin:8px 0}
+.actions{display:flex;gap:6px;margin-top:8px}
+.a-class{padding:20px 24px;max-width:1100px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:16px 0}
+.tabs a{padding:8px 14px;border-bottom:2px solid transparent}
+.tabs a.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.stats{display:flex;gap:28px;margin-top:6px}
+.stats b{font-size:18px;display:block}
+.trow{display:grid;grid-template-columns:260px 1fr 50px;gap:12px;align-items:center;padding:6px 0}
+.trow.off{color:#b0b6bf}
+
+/* B: Kolejka */
+.b-shell{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+.side{background:#1f2633;color:#d6dbe3;padding:16px 10px;display:flex;flex-direction:column;gap:2px}
+.side .logo{color:#fff;font-size:16px;padding:4px 10px 14px}
+.side a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px}
+.side a.on{background:#334155;color:#fff}
+.side .label{padding:16px 10px 4px;font-size:11px;text-transform:uppercase;color:#8a94a6}
+.count{background:#ef4444;color:#fff;border-radius:99px;font-size:11px;padding:0 7px}
+.count:empty{display:none}
+.b-main{padding:24px 32px;max-width:980px}
+.chips{display:flex;gap:6px;margin:14px 0}
+.chips a{padding:4px 12px;border:1px solid var(--line);border-radius:99px;background:var(--panel)}
+.chips a.on{border-color:var(--accent);color:var(--accent)}
+.q{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:6px}
+.q .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px}
+.ico.lesson{background:#ffedd5;color:var(--live)}
+.ico.check{background:#fef3c7;color:#92400e}
+.ico.work{background:var(--soft);color:var(--accent)}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin:14px 0}
+.strip .panel{min-width:220px;padding:10px 12px}
+.split{display:grid;grid-template-columns:280px 1fr;gap:16px}
+.slist a{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;padding:7px 10px;border-radius:6px}
+.slist a.on{background:var(--soft)}
+textarea{width:100%;min-height:60px;font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px}
+
+/* C: Tablica klas */
+.c-wrap{padding:20px 24px}
+.day{position:relative;height:64px;background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:12px 0 20px}
+.day .hour{position:absolute;top:4px;font-size:11px;color:var(--muted);border-left:1px solid var(--line);height:56px;padding-left:4px}
+.day .blk{position:absolute;top:22px;height:34px;border-radius:6px;background:var(--soft);border:1px solid #c7d4f5;font-size:12px;padding:2px 6px;overflow:hidden;white-space:nowrap}
+.day .blk.live{background:#ffedd5;border-color:#fdba74}
+.day .nowline{position:absolute;top:0;bottom:0;border-left:2px solid var(--live)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.col h1{font-size:24px}
+.col section{border-top:1px solid var(--line);padding:10px 0}
+.big{font-size:28px;font-weight:700}
+.heat td,.heat th{text-align:center;padding:5px 6px;font-size:12px;border:1px solid #fff}
+.heat td:first-child,.heat th:first-child{text-align:left;white-space:nowrap}
+.heat td.cell{cursor:pointer;font-variant-numeric:tabular-nums}
+.heat td.sel{outline:2px solid var(--ink)}
+.tiles{display:flex;gap:12px;margin:14px 0}
+.tiles .panel{flex:1}
+
+/* switcher, not part of any design */
+#bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#111;color:#fff;padding:8px 10px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;z-index:9;white-space:nowrap}
+#bar button{background:#333;border:0;border-radius:99px;width:30px;height:30px;padding:0}
+#bar .tag{background:#facc15;color:#111;font-weight:700;font-size:10px;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="bar"><span class="tag">PROTOTYP</span><button data-act="prev">&larr;</button><span id="bar-label"></span><button data-act="next">&rarr;</button></div>
+<script>
+// ---------- invented data ----------
+function rng(s){return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const r=rng(12);
+const TODAY='piątek, 9 października', NOW='10:20';
+const TOPICS=['Liczby rzeczywiste','Wyrażenia algebraiczne','Równania i nierówności','Układy równań','Funkcje','Ciągi','Trygonometria','Planimetria','Geometria analityczna','Stereometria','Kombinatoryka','Prawdopodobieństwo i statystyka'];
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+const FIRST=['Ala','Bartek','Celina','Damian','Ewa','Filip','Gosia','Hubert','Iga','Janek','Kinga','Leon','Maja','Nikola','Oskar','Pola','Rafał','Sara','Tymon','Wiktoria','Zosia','Adam','Bruno','Dorota','Emil','Fabian'];
+const CLASSES=[{id:'1a',covered:4,size:26},{id:'2c',covered:7,size:24},{id:'3b',covered:10,size:22}];
+for(const c of CLASSES){
+  c.students=Array.from({length:c.size},(_,i)=>{
+    const ability=.3+r()*.6;
+    return{name:FIRST[(i*5+c.covered)%FIRST.length]+' '+'ABCDGKLMNPRSTWZ'[Math.floor(r()*15)]+'.',
+      att:Math.round(72+r()*28),late:r()<.12,
+      prog:Array.from({length:c.covered},()=>Math.round(Math.max(5,Math.min(100,(ability+(r()-.5)*.45)*100))))};
+  });
+}
+const TYPE={homework:'Praca domowa',quiz:'Kartkówka',exam:'Sprawdzian'};
+const ST={draft:'Szkic',open:'Zbieranie prac',graded:'Ocenione przez AI',returned:'Zwrócone'};
+const ASSIGN={
+  '1a':[{t:'Wzory skróconego mnożenia',type:'homework',due:'dziś 20:00',at:'20:00',sub:17,check:2,st:'open'},
+        {t:'Zbiory liczbowe',type:'quiz',due:'6 paź',sub:26,check:0,st:'returned'}],
+  '2c':[{t:'Funkcja kwadratowa',type:'exam',due:'7 paź (papier, skany)',sub:24,check:5,st:'graded'},
+        {t:'Ciągi: zadania z treścią',type:'homework',due:'13 paź',sub:9,check:0,st:'open'},
+        {t:'Ciąg arytmetyczny',type:'quiz',due:'14 paź',sub:0,check:0,st:'draft'}],
+  '3b':[{t:'Graniastosłupy',type:'homework',due:'wczoraj',sub:20,check:3,st:'graded'},
+        {t:'Próbna matura (arkusz własny)',type:'exam',due:'20 paź',sub:0,check:0,st:'draft'}]
+};
+const LESSONS=[
+  {time:'08:00',end:'08:45',cls:'2c',topic:5,title:'Ciąg arytmetyczny: suma n wyrazów',state:'done',present:22},
+  {time:'10:00',end:'10:45',cls:'1a',topic:1,title:'Wzory skróconego mnożenia',state:'live',present:24},
+  {time:'12:50',end:'13:35',cls:'3b',topic:9,title:'Graniastosłupy: pola i objętości',state:'next'}
+];
+const REASONS={'1a':['niska pewność AI','losowa próbka'],'2c':['nieczytelne pismo','nieczytelne pismo','niska pewność AI'],'3b':['geometria','geometria','niska pewność AI']};
+const CHECKS=[];
+for(const c of CLASSES)for(const a of ASSIGN[c.id])for(let k=0;k<a.check;k++){
+  const max=2+Math.floor(r()*4);
+  CHECKS.push({id:CHECKS.length,cls:c.id,a:a.t,student:c.students[Math.floor(r()*c.size)].name,item:1+Math.floor(r()*8),
+    max,pts:Math.floor(r()*(max+1)),conf:Math.round(55+r()*35),reason:REASONS[c.id][k%REASONS[c.id].length]});
+}
+
+// ---------- state ----------
+const P=new URLSearchParams(location.search);
+const VARIANTS={A:'Plan dnia',B:'Kolejka',C:'Tablica klas'};
+const S={variant:VARIANTS[P.get('variant')]?P.get('variant'):'A',view:P.get('view')==='class'?'class':'home',
+  cls:P.get('class')||'2c',tab:'students',filter:'all',student:0,cell:null,done:new Set()};
+
+// ---------- helpers ----------
+const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
+const col=(p,l=45)=>`hsl(${p*1.2} 65% ${l}%)`;
+const bar=p=>`<div class="bar"><i style="width:${p}%;background:${col(p)}"></i></div>`;
+const badge=(t,k='')=>`<span class="badge ${k}">${t}</span>`;
+const cur=()=>CLASSES.find(c=>c.id===S.cls)||CLASSES[0];
+const openChecks=()=>CHECKS.filter(k=>!S.done.has(k.id));
+const topicAvg=(c,i)=>avg(c.students.map(s=>s.prog[i]));
+const sAvg=s=>avg(s.prog);
+const status=(c,a)=>a.st==='graded'&&!openChecks().some(k=>k.cls===c.id&&k.a===a.t)?'Gotowe do zwrotu':ST[a.st];
+const mins=t=>{const[h,m]=t.split(':');return h*60+ +m};
+
+// ---------- A: Plan dnia (chronological day + tabbed class page) ----------
+function A(){
+  return `<header class="top"><b data-act="home">Classlop</b><nav>
+    <a data-act="home" class="${S.view==='home'?'on':''}">Dziś</a>
+    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view==='class'&&S.cls===c.id?'on':''}">Klasa ${c.id}</a>`).join('')}
+  </nav><span class="muted">${TODAY}</span></header>`+(S.view==='home'?A_home():A_class());
+}
+function A_home(){
+  const evs=[...LESSONS.map(l=>({t:l.time,h:A_lesson(l)})),
+    ...CLASSES.flatMap(c=>ASSIGN[c.id].filter(a=>a.at).map(a=>({t:a.at,h:`<div class="ev"><div class="time">${a.at}</div><div class="panel"><div class="row"><b>Termin: ${a.t}</b>${badge(TYPE[a.type],a.type)}</div><div class="muted">Klasa ${c.id} · oddane ${a.sub}/${c.size}</div></div></div>`})))]
+    .sort((x,y)=>mins(x.t)-mins(y.t));
+  const i=evs.findIndex(e=>mins(e.t)>mins(NOW));
+  evs.splice(i<0?evs.length:i,0,{h:`<div class="now"><span style="text-align:right">${NOW}</span><hr></div>`});
+  const open=CLASSES.flatMap(c=>ASSIGN[c.id].filter(a=>a.st==='open').map(a=>({c,a})));
+  return `<div class="a-home"><div><h2>Plan dnia</h2>${evs.map(e=>e.h).join('')}</div><div style="display:flex;flex-direction:column;gap:16px">
+    <div class="panel"><h2>Spot-check (${openChecks().length})</h2>
+      ${openChecks().slice(0,6).map(k=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><div><b>${k.student}</b> · zad. ${k.item}<div class="muted">${k.cls} · ${k.a} · AI ${k.pts}/${k.max} pkt · ${k.reason}</div></div><button class="ghost" data-act="check:${k.id}">OK</button></div>`).join('')||'<div class="muted">Wszystko sprawdzone.</div>'}
+      ${openChecks().length>6?`<div class="muted" style="margin-top:6px">+ ${openChecks().length-6} więcej</div>`:''}</div>
+    <div class="panel"><h2>Spływające prace</h2>${open.map(({c,a})=>`<div style="margin-bottom:10px"><div class="row"><span>${c.id} · ${a.t}</span><span class="muted">${a.sub}/${c.size}</span></div>${bar(Math.round(a.sub/c.size*100))}</div>`).join('')}</div>
+  </div></div>`;
+}
+function A_lesson(l){
+  const c=CLASSES.find(x=>x.id===l.cls),lab={done:['Zakończona',''],live:['Trwa teraz','live'],next:['Następna','']}[l.state];
+  return `<div class="ev ${l.state}"><div class="time">${l.time}<small>${l.end}</small></div><div class="panel">
+    <div class="row"><b>Klasa ${l.cls}</b>${badge(lab[0],lab[1])}</div><div>${l.title}</div>
+    <div class="muted">${ROMAN[l.topic]}. ${TOPICS[l.topic]}${l.present?` · obecni ${l.present}/${c.size}`:''}</div>
+    <div class="actions">${l.state==='live'?'<button>Dołącz w Teams</button>':''}<button class="ghost" data-act="cls:${l.cls}">Otwórz klasę</button></div></div></div>`;
+}
+function A_class(){
+  const c=cur(),tabs={students:'Uczniowie',assignments:'Zadania',progress:'Postęp'};
+  let body;
+  if(S.tab==='students')body=`<table><tr><th>Uczeń</th><th>Frekwencja</th><th>Średni wynik</th><th>Najsłabszy temat</th><th></th></tr>
+    ${c.students.map(s=>{const w=s.prog.indexOf(Math.min(...s.prog));return`<tr><td>${s.name}</td><td>${s.att}%</td><td><div class="row" style="justify-content:flex-start">${bar(sAvg(s))}<span>${sAvg(s)}%</span></div></td><td>${ROMAN[w]}. ${TOPICS[w]}</td><td>${s.late?badge('brak pracy','warn'):''}</td></tr>`}).join('')}</table>`;
+  if(S.tab==='assignments')body=`<table><tr><th>Typ</th><th>Tytuł</th><th>Termin</th><th>Status</th><th>Oddane</th><th>Spot-check</th></tr>
+    ${ASSIGN[c.id].map(a=>`<tr><td>${badge(TYPE[a.type],a.type)}</td><td>${a.t}</td><td>${a.due}</td><td>${status(c,a)}</td><td>${a.sub}/${c.size}</td><td>${openChecks().filter(k=>k.cls===c.id&&k.a===a.t).length||'—'}</td></tr>`).join('')}</table>`;
+  if(S.tab==='progress')body=TOPICS.map((t,i)=>i<c.covered
+    ?`<div class="trow"><span>${ROMAN[i]}. ${t}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`
+    :`<div class="trow off"><span>${ROMAN[i]}. ${t}</span><span>jeszcze nie realizowany</span><span></span></div>`).join('');
+  return `<div class="a-class"><h1>Klasa ${c.id}</h1><div class="stats">
+    <span><b>${c.size}</b><span class="muted">uczniów</span></span>
+    <span><b>${avg(c.students.map(s=>s.att))}%</b><span class="muted">frekwencja</span></span>
+    <span><b>${avg(c.students.map(sAvg))}%</b><span class="muted">średni wynik</span></span>
+    <span><b>${openChecks().filter(k=>k.cls===c.id).length}</b><span class="muted">do spot-checku</span></span></div>
+    <div class="tabs">${Object.entries(tabs).map(([k,v])=>`<a data-act="tab:${k}" class="${S.tab===k?'on':''}">${v}</a>`).join('')}</div>
+    <div class="panel">${body}</div></div>`;
+}
+
+// ---------- B: Kolejka (one prioritised to-do queue + master/detail class page) ----------
+function queue(){
+  const q=[];
+  for(const l of LESSONS.filter(l=>l.state!=='done'))q.push({kind:'lesson',p:l.state==='live'?0:3,
+    title:l.state==='live'?`Trwa lekcja: klasa ${l.cls}`:`${l.time} lekcja: klasa ${l.cls}`,meta:l.title,
+    btn:l.state==='live'?['Dołącz w Teams','noop']:['Otwórz klasę','cls:'+l.cls]});
+  for(const k of openChecks())q.push({kind:'check',p:1,title:`Spot-check: ${k.student}, zad. ${k.item}`,
+    meta:`Klasa ${k.cls} · ${k.a} · AI ${k.pts}/${k.max} pkt (pewność ${k.conf}%) · ${k.reason}`,btn:['Zatwierdź ocenę AI','check:'+k.id]});
+  for(const c of CLASSES)for(const a of ASSIGN[c.id]){
+    if(status(c,a)==='Gotowe do zwrotu')q.push({kind:'work',p:2,title:`Gotowe do zwrotu: ${a.t}`,meta:`Klasa ${c.id} · wszystkie prace sprawdzone`,btn:['Zwróć w Teams','noop']});
+    if(a.at)q.push({kind:'work',p:4,title:`Termin dziś ${a.at}: ${a.t}`,meta:`Klasa ${c.id} · oddane ${a.sub}/${c.size}`,btn:['Otwórz klasę','cls:'+c.id]});
+    if(a.st==='draft')q.push({kind:'work',p:5,title:`Szkic do publikacji: ${a.t}`,meta:`Klasa ${c.id} · ${TYPE[a.type]} · termin ${a.due}`,btn:['Otwórz klasę','cls:'+c.id]});
+  }
+  return q.sort((x,y)=>x.p-y.p);
+}
+function B(){
+  return `<div class="b-shell"><aside class="side"><b class="logo" data-act="home">Classlop</b>
+    <a data-act="home" class="${S.view==='home'?'on':''}">Do zrobienia <span class="count">${queue().length}</span></a>
+    <div class="label">Klasy</div>
+    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view==='class'&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${openChecks().filter(k=>k.cls===c.id).length||''}</span></a>`).join('')}
+  </aside><main class="b-main">${S.view==='home'?B_home():B_class()}</main></div>`;
+}
+function B_home(){
+  const f={all:'Wszystko',lesson:'Lekcje',check:'Spot-check',work:'Zadania'},q=queue().filter(x=>S.filter==='all'||x.kind===S.filter);
+  return `<h1>Dzień dobry</h1><div class="muted">${TODAY} · ${queue().length} rzeczy do zrobienia</div>
+    <div class="chips">${Object.entries(f).map(([k,v])=>`<a data-act="filter:${k}" class="${S.filter===k?'on':''}">${v}</a>`).join('')}</div>
+    ${q.map(x=>`<div class="q"><div class="ico ${x.kind}">${{lesson:'LEK',check:'SC',work:'ZAD'}[x.kind]}</div><div><b>${x.title}</b><div class="muted">${x.meta}</div></div><button data-act="${x.btn[1]}">${x.btn[0]}</button></div>`).join('')||'<div class="muted">Pusto. Wszystko zrobione.</div>'}`;
+}
+function B_class(){
+  const c=cur(),s=c.students[S.student]||c.students[0];
+  return `<h1>Klasa ${c.id}</h1><div class="muted">${c.size} uczniów · frekwencja ${avg(c.students.map(s=>s.att))}%</div>
+    <div class="strip">${ASSIGN[c.id].map(a=>`<div class="panel">${badge(TYPE[a.type],a.type)}<div><b>${a.t}</b></div><div class="muted">${status(c,a)} · ${a.sub}/${c.size} · ${a.due}</div></div>`).join('')}</div>
+    <div class="split"><div class="panel slist" style="padding:6px;max-height:560px;overflow:auto">
+      ${c.students.map((x,i)=>`<a data-act="student:${i}" class="${x===s?'on':''}"><span>${x.name}${x.late?' <span class="badge warn">!</span>':''}</span>${bar(sAvg(x))}</a>`).join('')}
+    </div><div class="panel"><div class="row"><h1>${s.name}</h1><span class="muted">frekwencja ${s.att}% · średnio ${sAvg(s)}%</span></div>
+      <h2 style="margin-top:16px">Postęp według tematów</h2>
+      ${s.prog.map((p,i)=>`<div class="trow" style="grid-template-columns:220px 1fr 40px"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(p)}<b>${p}%</b></div>`).join('')}
+      <h2 style="margin-top:16px">Prace</h2>
+      ${ASSIGN[c.id].map((a,i)=>`<div class="row" style="padding:4px 0"><span>${a.t}</span><span class="muted">${a.st==='draft'?'—':s.late&&i===0?'nie oddano':Math.min(100,Math.round(sAvg(s)*(.85+i*.08)))+'%'}</span></div>`).join('')}
+      <h2 style="margin-top:16px">Notatka (prywatna)</h2><textarea placeholder="Notatka o uczniu, widoczna tylko dla nauczyciela"></textarea>
+    </div></div>`;
+}
+
+// ---------- C: Tablica klas (day strip + one column per class + heatmap class page) ----------
+function C(){
+  return `<div class="c-wrap"><div class="row"><h1 data-act="home">Classlop</h1><span class="muted">${TODAY}</span></div>${S.view==='home'?C_home():C_class()}</div>`;
+}
+function C_home(){
+  const x0=mins('07:30'),span=mins('16:00')-x0,pos=t=>((mins(t)-x0)/span*100)+'%';
+  const day=`<div class="day">${[8,9,10,11,12,13,14,15].map(h=>`<span class="hour" style="left:${pos(h+':00')}">${h}:00</span>`).join('')}
+    ${LESSONS.map(l=>`<span class="blk ${l.state==='live'?'live':''}" data-act="cls:${l.cls}" style="left:${pos(l.time)};width:${(mins(l.end)-mins(l.time))/span*100}%"><b>${l.cls}</b> ${l.title}</span>`).join('')}
+    <span class="nowline" style="left:${pos(NOW)}"></span></div>`;
+  return day+`<div class="board">${CLASSES.map(c=>{
+    const l=LESSONS.find(l=>l.cls===c.id),chk=openChecks().filter(k=>k.cls===c.id).length;
+    const weak=[...Array(c.covered).keys()].sort((a,b)=>topicAvg(c,a)-topicAvg(c,b)).slice(0,2);
+    const risk=c.students.filter(s=>sAvg(s)<35).length;
+    return `<div class="panel col"><div class="row"><h1 data-act="cls:${c.id}">${c.id}</h1><button class="ghost" data-act="cls:${c.id}">Otwórz</button></div>
+      <div class="muted">${c.size} uczniów</div>
+      <section><div class="muted">Dziś</div>${l?`<b>${l.time}</b> ${l.title} ${l.state==='live'?badge('trwa','live'):''}`:'brak lekcji'}</section>
+      <section class="row"><div><div class="muted">Spot-check</div><div class="big">${chk}</div></div><div><div class="muted">Wymaga uwagi</div><div class="big">${risk}</div></div></section>
+      <section><div class="muted">Zadania</div>${ASSIGN[c.id].map(a=>`<div style="margin:6px 0"><div class="row"><span>${badge(TYPE[a.type],a.type)} ${a.t}</span><span class="muted">${a.sub}/${c.size}</span></div><div class="muted" style="font-size:12px">${status(c,a)}</div></div>`).join('')}</section>
+      <section><div class="muted">Najsłabsze tematy</div>${weak.map(i=>`<div class="trow" style="grid-template-columns:1fr 80px 36px"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`).join('')}</section>
+    </div>`}).join('')}</div>`;
+}
+function C_class(){
+  const c=cur(),rows=c.students.map((s,i)=>({s,i})).sort((a,b)=>sAvg(a.s)-sAvg(b.s));
+  const [si,ti]=(S.cell||'').split('-').map(Number),sel=S.cell&&c.students[si];
+  return `<div class="row" style="margin-top:12px"><a data-act="home">&larr; Tablica</a><span></span></div>
+    <h1 style="font-size:28px">Klasa ${c.id}</h1>
+    <div class="tiles">
+      <div class="panel"><div class="muted">Średni wynik</div><div class="big">${avg(c.students.map(sAvg))}%</div></div>
+      <div class="panel"><div class="muted">Frekwencja</div><div class="big">${avg(c.students.map(s=>s.att))}%</div></div>
+      <div class="panel"><div class="muted">Spot-check</div><div class="big">${openChecks().filter(k=>k.cls===c.id).length}</div></div>
+      ${ASSIGN[c.id].map(a=>`<div class="panel">${badge(TYPE[a.type],a.type)}<div><b>${a.t}</b></div><div class="muted">${status(c,a)} · ${a.sub}/${c.size}</div></div>`).join('')}
+    </div>
+    <div class="panel"><div class="row"><h2>Uczniowie × tematy (najsłabsi na górze)</h2><span class="muted">${sel?`<b>${sel.name}</b> · ${ROMAN[ti]}. ${TOPICS[ti]}: ${sel.prog[ti]}%`:'Kliknij komórkę'}</span></div>
+    <table class="heat"><tr><th>Uczeń</th>${[...Array(c.covered).keys()].map(i=>`<th title="${TOPICS[i]}">${ROMAN[i]}</th>`).join('')}<th>Śr.</th><th>Frekw.</th></tr>
+      ${rows.map(({s,i})=>`<tr><td>${s.name}${s.late?' '+badge('!','warn'):''}</td>${s.prog.map((p,t)=>`<td class="cell ${S.cell===i+'-'+t?'sel':''}" data-act="cell:${i}-${t}" style="background:${col(p,85)}">${p}</td>`).join('')}<td><b>${sAvg(s)}</b></td><td>${s.att}%</td></tr>`).join('')}
+      <tr><th>Klasa</th>${[...Array(c.covered).keys()].map(i=>`<th style="background:${col(topicAvg(c,i),85)}">${topicAvg(c,i)}</th>`).join('')}<th>${avg(c.students.map(sAvg))}</th><th></th></tr>
+    </table></div>`;
+}
+
+// ---------- wiring ----------
+function render(){
+  try{const p=new URLSearchParams({variant:S.variant,view:S.view});if(S.view==='class')p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
+  document.getElementById('app').innerHTML=({A,B,C})[S.variant]();
+  document.getElementById('bar-label').textContent=`${S.variant} (${VARIANTS[S.variant]}) · ${S.view==='home'?'pulpit':'klasa '+S.cls} · spot-check otwarte: ${openChecks().length}`;
+}
+const keys=Object.keys(VARIANTS);
+const cycle=d=>{S.variant=keys[(keys.indexOf(S.variant)+d+keys.length)%keys.length]};
+const ACT={home:()=>{S.view='home'},cls:a=>{S.view='class';S.cls=a;S.student=0;S.cell=null},tab:a=>{S.tab=a},filter:a=>{S.filter=a},
+  student:a=>{S.student=+a},cell:a=>{S.cell=a},check:a=>{S.done.add(+a)},prev:()=>cycle(-1),next:()=>cycle(1),noop:()=>{}};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t)return;const[a,arg]=t.dataset.act.split(':');ACT[a]?.(arg);render()});
+addEventListener('keydown',e=>{if(e.target.closest?.('input,textarea,[contenteditable]'))return;
+  if(e.key==='ArrowLeft'){cycle(-1);render()}if(e.key==='ArrowRight'){cycle(1);render()}});
+render();
+</script>
+</body>
+</html>
