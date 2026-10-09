@@ -18,6 +18,10 @@ _Avoid_: Course, group, team
 A member of a class. Interacts only through Teams, never with the dashboard.
 _Avoid_: Pupil, learner
 
+**Former student**:
+A student who has left a class; kept in its past attendance and reports, given nothing new.
+_Avoid_: Removed student, inactive student
+
 **Lesson**:
 One scheduled online Teams meeting of a class.
 _Avoid_: Meeting, session, class (a class is the group, never the meeting)
@@ -109,6 +113,10 @@ _Avoid_: Sent, assigned, published (Teams' own term)
 **Submission**:
 One student's completed work on one assignment, handed in through Teams or scanned from paper.
 _Avoid_: Answer, hand-in, attempt
+
+**Reminder**:
+A post to the whole class a day before an assignment's due time, saying how many students have not handed it in yet, never who.
+_Avoid_: Nudge, notification
 
 **Late submission**:
 A submission handed in after the assignment's due time but before it closes.
