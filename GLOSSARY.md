@@ -94,6 +94,10 @@ _Avoid_: Test, sprawdzian (as a distinct entity)
 One student's completed work on one assignment, handed in through Teams or scanned from paper.
 _Avoid_: Answer, hand-in, attempt
 
+**Feedback**:
+The written comment a student receives on a submission once it is returned: points and a short remark on each item, in Polish.
+_Avoid_: Comment, remark, review
+
 **Item bank**:
 The teacher's searchable collection of reusable items.
 _Avoid_: Question bank, task library
