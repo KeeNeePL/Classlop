@@ -12,6 +12,10 @@ Charting. There is no code yet. The product vision, settled decisions and open q
 - LangChain and LangGraph
 - Microsoft Graph / Teams
 
+## Demo tenant
+
+The team develops against a Microsoft 365 demo tenant. To create it, or to rebuild it when the 30-day trial expires, run `bash scripts/setup-demo-tenant.sh` from Git Bash. It walks you through the portals and writes the `M365_*` values into your gitignored `.env`. Teacher and Student passwords live in that `.env` too; ask the tenant admin for them in a private message. The admin password never goes in the repo folder.
+
 ## Working with agents
 
 This repo is set up for AI coding agents:
