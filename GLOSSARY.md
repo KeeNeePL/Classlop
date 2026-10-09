@@ -177,7 +177,7 @@ _Avoid_: Review, moderation
 ### Reports
 
 **Progress**:
-The share of available points a student or class has earned on graded items tagged with one curriculum topic or curriculum section; missing and excused submissions are left out.
+The share of available points a student or class has earned on graded items tagged with one curriculum topic or curriculum section; missing, excused and held submissions are left out.
 _Avoid_: Mastery, score (unqualified), level
 
 **Assignment summary**:
