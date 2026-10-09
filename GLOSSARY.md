@@ -78,6 +78,14 @@ _Avoid_: Task, question, exercise
 How an item is answered: closed (choosing from given options) or open (a written answer or solution).
 _Avoid_: Item type, question type (type belongs to assignments)
 
+**Model solution**:
+The worked solution stored with an item, which grading compares a student's work against. Never shown to students.
+_Avoid_: Answer key, reference solution
+
+**Rubric**:
+The CKE-style scoring scheme of an item: which stages of a solution earn which points.
+_Avoid_: Marking scheme, criteria, klucz
+
 **Generation request**:
 The teacher asking the AI for new items: a free-text description, difficulty, item format, count and optionally curriculum topics.
 _Avoid_: Prompt, generation prompt, query
@@ -110,6 +118,18 @@ _Avoid_: Absent, not submitted, overdue
 The state of a submission the teacher has released the student from; it never counts in results.
 _Avoid_: Exempt, skipped
 
+**Transcription**:
+The AI's verbatim reading of a student's work on one item, mistakes included.
+_Avoid_: OCR, reading, odczyt (except as the UI label)
+
+**Held**:
+Said of a graded submission that is not returned until the teacher approves it, because one of its items is unreadable, unsure or in doubt; a condition, not a submission state.
+_Avoid_: Blocked, pending, on hold
+
+**Override**:
+The teacher replacing the AI's points on one item of a submission.
+_Avoid_: Correction, regrade, manual grade
+
 **Feedback**:
 The written comment a student receives on a submission once it is returned: points and a short remark on each item, in Polish.
 _Avoid_: Comment, remark, review
@@ -131,5 +151,5 @@ An item the teacher has withdrawn from the item bank; never offered for new assi
 _Avoid_: Deleted item, archived item
 
 **Spot-check**:
-The teacher reviewing a sample of AI-graded submissions rather than every one.
+The teacher reviewing the AI-graded submissions flagged for it, the held ones and those with geometry, rather than every one.
 _Avoid_: Review, moderation
