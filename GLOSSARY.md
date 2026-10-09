@@ -22,9 +22,25 @@ _Avoid_: Pupil, learner
 One scheduled online Teams meeting of a class.
 _Avoid_: Meeting, session, class (a class is the group, never the meeting)
 
+**Lesson topic**:
+The teacher's title for what a lesson covers, as written in the school register (temat lekcji).
+_Avoid_: Topic (unqualified), temat, subject
+
+**Timetable**:
+The weekly recurring slots in which a class has its lessons.
+_Avoid_: Schedule, plan, series
+
 **Attendance**:
-The record of which students were present at a lesson, taken from Teams.
+Each student's state at one lesson, Present, Late or Absent, derived from Teams and overridable by the teacher.
 _Avoid_: Presence, register
+
+**Late**:
+The attendance state of a student whose first join came after the lesson's scheduled start plus the lateness threshold.
+_Avoid_: Tardy, delayed
+
+**Unmatched attendee**:
+Someone in a lesson's Teams attendance who is not yet linked to a student of the class.
+_Avoid_: Guest, unknown user
 
 **Note**:
 A private remark the teacher keeps about a student.
