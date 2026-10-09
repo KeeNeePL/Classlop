@@ -113,9 +113,9 @@ const POOL=[
   ['Oblicz objętość sześcianu o krawędzi 4.','Oblicz pole powierzchni prostopadłościanu o wymiarach 2 × 3 × 5.','Oblicz długość przekątnej sześcianu o krawędzi 3.'],
   ['Ile jest liczb trzycyfrowych o różnych cyfrach?','Na ile sposobów można ustawić 5 osób w kolejce?','Ile jest liczb dwucyfrowych podzielnych przez 3?'],
   ['Rzucamy dwiema kostkami. Oblicz prawdopodobieństwo, że suma oczek wynosi 7.','Oblicz średnią arytmetyczną liczb 3, 5, 7, 9, 11.','W urnie są 3 kule białe i 5 czarnych. Oblicz prawdopodobieństwo wylosowania białej.']];
-const DIFF={e:'łatwe',m:'średnie',h:'trudne'}, PTS={e:1,m:2,h:4};
+const DIFF={e:'łatwe',m:'średnie',h:'trudne'};
 const TYPE={quiz:'Kartkówka',exam:'Sprawdzian',homework:'Praca domowa'};
-const ST={draft:'Szkic',open:'Zbieranie prac',graded:'Ocenione przez AI',returned:'Zwrócone'};
+const ST={open:'Zbieranie prac',graded:'Ocenione przez AI',returned:'Zwrócone'};
 const FIRST=['Ala','Bartek','Celina','Damian','Ewa','Filip','Gosia','Hubert','Iga','Janek','Kinga','Leon','Maja','Nikola','Oskar','Pola','Rafał','Sara','Tymon','Wiktoria','Zosia','Adam','Bruno','Dorota','Emil','Fabian'];
 const CLASSES=[{id:'1a',covered:4,size:26},{id:'2c',covered:7,size:24},{id:'3b',covered:10,size:22}];
 for(const c of CLASSES)c.students=Array.from({length:c.size},(_,i)=>{
@@ -123,17 +123,21 @@ for(const c of CLASSES)c.students=Array.from({length:c.size},(_,i)=>{
   return{name:FIRST[(i*5+c.covered)%FIRST.length]+' '+'ABCDGKLMNPRSTWZ'[Math.floor(r()*15)]+'.',att:Math.round(72+r()*28),late:r()<.12,
     prog:Array.from({length:c.covered},()=>Math.round(Math.max(5,Math.min(100,(ability+(r()-.5)*.45)*100))))};
 });
-let seq=0;
-const mkItem=(t,d,reqs=[])=>({t,d,k:seq++,req:reqs.length?reqs[Math.floor(r()*reqs.length)]:null});
-const mkItems=spec=>spec.flatMap(([t,d,n])=>Array.from({length:n},()=>mkItem(t,d)));
+// Invented Item bank. Points live on the Item (#11); `used` holds the Classes that already got it.
+const BANK=[];
+TOPICS.forEach((_,t)=>['e','m','h'].forEach((d,di)=>{
+  for(let v=0,n=2+Math.floor(r()*4);v<n;v++){const base=POOL[t][(v+di)%3];
+    BANK.push({id:BANK.length,t,d,req:Math.floor(r()*3),pts:{e:1,m:2,h:3}[d]+Math.floor(r()*2),text:v?base.replace(/\d+/,m=>+m+v):base,used:new Set()})}
+}));
+const shuffle=a=>a.map(x=>[r(),x]).sort((p,q)=>p[0]-q[0]).map(x=>x[1]);
+const avail=(cid,t,d,reqs,allowUsed,taken=new Set())=>BANK.filter(b=>b.t===t&&b.d===d&&(!reqs.length||reqs.includes(b.req))&&(allowUsed||!b.used.has(cid))&&!taken.has(b.id));
+const mkItems=(cid,spec)=>spec.flatMap(([t,d,n])=>{const got=shuffle(avail(cid,t,d,[],false)).slice(0,n);got.forEach(b=>b.used.add(cid));return got});
 const ASSIGN={
-  '1a':[{t:'Wzory skróconego mnożenia',type:'homework',due:'dziś 20:00',sub:17,st:'open',items:mkItems([[1,'e',3],[1,'m',2]])},
-        {t:'Zbiory liczbowe',type:'quiz',due:'6 paź',sub:26,st:'returned',items:mkItems([[0,'e',2],[0,'m',2]])}],
-  '2c':[{t:'Funkcja kwadratowa',type:'exam',due:'7 paź',paper:true,sub:24,st:'graded',items:mkItems([[4,'e',3],[4,'m',3],[4,'h',1]])},
-        {t:'Ciągi: zadania z treścią',type:'homework',due:'13 paź',sub:9,st:'open',items:mkItems([[5,'m',3],[5,'h',1]])},
-        {t:'Ciąg arytmetyczny',type:'quiz',due:'14 paź',sub:0,st:'draft',items:mkItems([[5,'e',3],[5,'m',1]])}],
-  '3b':[{t:'Graniastosłupy',type:'homework',due:'wczoraj',sub:20,st:'graded',items:mkItems([[9,'e',2],[9,'m',2],[9,'h',1]])},
-        {t:'Próbna matura (arkusz własny)',type:'exam',due:'20 paź',sub:0,st:'draft',items:mkItems([[2,'e',3],[4,'m',3],[7,'m',2],[9,'h',2]])}]
+  '1a':[{t:'Wzory skróconego mnożenia',type:'homework',due:'dziś 20:00',sub:17,st:'open',items:mkItems('1a',[[1,'e',2],[1,'m',2]])},
+        {t:'Zbiory liczbowe',type:'quiz',due:'6 paź',sub:26,st:'returned',items:mkItems('1a',[[0,'e',2],[0,'m',2]])}],
+  '2c':[{t:'Funkcja kwadratowa',type:'exam',due:'7 paź',paper:true,sub:24,st:'graded',items:mkItems('2c',[[4,'e',2],[4,'m',2],[4,'h',1]])},
+        {t:'Ciągi: zadania z treścią',type:'homework',due:'13 paź',sub:9,st:'open',items:mkItems('2c',[[5,'m',2],[5,'h',1]])}],
+  '3b':[{t:'Graniastosłupy',type:'homework',due:'wczoraj',sub:20,st:'graded',items:mkItems('3b',[[9,'e',2],[9,'m',2],[9,'h',1]])}]
 };
 const LESSONS=[
   {time:'08:00',cls:'2c',title:'Ciąg arytmetyczny: suma n wyrazów',state:'done'},
@@ -156,16 +160,15 @@ const CL=id=>CLASSES.find(c=>c.id===id)||CLASSES[0];
 const cur=()=>CL(S.cls);
 const sAvg=s=>avg(s.prog);
 const topicAvg=(c,i)=>avg(c.students.map(s=>s.prog[i]));
-const maxPts=a=>sum(a.items.map(it=>PTS[it.d]));
+const maxPts=a=>sum(a.items.map(it=>it.pts));
 const fmtDate=v=>{const d=new Date(v);return d.getDate()+' '+MONTHS[d.getMonth()]};
-const itemText=it=>POOL[it.t][it.k%POOL[it.t].length];
 const why=(p,m)=>p===m?'Poprawna metoda i wynik, pełne uzasadnienie.':p===0?'Brak rozwiązania albo błędna metoda od początku.':p>=m/2?'Poprawna metoda, błąd rachunkowy w końcowym kroku.':'Poprawny pierwszy krok, dalej rozwiązanie urwane.';
 // Faked AI grading: one entry per student, null when not handed in.
 function subs(c,a){
   if(a.subs)return a.subs;
   const rr=rng(a.t.length*31+c.size);
-  return a.subs=c.students.map((s,si)=>si>=a.sub||a.st==='draft'?null:a.items.map(it=>{
-    const m=PTS[it.d],p=(s.prog[it.t]??sAvg(s))/100,ai=Math.max(0,Math.min(m,Math.round(m*(p+(rr()-.5)*.5))));
+  return a.subs=c.students.map((s,si)=>si>=a.sub?null:a.items.map(it=>{
+    const m=it.pts,p=(s.prog[it.t]??sAvg(s))/100,ai=Math.max(0,Math.min(m,Math.round(m*(p+(rr()-.5)*.5))));
     return{ai,pts:ai};
   }));
 }
@@ -183,9 +186,7 @@ function queue(){
     if(a.st==='graded')q.push({kind:'work',p:1,title:`Ocenione przez AI: <a data-act="${workRef(c.id,i)}">${a.t}</a> (${c.id})`,
       meta:`${TYPE[a.type]} · średnio ${workAvg(c,a)}% · oddane ${a.sub}/${c.size}`,btns:[['Zobacz','work:'+c.id+':'+i,'ghost'],['Zwróć w Teams','ret:'+c.id+':'+i]]});
     if(a.st==='open')q.push({kind:'work',p:4,title:`Termin ${a.due}: <a data-act="${workRef(c.id,i)}">${a.t}</a> (${c.id})`,
-      meta:`${TYPE[a.type]} · oddane ${a.sub}/${c.size}`,btns:[['Otwórz pracę','work:'+c.id+':'+i,'ghost']]});
-    if(a.st==='draft')q.push({kind:'work',p:5,title:`Szkic: ${a.t} (${c.id})`,meta:`${TYPE[a.type]} · termin ${a.due}`,btns:[['Dokończ','edit:'+c.id+':'+i,'ghost']]});
-  });
+      meta:`${TYPE[a.type]} · oddane ${a.sub}/${c.size}`,btns:[['Otwórz pracę','work:'+c.id+':'+i,'ghost']]});  });
   return q.sort((x,y)=>x.p-y.p);
 }
 function home(){
@@ -212,7 +213,7 @@ function overview(c){
   return `<h2>Postęp klasy według tematów</h2>
     ${TOPICS.slice(0,c.covered).map((t,i)=>`<div class="trow"><span>${ROMAN[i]}. ${t}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`).join('')}
     <h2>Prace</h2><table><tr><th>Praca</th><th>Typ</th><th>Status</th><th>Średni wynik</th><th>Oddane</th></tr>
-    ${ASSIGN[c.id].map((a,i)=>`<tr data-act="${a.st==='draft'?'edit':'work'}:${c.id}:${i}"><td><a>${a.t}</a></td><td>${badge(TYPE[a.type],a.type)}</td><td>${ST[a.st]}</td><td>${a.st!=='draft'&&workAvg(c,a)!==null?workAvg(c,a)+'%':'—'}</td><td>${a.sub}/${c.size}</td></tr>`).join('')}</table>
+    ${ASSIGN[c.id].map((a,i)=>`<tr data-act="work:${c.id}:${i}"><td><a>${a.t}</a></td><td>${badge(TYPE[a.type],a.type)}</td><td>${ST[a.st]}</td><td>${workAvg(c,a)!==null?workAvg(c,a)+'%':'—'}</td><td>${a.sub}/${c.size}</td></tr>`).join('')}</table>
     <h2>Wymagają uwagi</h2>
     ${watch.map(({s,i})=>`<div class="trow" data-act="student:${i}"><a>${s.name}</a>${bar(sAvg(s))}<b>${sAvg(s)}%</b></div>`).join('')}`;
 }
@@ -223,7 +224,7 @@ function student(c,si){
     <h2>Postęp według tematów</h2>
     ${s.prog.map((p,i)=>`<div class="trow"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(p)}<b>${p}%</b></div>`).join('')}
     <h2>Prace</h2>
-    ${ASSIGN[c.id].filter(a=>a.st!=='draft').map(a=>{const sb=subs(c,a)[si];return`<div class="row" style="padding:4px 0"><span>${a.t}</span><span class="muted">${sb?Math.round(score(sb)/maxPts(a)*100)+'%':'nie oddano'}</span></div>`}).join('')}
+    ${ASSIGN[c.id].map(a=>{const sb=subs(c,a)[si];return`<div class="row" style="padding:4px 0"><span>${a.t}</span><span class="muted">${sb?Math.round(score(sb)/maxPts(a)*100)+'%':'nie oddano'}</span></div>`}).join('')}
     <h2>Notatka (prywatna)</h2><textarea style="width:100%;min-height:60px;font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px" placeholder="Widoczna tylko dla nauczyciela"></textarea>`;
 }
 
@@ -239,44 +240,51 @@ function form(){
     <div class="field"><label>Typ</label><div class="seg">${Object.entries(TYPE).map(([k,v])=>`<a data-act="type:${k}" class="${f.type===k?'on':''}">${v}</a>`).join('')}</div></div>
     <div class="field"><label>Tytuł</label><input data-f="title" style="width:420px" value="${f.titleTouched?f.title:autoTitle(f)}"> <span class="muted">podpowiedź z tematów, możesz zmienić</span></div>
     <div class="field"><label>Zadania: tematy × trudność</label>
-      <table class="grid"><tr><th>Dział</th><th>Łatwe (1 pkt)</th><th>Średnie (2 pkt)</th><th>Trudne (4 pkt)</th><th></th></tr>
+      <table class="grid"><tr><th>Dział</th><th>Łatwe</th><th>Średnie</th><th>Trudne</th><th></th></tr>
       ${f.rows.map((x,ri)=>`<tr><td><b>${ROMAN[x.t]}. ${TOPICS[x.t]}</b>${x.t>=c.covered?' '+badge('nieprzerobiony','warn'):''}
           <div><a data-act="narrow:${ri}" style="font-size:12px">${x.open?'zwiń':'zawęź do wymagań'}${x.req.length?` (${x.req.length})`:''}</a></div>
           ${x.open?`<div class="reqs">${REQS[x.t].map((q,j)=>`<label><input type="checkbox" data-c="req:${ri}:${j}" ${x.req.includes(j)?'checked':''}> ${ROMAN[x.t]}.${j+1} ${q}</label>`).join('')}</div>`:''}</td>
-        ${['e','m','h'].map(d=>`<td><input type="number" min="0" max="20" data-f="cnt:${ri}:${d}" value="${x[d]}"></td>`).join('')}
+        ${['e','m','h'].map(d=>`<td><input type="number" min="0" max="20" data-f="cnt:${ri}:${d}" value="${x[d]}"><div id="bank-${ri}-${d}" style="font-size:11px">${bankHint(x,d)}</div></td>`).join('')}
         <td><a data-act="rmrow:${ri}">usuń</a></td></tr>`).join('')}
       ${f.rows.length?'':'<tr><td colspan="5" class="muted" style="text-align:left">Brak działów. Dodaj pierwszy poniżej.</td></tr>'}
-      <tr style="background:#f8fafc"><td><b>Razem</b> <span class="muted">(<b id="t-all">${t.e+t.m+t.h}</b> zadań, <b id="t-pts">${t.e+2*t.m+4*t.h}</b> pkt)</span></td>
+      <tr style="background:#f8fafc"><td><b>Razem</b> <span class="muted">(<b id="t-all">${t.e+t.m+t.h}</b> zadań)</span></td>
         <td id="t-e">${t.e}</td><td id="t-m">${t.m}</td><td id="t-h">${t.h}</td><td></td></tr></table>
-      <select data-c="addrow" style="margin-top:10px"><option value="">+ dodaj dział…</option><optgroup label="Przerobione w klasie">${opts(0,c.covered)}</optgroup><optgroup label="Jeszcze nieprzerobione">${opts(c.covered)}</optgroup></select></div>
+      <div class="row" style="margin-top:10px"><select data-c="addrow"><option value="">+ dodaj dział…</option><optgroup label="Przerobione w klasie">${opts(0,c.covered)}</optgroup><optgroup label="Jeszcze nieprzerobione">${opts(c.covered)}</optgroup></select>
+        <label class="muted"><input type="checkbox" data-c="allowused" ${f.allowUsed?'checked':''}> pozwól na zadania już użyte w tej klasie</label></div>
+      <div class="muted" style="font-size:12px;margin-top:6px">Zadania są dobierane z banku zadań; punkty ma każde zadanie. Nowe zadania wgrywasz lub generujesz w Classlop AI.</div></div>
     <div class="field"><label>Dla kogo</label><div class="seg"><a data-act="who:all" class="${f.who==='all'?'on':''}">Cała klasa</a><a data-act="who:pick" class="${f.who==='pick'?'on':''}">Wybierz uczniów</a></div>
       ${f.who==='pick'?`<div class="panel" style="margin-top:10px;max-height:280px;overflow:auto;padding:6px 10px">
         <div class="row"><span class="muted">Zaznaczono: <b>${f.students.size}</b></span><span><a data-act="pickall:1">zaznacz wszystkich</a> · <a data-act="pickall:0">odznacz</a></span></div>
         <table><tr><th></th><th>Uczeń</th><th>Średni wynik z prac</th></tr>${c.students.map((s,i)=>`<tr><td style="width:30px"><input type="checkbox" data-c="stu:${i}" ${f.students.has(i)?'checked':''}></td><td>${s.name}</td><td class="muted">${sAvg(s)}%</td></tr>`).join('')}</table></div>`:''}</div>
-    <div class="foot"><button id="gen" data-act="generate" ${canGenerate(f)?'':'disabled'}>Generuj zadania</button></div>
+    <div class="foot"><button id="gen" data-act="generate" ${canGenerate(f)?'':'disabled'}>Dobierz zadania z banku</button></div>
   </div>`;
+}
+function bankHint(x,d){
+  const n=avail(cur().id,x.t,d,x.req,S.form.allowUsed).length;
+  return `<span style="color:${x[d]>n?'#b91c1c':'var(--muted)'}">w banku: ${n}</span>`;
 }
 function liveTotals(){
   const f=S.form,t=totals(f);
   for(const k of ['e','m','h'])document.getElementById('t-'+k).textContent=t[k];
   document.getElementById('t-all').textContent=t.e+t.m+t.h;
-  document.getElementById('t-pts').textContent=t.e+2*t.m+4*t.h;
+  f.rows.forEach((x,ri)=>['e','m','h'].forEach(d=>{document.getElementById(`bank-${ri}-${d}`).innerHTML=bankHint(x,d)}));
   document.getElementById('gen').disabled=!canGenerate(f);
 }
 
-// ---------- preview of generated Items ----------
+// ---------- preview of Items picked from the bank ----------
 function preview(){
-  const d=S.draft,c=CL(d.cls),pts=sum(d.items.map(it=>PTS[it.d]));
-  return `<div class="row"><h1>Podgląd: ${d.title}</h1><button class="ghost" data-act="${d.editing?'cls:'+c.id:'backform'}">${d.editing?'Anuluj':'&larr; Wróć do formularza'}</button></div>
+  const d=S.draft,c=CL(d.cls),pts=sum(d.items.map(it=>it.pts));
+  return `<div class="row"><h1>Podgląd: ${d.title}</h1><button class="ghost" data-act="backform">&larr; Wróć do formularza</button></div>
     <div class="muted" style="margin:6px 0 16px">${badge(TYPE[d.type],d.type)} · klasa ${c.id} · ${d.forWhom}</div>
-    <div class="panel"><div class="muted" style="font-size:12px">Treści przykładowe; prawdziwe generowanie to ticket #10.</div>
-    ${d.items.map((it,i)=>`<div class="item"><span class="n">${i+1}.</span><div>${itemText(it)}
-        <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${it.req!==null?badge(ROMAN[it.t]+'.'+(it.req+1)+' '+REQS[it.t][it.req]):''} ${badge(DIFF[it.d],it.d)} ${badge(PTS[it.d]+' pkt')}</div></div>
-      <div style="display:flex;gap:6px;align-items:start"><button class="ghost" data-act="reroll:${i}">wylosuj inne</button><button class="ghost" data-act="delitem:${i}">usuń</button></div></div>`).join('')||'<div class="muted" style="padding:12px 0">Brak zadań.</div>'}
+    ${d.missing.length?`<div class="flash" style="background:#fef3c7;color:#92400e">W banku zabrakło: ${d.missing.join(', ')}.
+      Wgraj własne zadania albo wygeneruj nowe w <a data-act="ai">Classlop AI</a>, a potem dobierz ponownie.</div>`:''}
+    <div class="panel">
+    ${d.items.map((it,i)=>`<div class="item"><span class="n">${i+1}.</span><div>${it.text}
+        <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${badge(ROMAN[it.t]+'.'+(it.req+1)+' '+REQS[it.t][it.req])} ${badge(DIFF[it.d],it.d)} ${badge(it.pts+' pkt')}</div>
+        ${d.noAlt===i?'<div class="muted" style="font-size:12px;margin-top:4px">Brak innych pasujących zadań w banku.</div>':''}</div>
+      <div style="display:flex;gap:6px;align-items:start"><button class="ghost" data-act="reroll:${i}">podmień na inne</button><button class="ghost" data-act="delitem:${i}">usuń</button></div></div>`).join('')||'<div class="muted" style="padding:12px 0">Brak zadań.</div>'}
     <div class="foot"><span class="muted">${d.items.length} zadań · <b>${pts} pkt</b></span>
-      <label>Termin <input type="date" data-f="due" value="${d.due}"></label>
-      <button class="ghost" data-act="save:draft" ${d.items.length?'':'disabled'}>Zapisz szkic</button>
-      <button data-act="save:open" ${d.items.length?'':'disabled'}>Opublikuj w Teams</button></div></div>`;
+      <label>Termin <input type="date" data-f="due" value="${d.due}"></label>      <button data-act="save" ${d.items.length?'':'disabled'}>Opublikuj w Teams</button></div></div>`;
 }
 
 // ---------- AI-graded Assignment: list, then one Submission ----------
@@ -297,39 +305,52 @@ function submission(){
   return `<div class="row"><a data-act="${workRef(cid,i)}">&larr; ${a.t}</a>
       <span><a data-act="sub:${handed[(pos-1+handed.length)%handed.length]}">&larr; poprzedni</a> · <a data-act="sub:${handed[(pos+1)%handed.length]}">następny &rarr;</a></span></div>
     <div class="row" style="margin:8px 0 16px"><h1>${c.students[si].name}</h1><span style="font-size:18px"><b id="score">${score(x)}</b>/${m} pkt</span></div>
-    <div class="panel">${a.items.map((it,k)=>{const y=x[k];return`<div class="item"><span class="n">${k+1}.</span><div>${itemText(it)}
+    <div class="panel">${a.items.map((it,k)=>{const y=x[k];return`<div class="item"><span class="n">${k+1}.</span><div>${it.text}
         <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${badge(DIFF[it.d],it.d)}</div>
         <div class="answer">${a.paper?'Odczyt AI z pisma ucznia':'Rozwiązanie ucznia z Teams'} (przykład): obliczenia krok po kroku, wynik końcowy.</div>
-        <div><b>Uzasadnienie AI:</b> ${why(y.ai,PTS[it.d])}</div></div>
-      <div style="text-align:right"><div class="muted" style="font-size:12px">AI: ${y.ai}/${PTS[it.d]}</div>
-        <input type="number" min="0" max="${PTS[it.d]}" data-f="pts:${k}" value="${y.pts}"> / ${PTS[it.d]}
+        <div><b>Uzasadnienie AI:</b> ${why(y.ai,it.pts)}</div></div>
+      <div style="text-align:right"><div class="muted" style="font-size:12px">AI: ${y.ai}/${it.pts}</div>
+        <input type="number" min="0" max="${it.pts}" data-f="pts:${k}" value="${y.pts}"> / ${it.pts}
         <div id="ed-${k}" class="muted" style="font-size:12px">${y.pts!==y.ai?'zmieniono':''}</div></div></div>`}).join('')}</div>`;
 }
 
 // ---------- wiring ----------
-const VIEWS={home,class:klass,new:form,preview,work,sub:submission};
-const LABEL={home:'pulpit',class:'strona klasy',new:'nowa praca',preview:'podgląd zadań',work:'praca ocenione przez AI',sub:'praca ucznia'};
+const ai=()=>`<h1>Classlop AI</h1><div class="panel" style="margin-top:16px">
+  <p>Tu będzie czat z AI: wgrywanie dokumentów z zadaniami, generowanie nowych zadań do banku, pytania o postępy klas.</p>
+  <p class="muted">Ten ekran to osobny ticket na mapie: „Classlop AI tab”. Prototyp powstanie tam.</p></div>`;
+const VIEWS={home,class:klass,new:form,preview,work,sub:submission,ai};
+const LABEL={home:'pulpit',class:'strona klasy',new:'nowa praca',preview:'podgląd zadań',work:'praca oceniona przez AI',sub:'praca ucznia',ai:'Classlop AI (zaślepka)'};
 function render(){
   try{const p=new URLSearchParams({view:S.view==='home'?'home':'class'});if(S.view!=='home')p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
   const graded=c=>ASSIGN[c.id].filter(a=>a.st==='graded').length;
   document.getElementById('app').innerHTML=`<div class="shell"><aside class="side"><b class="logo" data-act="home">Classlop</b>
     <a data-act="home" class="${S.view==='home'?'on':''}">Do zrobienia <span class="count">${queue().length}</span></a>
+    <a data-act="ai" class="${S.view==='ai'?'on':''}">Classlop AI</a>
     <div class="label">Klasy</div>
-    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view!=='home'&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${graded(c)||''}</span></a>`).join('')}
+    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${!['home','ai'].includes(S.view)&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${graded(c)||''}</span></a>`).join('')}
   </aside><main>${VIEWS[S.view]()}</main></div>`;
   document.getElementById('bar-label').textContent=`${LABEL[S.view]} · dane wymyślone, nic nie jest zapisywane`;
   S.flash=null;
 }
-const draftFromForm=()=>{const f=S.form,c=cur();return{cls:c.id,type:f.type,title:f.titleTouched&&f.title.trim()?f.title:autoTitle(f),due:'',
-  forWhom:f.who==='all'?'cała klasa':`${f.students.size} wybranych uczniów`,
-  items:f.rows.flatMap(x=>['e','m','h'].flatMap(d=>Array.from({length:x[d]},()=>mkItem(x.t,d,x.req))))}};
+function draftFromForm(){
+  const f=S.form,c=cur(),items=[],missing=[];
+  for(const x of f.rows)for(const d of ['e','m','h']){
+    if(!x[d])continue;
+    const got=shuffle(avail(c.id,x.t,d,x.req,f.allowUsed)).slice(0,x[d]);
+    items.push(...got);
+    if(got.length<x[d])missing.push(`${x[d]-got.length} × ${DIFF[d]} z działu ${ROMAN[x.t]}. ${TOPICS[x.t]}`);
+  }
+  return{cls:c.id,type:f.type,title:f.titleTouched&&f.title.trim()?f.title:autoTitle(f),due:'',allowUsed:f.allowUsed,
+    forWhom:f.who==='all'?'cała klasa':`${f.students.size} wybranych uczniów`,items,missing,noAlt:null};
+}
 const ACT={
   noop:()=>{},
   home:()=>{S.view='home'},
   cls:id=>{S.view='class';S.cls=id;S.student=null},
   filter:k=>{S.filter=k},
   student:i=>{S.student=+i<0?null:+i},
-  new:()=>{S.form={type:'quiz',title:'',titleTouched:false,rows:[],who:'all',students:new Set()};S.view='new'},
+  ai:()=>{S.view='ai'},
+  new:()=>{S.form={type:'quiz',title:'',titleTouched:false,rows:[],who:'all',students:new Set(),allowUsed:false};S.view='new'},
   type:k=>{S.form.type=k},
   narrow:ri=>{const x=S.form.rows[ri];x.open=!x.open},
   rmrow:ri=>{S.form.rows.splice(+ri,1)},
@@ -337,13 +358,12 @@ const ACT={
   pickall:on=>{S.form.students=new Set(+on?cur().students.map((_,i)=>i):[])},
   generate:()=>{S.draft=draftFromForm();S.view='preview'},
   backform:()=>{S.view='new'},
-  edit:(cid,i)=>{const a=ASSIGN[cid][i];S.cls=cid;S.draft={cls:cid,type:a.type,title:a.t,due:'',forWhom:'cała klasa',items:a.items.map(it=>({...it})),editing:a};S.view='preview'},
-  reroll:i=>{S.draft.items[i].k++},
-  delitem:i=>{S.draft.items.splice(+i,1)},
-  save:st=>{const d=S.draft,a=d.editing||{};
-    Object.assign(a,{t:d.title,type:d.type,items:d.items,st,sub:0,due:d.due?fmtDate(d.due):(a.due||'bez terminu')});delete a.subs;
-    if(!d.editing)ASSIGN[d.cls].push(a);
-    S.view='class';S.cls=d.cls;S.student=null;S.flash=st==='open'?`Opublikowano „${a.t}” w Teams (na niby).`:`Zapisano szkic „${a.t}”.`},
+  reroll:i=>{const d=S.draft,it=d.items[i],alt=shuffle(avail(d.cls,it.t,it.d,[],d.allowUsed,new Set(d.items.map(x=>x.id))))[0];
+    if(alt){d.items[i]=alt;d.noAlt=null}else d.noAlt=+i},
+  delitem:i=>{S.draft.items.splice(+i,1);S.draft.noAlt=null},
+  save:()=>{const d=S.draft,a={t:d.title,type:d.type,items:d.items,st:'open',sub:0,due:d.due?fmtDate(d.due):'bez terminu'};
+    d.items.forEach(b=>b.used.add(d.cls));ASSIGN[d.cls].push(a);
+    S.view='class';S.cls=d.cls;S.student=null;S.flash=`Opublikowano „${a.t}” w Teams (na niby).`},
   work:(cid,i)=>{S.cls=cid;S.work={cid,i:+i};S.view='work'},
   sub:si=>{S.sub=+si;S.view='sub'},
   ret:(cid,i)=>{ASSIGN[cid][i].st='returned'}
@@ -353,12 +373,13 @@ const FIELD={
   cnt:(v,ri,d)=>{S.form.rows[ri][d]=Math.max(0,parseInt(v)||0);liveTotals()},
   due:v=>{S.draft.due=v},
   pts:(v,k,_,el)=>{const {cid,i}=S.work,a=ASSIGN[cid][i],y=subs(CL(cid),a)[S.sub][k];
-    y.pts=Math.max(0,Math.min(PTS[a.items[k].d],parseInt(v)||0));
+    y.pts=Math.max(0,Math.min(a.items[k].pts,parseInt(v)||0));
     document.getElementById('score').textContent=score(subs(CL(cid),a)[S.sub]);
     document.getElementById('ed-'+k).textContent=y.pts!==y.ai?'zmieniono':''}
 };
 const CHANGE={
   addrow:v=>{if(v!=='')S.form.rows.push({t:+v,e:0,m:0,h:0,req:[],open:false})},
+  allowused:()=>{S.form.allowUsed=!S.form.allowUsed},
   req:(_,ri,j)=>{const x=S.form.rows[ri].req,n=+j;x.includes(n)?x.splice(x.indexOf(n),1):x.push(n)},
   stu:(_,i)=>{const s=S.form.students,n=+i;s.has(n)?s.delete(n):s.add(n)}
 };
