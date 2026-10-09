@@ -4,13 +4,31 @@ A daily dashboard for a mathematics teacher in a Polish liceum, built on the tea
 
 ## Status
 
-Charting. There is no code yet. The product vision, settled decisions and open questions live in the map issue: [Classlop: product vision and feature map](https://github.com/KeeNeePL/Classlop/issues/1).
+Building. The product is charted in [Classlop: product vision and feature map](https://github.com/KeeNeePL/Classlop/issues/1) and the architecture in [Classlop: architecture](https://github.com/KeeNeePL/Classlop/issues/27); build tickets hang off the area tickets there.
 
 ## Stack
 
-- Python, managed with [uv](https://docs.astral.sh/uv/)
-- LangChain and LangGraph
+- Python backend in `backend/` (FastAPI, LangChain, LangGraph), managed with [uv](https://docs.astral.sh/uv/)
+- Postgres, OpenSearch, SQS and S3; AWS in prod, docker compose stand-ins in dev
 - Microsoft Graph / Teams
+
+## Running locally
+
+Copy `.env.example` to `.env`, then:
+
+```sh
+docker compose up --build        # http://localhost:8000/healthz
+cd backend && uv sync && uv run pytest
+```
+
+New migration on your area's branch: `cd backend && uv run alembic revision -m "..." --head=<area>@head`.
+
+If Windows blocks compiled packages (Smart App Control), run the tests in Linux instead:
+
+```sh
+docker run --rm -v "$PWD/backend:/src" -w /src -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
+  ghcr.io/astral-sh/uv:0.12.23-python3.13-trixie-slim uv run pytest
+```
 
 ## Demo tenant
 

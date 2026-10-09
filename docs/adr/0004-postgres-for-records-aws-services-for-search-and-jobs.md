@@ -6,4 +6,4 @@ Each area's records and the LangGraph checkpoints live in Postgres (a container 
 
 - The search index is a copy rebuilt from Postgres, never the record itself.
 - SQS delivers at least once, so every job handler is idempotent; job status lives in Postgres.
-- Dev runs the same code against local stand-ins (an OpenSearch container with Stempel, ElasticMQ, MinIO). Timed triggers are the one seam with two adapters: EventBridge Scheduler in prod, a local loop posting to the queue in dev.
+- Dev runs the same code against local stand-ins (an OpenSearch container with Stempel, ElasticMQ, SeaweedFS for S3 since MinIO stopped publishing images). Timed triggers are the one seam with two adapters: EventBridge Scheduler in prod, a local loop posting to the queue in dev.
