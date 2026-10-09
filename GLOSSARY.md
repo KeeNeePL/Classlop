@@ -79,7 +79,7 @@ How an item is answered: closed (choosing from given options) or open (a written
 _Avoid_: Item type, question type (type belongs to assignments)
 
 **Generation request**:
-The teacher asking the AI for new items: a free-text description, difficulty, item format, count and optionally curriculum topics.
+The teacher asking the AI for new items in their own words, from which the AI reads difficulty, item format, count and any curriculum topics.
 _Avoid_: Prompt, generation prompt, query
 
 **Assignment**:
@@ -101,6 +101,10 @@ _Avoid_: Comment, remark, review
 **Item bank**:
 The teacher's searchable collection of reusable items.
 _Avoid_: Question bank, task library
+
+**Chat**:
+One named conversation with Classlop AI in which the teacher adds items to the item bank, by generation requests or item uploads; kept in the teacher's chat history.
+_Avoid_: Conversation, thread, session, rozmowa
 
 **Item upload**:
 The teacher adding their own exercises to the item bank from a file, split into one item per exercise.
