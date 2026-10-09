@@ -1,0 +1,3 @@
+# Feedback returns to students automatically, before any Spot-check
+
+Graded submissions are returned without the teacher pressing anything: at the assignment's due time, or as soon as a late submission is graded. We considered making the teacher return each assignment after spot-checking it, since a wrong AI grade then reaches the student first, but chose to take that step off the teacher. Returning at the due time rather than on grading keeps early finishers from passing hints to classmates still writing. Only submissions with an unreadable or low-confidence item are held until the teacher has looked at them; any correction made after return is returned again, so the student sees the corrected feedback.

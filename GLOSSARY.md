@@ -90,9 +90,25 @@ _Avoid_: Task, test, worksheet
 An assignment of the exam type; not a separate concept.
 _Avoid_: Test, sprawdzian (as a distinct entity)
 
+**Given**:
+Said of an assignment once Teams has accepted its publication, now or at a scheduled time; from then on its items are frozen.
+_Avoid_: Sent, assigned, published (Teams' own term)
+
 **Submission**:
 One student's completed work on one assignment, handed in through Teams or scanned from paper.
 _Avoid_: Answer, hand-in, attempt
+
+**Late submission**:
+A submission handed in after the assignment's due time but before it closes.
+_Avoid_: Late (that is an attendance state), overdue
+
+**Missing**:
+The state of a submission never handed in by the time its assignment closes.
+_Avoid_: Absent, not submitted, overdue
+
+**Excused**:
+The state of a submission the teacher has released the student from; it never counts in results.
+_Avoid_: Exempt, skipped
 
 **Feedback**:
 The written comment a student receives on a submission once it is returned: points and a short remark on each item, in Polish.
