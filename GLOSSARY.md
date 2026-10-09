@@ -82,6 +82,18 @@ _Avoid_: Answer, hand-in, attempt
 The teacher's searchable collection of reusable items.
 _Avoid_: Question bank, task library
 
+**Item upload**:
+The teacher adding their own exercises to the item bank from a file, split into one item per exercise.
+_Avoid_: Import
+
+**Flagged item**:
+An item the AI marks for the teacher's attention, such as one with no exemplar or one that kept failing the tag check; it stays usable until the teacher edits it or dismisses the flag.
+_Avoid_: Unreviewed item, draft
+
+**Retired item**:
+An item the teacher has withdrawn from the item bank; never offered for new assignments, kept in the assignments that used it, and restorable.
+_Avoid_: Deleted item, archived item
+
 **Spot-check**:
 The teacher reviewing a sample of AI-graded submissions rather than every one.
 _Avoid_: Review, moderation
