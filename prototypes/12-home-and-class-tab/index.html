@@ -1,8 +1,9 @@
 <!doctype html>
 <!--
-PROTOTYPE, throwaway (issue #12). Three variants of the home screen and Class tab,
-switchable via ?variant=A|B|C and the floating bar (or arrow keys). Invented data only.
-Read-only apart from in-memory stubs; nothing is persisted.
+PROTOTYPE, throwaway (issue #12). Home screen ("Do zrobienia" queue), Class page with class overview,
+"Nowa praca" form with a preview of generated Items, and an AI-graded Assignment view with editable points.
+Variants A and C were dropped; they live in commit 665d8d4 on this branch.
+Invented data only. Generation and grading are faked; nothing is persisted.
 -->
 <html lang="pl">
 <head>
@@ -12,10 +13,15 @@ Read-only apart from in-memory stubs; nothing is persisted.
 <style>
 :root{--bg:#f5f6f8;--panel:#fff;--ink:#1c2128;--muted:#6b7280;--line:#e3e6ea;--accent:#2457d6;--live:#c2410c;--soft:#eef3ff}
 *{box-sizing:border-box}
-body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);padding-bottom:90px}
-a,[data-act]{cursor:pointer}
-button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+[data-act]{cursor:pointer}
+a[data-act]{color:var(--accent)}
+.side a[data-act],.slist a[data-act]{color:inherit}
+button{font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer}
 button.ghost{background:none;color:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff}
+input[type=number]{width:64px;text-align:center}
 table{border-collapse:collapse;width:100%}
 th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
 th{font-weight:600;color:var(--muted);font-size:12px}
@@ -26,38 +32,17 @@ th{font-weight:600;color:var(--muted);font-size:12px}
 .badge.exam{background:#fee2e2;color:#991b1b}
 .badge.quiz{background:#e0e7ff;color:#3730a3}
 .badge.homework{background:#dcfce7;color:#166534}
+.badge.e{background:#dcfce7;color:#166534}.badge.m{background:#fef3c7;color:#92400e}.badge.h{background:#fee2e2;color:#991b1b}
 .bar{height:8px;background:#eceff3;border-radius:4px;overflow:hidden;min-width:60px}
 .bar i{display:block;height:100%}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
 .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
-h2{font-size:15px;margin:0 0 10px}
-h1{font-size:20px;margin:0}
+h1{font-size:22px;margin:0}
+h2{font-size:15px;margin:18px 0 10px}
+h2:first-child{margin-top:0}
+.trow{display:grid;grid-template-columns:minmax(0,200px) 1fr 44px;gap:12px;align-items:center;padding:5px 0}
 
-/* A: Plan dnia */
-.top{display:flex;gap:20px;align-items:center;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
-.top nav{display:flex;gap:4px;flex:1}
-.top nav a{padding:5px 12px;border-radius:6px}
-.top nav a.on{background:var(--soft);color:var(--accent);font-weight:600}
-.a-home{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;padding:20px 24px;max-width:1200px}
-.ev{display:grid;grid-template-columns:60px 1fr;gap:12px;margin-bottom:12px}
-.ev .time{font-weight:600;text-align:right;padding-top:12px}
-.ev .time small{display:block;color:var(--muted);font-weight:400}
-.ev.done .panel{opacity:.6}
-.ev.live .panel{border-color:var(--live);box-shadow:0 0 0 2px #ffedd5}
-.now{display:grid;grid-template-columns:60px 1fr;gap:12px;margin:4px 0 12px;color:var(--live);font-size:12px;font-weight:600}
-.now hr{border:0;border-top:2px solid var(--live);margin:8px 0}
-.actions{display:flex;gap:6px;margin-top:8px}
-.a-class{padding:20px 24px;max-width:1100px}
-.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:16px 0}
-.tabs a{padding:8px 14px;border-bottom:2px solid transparent}
-.tabs a.on{border-color:var(--accent);color:var(--accent);font-weight:600}
-.stats{display:flex;gap:28px;margin-top:6px}
-.stats b{font-size:18px;display:block}
-.trow{display:grid;grid-template-columns:260px 1fr 50px;gap:12px;align-items:center;padding:6px 0}
-.trow.off{color:#b0b6bf}
-
-/* B: Kolejka */
-.b-shell{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:100vh}
 .side{background:#1f2633;color:#d6dbe3;padding:16px 10px;display:flex;flex-direction:column;gap:2px}
 .side .logo{color:#fff;font-size:16px;padding:4px 10px 14px}
 .side a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px}
@@ -65,250 +50,321 @@ h1{font-size:20px;margin:0}
 .side .label{padding:16px 10px 4px;font-size:11px;text-transform:uppercase;color:#8a94a6}
 .count{background:#ef4444;color:#fff;border-radius:99px;font-size:11px;padding:0 7px}
 .count:empty{display:none}
-.b-main{padding:24px 32px;max-width:980px}
+main{padding:24px 32px 90px;max-width:1080px}
 .chips{display:flex;gap:6px;margin:14px 0}
 .chips a{padding:4px 12px;border:1px solid var(--line);border-radius:99px;background:var(--panel)}
 .chips a.on{border-color:var(--accent);color:var(--accent)}
 .q{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:6px}
-.q .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px}
+.q .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:11px}
 .ico.lesson{background:#ffedd5;color:var(--live)}
-.ico.check{background:#fef3c7;color:#92400e}
 .ico.work{background:var(--soft);color:var(--accent)}
-.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin:14px 0}
-.strip .panel{min-width:220px;padding:10px 12px}
-.split{display:grid;grid-template-columns:280px 1fr;gap:16px}
+.q .btns{display:flex;gap:6px}
+.split{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px}
 .slist a{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center;padding:7px 10px;border-radius:6px}
 .slist a.on{background:var(--soft)}
-textarea{width:100%;min-height:60px;font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px}
+.slist a.all{font-weight:600;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:4px}
+.flash{background:#dcfce7;color:#166534;border-radius:8px;padding:8px 12px;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg a{padding:6px 14px;color:inherit!important}
+.seg a.on{background:var(--accent);color:#fff!important}
+.field{margin:0 0 18px}
+.field>label{display:block;font-weight:600;margin-bottom:6px}
+.grid td,.grid th{text-align:center}
+.grid td:first-child,.grid th:first-child{text-align:left}
+.reqs{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12px}
+.item{display:grid;grid-template-columns:30px 1fr auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.item .n{font-weight:700;color:var(--muted)}
+.answer{background:#f8fafc;border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin:6px 0;font-style:italic;color:#475569}
+.foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+tr[data-act]:hover td{background:#f8fafc}
 
-/* C: Tablica klas */
-.c-wrap{padding:20px 24px}
-.day{position:relative;height:64px;background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:12px 0 20px}
-.day .hour{position:absolute;top:4px;font-size:11px;color:var(--muted);border-left:1px solid var(--line);height:56px;padding-left:4px}
-.day .blk{position:absolute;top:22px;height:34px;border-radius:6px;background:var(--soft);border:1px solid #c7d4f5;font-size:12px;padding:2px 6px;overflow:hidden;white-space:nowrap}
-.day .blk.live{background:#ffedd5;border-color:#fdba74}
-.day .nowline{position:absolute;top:0;bottom:0;border-left:2px solid var(--live)}
-.board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.col h1{font-size:24px}
-.col section{border-top:1px solid var(--line);padding:10px 0}
-.big{font-size:28px;font-weight:700}
-.heat td,.heat th{text-align:center;padding:5px 6px;font-size:12px;border:1px solid #fff}
-.heat td:first-child,.heat th:first-child{text-align:left;white-space:nowrap}
-.heat td.cell{cursor:pointer;font-variant-numeric:tabular-nums}
-.heat td.sel{outline:2px solid var(--ink)}
-.tiles{display:flex;gap:12px;margin:14px 0}
-.tiles .panel{flex:1}
-
-/* switcher, not part of any design */
-#bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#111;color:#fff;padding:8px 10px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;z-index:9;white-space:nowrap}
-#bar button{background:#333;border:0;border-radius:99px;width:30px;height:30px;padding:0}
+#bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#111;color:#fff;padding:8px 14px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;z-index:9;white-space:nowrap}
 #bar .tag{background:#facc15;color:#111;font-weight:700;font-size:10px;padding:2px 6px;border-radius:4px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div id="bar"><span class="tag">PROTOTYP</span><button data-act="prev">&larr;</button><span id="bar-label"></span><button data-act="next">&rarr;</button></div>
+<div id="bar"><span class="tag">PROTOTYP</span><span id="bar-label"></span></div>
 <script>
 // ---------- invented data ----------
 function rng(s){return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const r=rng(12);
-const TODAY='piątek, 9 października', NOW='10:20';
+const TODAY='piątek, 9 października';
+const MONTHS=['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
 const TOPICS=['Liczby rzeczywiste','Wyrażenia algebraiczne','Równania i nierówności','Układy równań','Funkcje','Ciągi','Trygonometria','Planimetria','Geometria analityczna','Stereometria','Kombinatoryka','Prawdopodobieństwo i statystyka'];
 const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+// Example requirements per dział, for the "zawęź" option; not the real podstawa wording.
+const REQS=[['potęgi i pierwiastki','wartość bezwzględna','procenty'],['wzory skróconego mnożenia','rozkład na czynniki','wyrażenia wymierne'],
+  ['równania liniowe','nierówności kwadratowe','równania wielomianowe'],['metoda podstawiania','metoda przeciwnych współczynników','zadania tekstowe'],
+  ['funkcja liniowa','funkcja kwadratowa','odczytywanie z wykresu'],['ciąg arytmetyczny','ciąg geometryczny','procent składany'],
+  ['trójkąt prostokątny','tożsamości','kąty 30°, 45°, 60°'],['trójkąty','kąty w okręgu','czworokąty'],
+  ['odległość i środek odcinka','równanie prostej','proste prostopadłe'],['graniastosłupy','ostrosłupy','bryły obrotowe'],
+  ['reguła mnożenia','permutacje','zliczanie'],['prawdopodobieństwo klasyczne','średnia i mediana','odchylenie standardowe']];
+const POOL=[
+  ['Oblicz wartość wyrażenia (2⁻¹ + 3⁻¹)⁻¹.','Zapisz w postaci przedziału zbiór liczb spełniających |x − 2| ≤ 5.','Cenę 240 zł obniżono o 15%, a potem podniesiono o 20%. Oblicz nową cenę.'],
+  ['Rozłóż na czynniki wyrażenie x³ − 4x.','Uprość wyrażenie (a + 3)² − (a − 3)².','Wykaż, że dla każdej liczby całkowitej n liczba n² + n jest parzysta.'],
+  ['Rozwiąż równanie 3(x − 2) = 2x + 5.','Rozwiąż nierówność x² − 5x + 6 < 0.','Rozwiąż równanie (x − 1)(x² − 9) = 0.'],
+  ['Rozwiąż układ równań x + y = 7, x − y = 1.','Rozwiąż układ równań 2x + 3y = 12, x − y = 1.','Trzy zeszyty i dwa długopisy kosztują 19 zł, a zeszyt i cztery długopisy 13 zł. Ile kosztuje zeszyt?'],
+  ['Wyznacz miejsca zerowe funkcji f(x) = x² − 5x + 6.','Podaj współrzędne wierzchołka paraboli y = 2(x − 1)² + 3.','Wyznacz wzór funkcji liniowej, której wykres przechodzi przez punkty (0, 2) i (3, 8).'],
+  ['Oblicz piąty wyraz ciągu arytmetycznego, w którym a₁ = 3 i r = 4.','Oblicz sumę 10 początkowych wyrazów ciągu aₙ = 2n + 1.','Liczby x, 6, 12 tworzą ciąg geometryczny. Wyznacz x.'],
+  ['Kąt α jest ostry i sin α = 3/5. Oblicz cos α.','Oblicz wartość wyrażenia sin²30° + cos²60°.','Przyprostokątne trójkąta mają długości 6 i 8. Oblicz tangens mniejszego kąta ostrego.'],
+  ['Oblicz pole trójkąta równobocznego o boku 6.','Kąt wpisany ma miarę 35°. Oblicz kąt środkowy oparty na tym samym łuku.','Oblicz długość przekątnej prostokąta o bokach 5 i 12.'],
+  ['Oblicz odległość punktów A = (1, 2) i B = (4, 6).','Wyznacz środek odcinka o końcach (−2, 3) i (4, 7).','Wyznacz równanie prostej prostopadłej do y = 2x + 1, przechodzącej przez (0, 3).'],
+  ['Oblicz objętość sześcianu o krawędzi 4.','Oblicz pole powierzchni prostopadłościanu o wymiarach 2 × 3 × 5.','Oblicz długość przekątnej sześcianu o krawędzi 3.'],
+  ['Ile jest liczb trzycyfrowych o różnych cyfrach?','Na ile sposobów można ustawić 5 osób w kolejce?','Ile jest liczb dwucyfrowych podzielnych przez 3?'],
+  ['Rzucamy dwiema kostkami. Oblicz prawdopodobieństwo, że suma oczek wynosi 7.','Oblicz średnią arytmetyczną liczb 3, 5, 7, 9, 11.','W urnie są 3 kule białe i 5 czarnych. Oblicz prawdopodobieństwo wylosowania białej.']];
+const DIFF={e:'łatwe',m:'średnie',h:'trudne'}, PTS={e:1,m:2,h:4};
+const TYPE={quiz:'Kartkówka',exam:'Sprawdzian',homework:'Praca domowa'};
+const ST={draft:'Szkic',open:'Zbieranie prac',graded:'Ocenione przez AI',returned:'Zwrócone'};
 const FIRST=['Ala','Bartek','Celina','Damian','Ewa','Filip','Gosia','Hubert','Iga','Janek','Kinga','Leon','Maja','Nikola','Oskar','Pola','Rafał','Sara','Tymon','Wiktoria','Zosia','Adam','Bruno','Dorota','Emil','Fabian'];
 const CLASSES=[{id:'1a',covered:4,size:26},{id:'2c',covered:7,size:24},{id:'3b',covered:10,size:22}];
-for(const c of CLASSES){
-  c.students=Array.from({length:c.size},(_,i)=>{
-    const ability=.3+r()*.6;
-    return{name:FIRST[(i*5+c.covered)%FIRST.length]+' '+'ABCDGKLMNPRSTWZ'[Math.floor(r()*15)]+'.',
-      att:Math.round(72+r()*28),late:r()<.12,
-      prog:Array.from({length:c.covered},()=>Math.round(Math.max(5,Math.min(100,(ability+(r()-.5)*.45)*100))))};
-  });
-}
-const TYPE={homework:'Praca domowa',quiz:'Kartkówka',exam:'Sprawdzian'};
-const ST={draft:'Szkic',open:'Zbieranie prac',graded:'Ocenione przez AI',returned:'Zwrócone'};
+for(const c of CLASSES)c.students=Array.from({length:c.size},(_,i)=>{
+  const ability=.3+r()*.6;
+  return{name:FIRST[(i*5+c.covered)%FIRST.length]+' '+'ABCDGKLMNPRSTWZ'[Math.floor(r()*15)]+'.',att:Math.round(72+r()*28),late:r()<.12,
+    prog:Array.from({length:c.covered},()=>Math.round(Math.max(5,Math.min(100,(ability+(r()-.5)*.45)*100))))};
+});
+let seq=0;
+const mkItem=(t,d,reqs=[])=>({t,d,k:seq++,req:reqs.length?reqs[Math.floor(r()*reqs.length)]:null});
+const mkItems=spec=>spec.flatMap(([t,d,n])=>Array.from({length:n},()=>mkItem(t,d)));
 const ASSIGN={
-  '1a':[{t:'Wzory skróconego mnożenia',type:'homework',due:'dziś 20:00',at:'20:00',sub:17,check:2,st:'open'},
-        {t:'Zbiory liczbowe',type:'quiz',due:'6 paź',sub:26,check:0,st:'returned'}],
-  '2c':[{t:'Funkcja kwadratowa',type:'exam',due:'7 paź (papier, skany)',sub:24,check:5,st:'graded'},
-        {t:'Ciągi: zadania z treścią',type:'homework',due:'13 paź',sub:9,check:0,st:'open'},
-        {t:'Ciąg arytmetyczny',type:'quiz',due:'14 paź',sub:0,check:0,st:'draft'}],
-  '3b':[{t:'Graniastosłupy',type:'homework',due:'wczoraj',sub:20,check:3,st:'graded'},
-        {t:'Próbna matura (arkusz własny)',type:'exam',due:'20 paź',sub:0,check:0,st:'draft'}]
+  '1a':[{t:'Wzory skróconego mnożenia',type:'homework',due:'dziś 20:00',sub:17,st:'open',items:mkItems([[1,'e',3],[1,'m',2]])},
+        {t:'Zbiory liczbowe',type:'quiz',due:'6 paź',sub:26,st:'returned',items:mkItems([[0,'e',2],[0,'m',2]])}],
+  '2c':[{t:'Funkcja kwadratowa',type:'exam',due:'7 paź',paper:true,sub:24,st:'graded',items:mkItems([[4,'e',3],[4,'m',3],[4,'h',1]])},
+        {t:'Ciągi: zadania z treścią',type:'homework',due:'13 paź',sub:9,st:'open',items:mkItems([[5,'m',3],[5,'h',1]])},
+        {t:'Ciąg arytmetyczny',type:'quiz',due:'14 paź',sub:0,st:'draft',items:mkItems([[5,'e',3],[5,'m',1]])}],
+  '3b':[{t:'Graniastosłupy',type:'homework',due:'wczoraj',sub:20,st:'graded',items:mkItems([[9,'e',2],[9,'m',2],[9,'h',1]])},
+        {t:'Próbna matura (arkusz własny)',type:'exam',due:'20 paź',sub:0,st:'draft',items:mkItems([[2,'e',3],[4,'m',3],[7,'m',2],[9,'h',2]])}]
 };
 const LESSONS=[
-  {time:'08:00',end:'08:45',cls:'2c',topic:5,title:'Ciąg arytmetyczny: suma n wyrazów',state:'done',present:22},
-  {time:'10:00',end:'10:45',cls:'1a',topic:1,title:'Wzory skróconego mnożenia',state:'live',present:24},
-  {time:'12:50',end:'13:35',cls:'3b',topic:9,title:'Graniastosłupy: pola i objętości',state:'next'}
+  {time:'08:00',cls:'2c',title:'Ciąg arytmetyczny: suma n wyrazów',state:'done'},
+  {time:'10:00',cls:'1a',title:'Wzory skróconego mnożenia',state:'live'},
+  {time:'12:50',cls:'3b',title:'Graniastosłupy: pola i objętości',state:'next'}
 ];
-const REASONS={'1a':['niska pewność AI','losowa próbka'],'2c':['nieczytelne pismo','nieczytelne pismo','niska pewność AI'],'3b':['geometria','geometria','niska pewność AI']};
-const CHECKS=[];
-for(const c of CLASSES)for(const a of ASSIGN[c.id])for(let k=0;k<a.check;k++){
-  const max=2+Math.floor(r()*4);
-  CHECKS.push({id:CHECKS.length,cls:c.id,a:a.t,student:c.students[Math.floor(r()*c.size)].name,item:1+Math.floor(r()*8),
-    max,pts:Math.floor(r()*(max+1)),conf:Math.round(55+r()*35),reason:REASONS[c.id][k%REASONS[c.id].length]});
-}
 
 // ---------- state ----------
 const P=new URLSearchParams(location.search);
-const VARIANTS={A:'Plan dnia',B:'Kolejka',C:'Tablica klas'};
-const S={variant:VARIANTS[P.get('variant')]?P.get('variant'):'A',view:P.get('view')==='class'?'class':'home',
-  cls:P.get('class')||'2c',tab:'students',filter:'all',student:0,cell:null,done:new Set()};
+const S={view:P.get('view')==='class'?'class':'home',cls:P.get('class')||'2c',student:null,filter:'all',
+  form:null,draft:null,work:null,sub:null,flash:null};
 
 // ---------- helpers ----------
 const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
-const col=(p,l=45)=>`hsl(${p*1.2} 65% ${l}%)`;
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const col=p=>`hsl(${p*1.2} 65% 45%)`;
 const bar=p=>`<div class="bar"><i style="width:${p}%;background:${col(p)}"></i></div>`;
 const badge=(t,k='')=>`<span class="badge ${k}">${t}</span>`;
-const cur=()=>CLASSES.find(c=>c.id===S.cls)||CLASSES[0];
-const openChecks=()=>CHECKS.filter(k=>!S.done.has(k.id));
-const topicAvg=(c,i)=>avg(c.students.map(s=>s.prog[i]));
+const CL=id=>CLASSES.find(c=>c.id===id)||CLASSES[0];
+const cur=()=>CL(S.cls);
 const sAvg=s=>avg(s.prog);
-const status=(c,a)=>a.st==='graded'&&!openChecks().some(k=>k.cls===c.id&&k.a===a.t)?'Gotowe do zwrotu':ST[a.st];
-const mins=t=>{const[h,m]=t.split(':');return h*60+ +m};
+const topicAvg=(c,i)=>avg(c.students.map(s=>s.prog[i]));
+const maxPts=a=>sum(a.items.map(it=>PTS[it.d]));
+const fmtDate=v=>{const d=new Date(v);return d.getDate()+' '+MONTHS[d.getMonth()]};
+const itemText=it=>POOL[it.t][it.k%POOL[it.t].length];
+const why=(p,m)=>p===m?'Poprawna metoda i wynik, pełne uzasadnienie.':p===0?'Brak rozwiązania albo błędna metoda od początku.':p>=m/2?'Poprawna metoda, błąd rachunkowy w końcowym kroku.':'Poprawny pierwszy krok, dalej rozwiązanie urwane.';
+// Faked AI grading: one entry per student, null when not handed in.
+function subs(c,a){
+  if(a.subs)return a.subs;
+  const rr=rng(a.t.length*31+c.size);
+  return a.subs=c.students.map((s,si)=>si>=a.sub||a.st==='draft'?null:a.items.map(it=>{
+    const m=PTS[it.d],p=(s.prog[it.t]??sAvg(s))/100,ai=Math.max(0,Math.min(m,Math.round(m*(p+(rr()-.5)*.5))));
+    return{ai,pts:ai};
+  }));
+}
+const score=sb=>sum(sb.map(x=>x.pts));
+const workAvg=(c,a)=>{const s=subs(c,a).filter(Boolean);return s.length?Math.round(avg(s.map(score))/maxPts(a)*100):null};
+const workRef=(cid,i)=>`work:${cid}:${i}`;
 
-// ---------- A: Plan dnia (chronological day + tabbed class page) ----------
-function A(){
-  return `<header class="top"><b data-act="home">Classlop</b><nav>
-    <a data-act="home" class="${S.view==='home'?'on':''}">Dziś</a>
-    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view==='class'&&S.cls===c.id?'on':''}">Klasa ${c.id}</a>`).join('')}
-  </nav><span class="muted">${TODAY}</span></header>`+(S.view==='home'?A_home():A_class());
-}
-function A_home(){
-  const evs=[...LESSONS.map(l=>({t:l.time,h:A_lesson(l)})),
-    ...CLASSES.flatMap(c=>ASSIGN[c.id].filter(a=>a.at).map(a=>({t:a.at,h:`<div class="ev"><div class="time">${a.at}</div><div class="panel"><div class="row"><b>Termin: ${a.t}</b>${badge(TYPE[a.type],a.type)}</div><div class="muted">Klasa ${c.id} · oddane ${a.sub}/${c.size}</div></div></div>`})))]
-    .sort((x,y)=>mins(x.t)-mins(y.t));
-  const i=evs.findIndex(e=>mins(e.t)>mins(NOW));
-  evs.splice(i<0?evs.length:i,0,{h:`<div class="now"><span style="text-align:right">${NOW}</span><hr></div>`});
-  const open=CLASSES.flatMap(c=>ASSIGN[c.id].filter(a=>a.st==='open').map(a=>({c,a})));
-  return `<div class="a-home"><div><h2>Plan dnia</h2>${evs.map(e=>e.h).join('')}</div><div style="display:flex;flex-direction:column;gap:16px">
-    <div class="panel"><h2>Spot-check (${openChecks().length})</h2>
-      ${openChecks().slice(0,6).map(k=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><div><b>${k.student}</b> · zad. ${k.item}<div class="muted">${k.cls} · ${k.a} · AI ${k.pts}/${k.max} pkt · ${k.reason}</div></div><button class="ghost" data-act="check:${k.id}">OK</button></div>`).join('')||'<div class="muted">Wszystko sprawdzone.</div>'}
-      ${openChecks().length>6?`<div class="muted" style="margin-top:6px">+ ${openChecks().length-6} więcej</div>`:''}</div>
-    <div class="panel"><h2>Spływające prace</h2>${open.map(({c,a})=>`<div style="margin-bottom:10px"><div class="row"><span>${c.id} · ${a.t}</span><span class="muted">${a.sub}/${c.size}</span></div>${bar(Math.round(a.sub/c.size*100))}</div>`).join('')}</div>
-  </div></div>`;
-}
-function A_lesson(l){
-  const c=CLASSES.find(x=>x.id===l.cls),lab={done:['Zakończona',''],live:['Trwa teraz','live'],next:['Następna','']}[l.state];
-  return `<div class="ev ${l.state}"><div class="time">${l.time}<small>${l.end}</small></div><div class="panel">
-    <div class="row"><b>Klasa ${l.cls}</b>${badge(lab[0],lab[1])}</div><div>${l.title}</div>
-    <div class="muted">${ROMAN[l.topic]}. ${TOPICS[l.topic]}${l.present?` · obecni ${l.present}/${c.size}`:''}</div>
-    <div class="actions">${l.state==='live'?'<button>Dołącz w Teams</button>':''}<button class="ghost" data-act="cls:${l.cls}">Otwórz klasę</button></div></div></div>`;
-}
-function A_class(){
-  const c=cur(),tabs={students:'Uczniowie',assignments:'Zadania',progress:'Postęp'};
-  let body;
-  if(S.tab==='students')body=`<table><tr><th>Uczeń</th><th>Frekwencja</th><th>Średni wynik</th><th>Najsłabszy temat</th><th></th></tr>
-    ${c.students.map(s=>{const w=s.prog.indexOf(Math.min(...s.prog));return`<tr><td>${s.name}</td><td>${s.att}%</td><td><div class="row" style="justify-content:flex-start">${bar(sAvg(s))}<span>${sAvg(s)}%</span></div></td><td>${ROMAN[w]}. ${TOPICS[w]}</td><td>${s.late?badge('brak pracy','warn'):''}</td></tr>`}).join('')}</table>`;
-  if(S.tab==='assignments')body=`<table><tr><th>Typ</th><th>Tytuł</th><th>Termin</th><th>Status</th><th>Oddane</th><th>Spot-check</th></tr>
-    ${ASSIGN[c.id].map(a=>`<tr><td>${badge(TYPE[a.type],a.type)}</td><td>${a.t}</td><td>${a.due}</td><td>${status(c,a)}</td><td>${a.sub}/${c.size}</td><td>${openChecks().filter(k=>k.cls===c.id&&k.a===a.t).length||'—'}</td></tr>`).join('')}</table>`;
-  if(S.tab==='progress')body=TOPICS.map((t,i)=>i<c.covered
-    ?`<div class="trow"><span>${ROMAN[i]}. ${t}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`
-    :`<div class="trow off"><span>${ROMAN[i]}. ${t}</span><span>jeszcze nie realizowany</span><span></span></div>`).join('');
-  return `<div class="a-class"><h1>Klasa ${c.id}</h1><div class="stats">
-    <span><b>${c.size}</b><span class="muted">uczniów</span></span>
-    <span><b>${avg(c.students.map(s=>s.att))}%</b><span class="muted">frekwencja</span></span>
-    <span><b>${avg(c.students.map(sAvg))}%</b><span class="muted">średni wynik</span></span>
-    <span><b>${openChecks().filter(k=>k.cls===c.id).length}</b><span class="muted">do spot-checku</span></span></div>
-    <div class="tabs">${Object.entries(tabs).map(([k,v])=>`<a data-act="tab:${k}" class="${S.tab===k?'on':''}">${v}</a>`).join('')}</div>
-    <div class="panel">${body}</div></div>`;
-}
-
-// ---------- B: Kolejka (one prioritised to-do queue + master/detail class page) ----------
+// ---------- home: one prioritised queue ----------
 function queue(){
   const q=[];
   for(const l of LESSONS.filter(l=>l.state!=='done'))q.push({kind:'lesson',p:l.state==='live'?0:3,
     title:l.state==='live'?`Trwa lekcja: klasa ${l.cls}`:`${l.time} lekcja: klasa ${l.cls}`,meta:l.title,
-    btn:l.state==='live'?['Dołącz w Teams','noop']:['Otwórz klasę','cls:'+l.cls]});
-  for(const k of openChecks())q.push({kind:'check',p:1,title:`Spot-check: ${k.student}, zad. ${k.item}`,
-    meta:`Klasa ${k.cls} · ${k.a} · AI ${k.pts}/${k.max} pkt (pewność ${k.conf}%) · ${k.reason}`,btn:['Zatwierdź ocenę AI','check:'+k.id]});
-  for(const c of CLASSES)for(const a of ASSIGN[c.id]){
-    if(status(c,a)==='Gotowe do zwrotu')q.push({kind:'work',p:2,title:`Gotowe do zwrotu: ${a.t}`,meta:`Klasa ${c.id} · wszystkie prace sprawdzone`,btn:['Zwróć w Teams','noop']});
-    if(a.at)q.push({kind:'work',p:4,title:`Termin dziś ${a.at}: ${a.t}`,meta:`Klasa ${c.id} · oddane ${a.sub}/${c.size}`,btn:['Otwórz klasę','cls:'+c.id]});
-    if(a.st==='draft')q.push({kind:'work',p:5,title:`Szkic do publikacji: ${a.t}`,meta:`Klasa ${c.id} · ${TYPE[a.type]} · termin ${a.due}`,btn:['Otwórz klasę','cls:'+c.id]});
-  }
+    btns:l.state==='live'?[['Dołącz w Teams','noop']]:[['Otwórz klasę','cls:'+l.cls,'ghost']]});
+  for(const c of CLASSES)ASSIGN[c.id].forEach((a,i)=>{
+    if(a.st==='graded')q.push({kind:'work',p:1,title:`Ocenione przez AI: <a data-act="${workRef(c.id,i)}">${a.t}</a> (${c.id})`,
+      meta:`${TYPE[a.type]} · średnio ${workAvg(c,a)}% · oddane ${a.sub}/${c.size}`,btns:[['Zobacz','work:'+c.id+':'+i,'ghost'],['Zwróć w Teams','ret:'+c.id+':'+i]]});
+    if(a.st==='open')q.push({kind:'work',p:4,title:`Termin ${a.due}: <a data-act="${workRef(c.id,i)}">${a.t}</a> (${c.id})`,
+      meta:`${TYPE[a.type]} · oddane ${a.sub}/${c.size}`,btns:[['Otwórz pracę','work:'+c.id+':'+i,'ghost']]});
+    if(a.st==='draft')q.push({kind:'work',p:5,title:`Szkic: ${a.t} (${c.id})`,meta:`${TYPE[a.type]} · termin ${a.due}`,btns:[['Dokończ','edit:'+c.id+':'+i,'ghost']]});
+  });
   return q.sort((x,y)=>x.p-y.p);
 }
-function B(){
-  return `<div class="b-shell"><aside class="side"><b class="logo" data-act="home">Classlop</b>
-    <a data-act="home" class="${S.view==='home'?'on':''}">Do zrobienia <span class="count">${queue().length}</span></a>
-    <div class="label">Klasy</div>
-    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view==='class'&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${openChecks().filter(k=>k.cls===c.id).length||''}</span></a>`).join('')}
-  </aside><main class="b-main">${S.view==='home'?B_home():B_class()}</main></div>`;
-}
-function B_home(){
-  const f={all:'Wszystko',lesson:'Lekcje',check:'Spot-check',work:'Zadania'},q=queue().filter(x=>S.filter==='all'||x.kind===S.filter);
+function home(){
+  const f={all:'Wszystko',lesson:'Lekcje',work:'Prace'},q=queue().filter(x=>S.filter==='all'||x.kind===S.filter);
   return `<h1>Dzień dobry</h1><div class="muted">${TODAY} · ${queue().length} rzeczy do zrobienia</div>
     <div class="chips">${Object.entries(f).map(([k,v])=>`<a data-act="filter:${k}" class="${S.filter===k?'on':''}">${v}</a>`).join('')}</div>
-    ${q.map(x=>`<div class="q"><div class="ico ${x.kind}">${{lesson:'LEK',check:'SC',work:'ZAD'}[x.kind]}</div><div><b>${x.title}</b><div class="muted">${x.meta}</div></div><button data-act="${x.btn[1]}">${x.btn[0]}</button></div>`).join('')||'<div class="muted">Pusto. Wszystko zrobione.</div>'}`;
-}
-function B_class(){
-  const c=cur(),s=c.students[S.student]||c.students[0];
-  return `<h1>Klasa ${c.id}</h1><div class="muted">${c.size} uczniów · frekwencja ${avg(c.students.map(s=>s.att))}%</div>
-    <div class="strip">${ASSIGN[c.id].map(a=>`<div class="panel">${badge(TYPE[a.type],a.type)}<div><b>${a.t}</b></div><div class="muted">${status(c,a)} · ${a.sub}/${c.size} · ${a.due}</div></div>`).join('')}</div>
-    <div class="split"><div class="panel slist" style="padding:6px;max-height:560px;overflow:auto">
-      ${c.students.map((x,i)=>`<a data-act="student:${i}" class="${x===s?'on':''}"><span>${x.name}${x.late?' <span class="badge warn">!</span>':''}</span>${bar(sAvg(x))}</a>`).join('')}
-    </div><div class="panel"><div class="row"><h1>${s.name}</h1><span class="muted">frekwencja ${s.att}% · średnio ${sAvg(s)}%</span></div>
-      <h2 style="margin-top:16px">Postęp według tematów</h2>
-      ${s.prog.map((p,i)=>`<div class="trow" style="grid-template-columns:220px 1fr 40px"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(p)}<b>${p}%</b></div>`).join('')}
-      <h2 style="margin-top:16px">Prace</h2>
-      ${ASSIGN[c.id].map((a,i)=>`<div class="row" style="padding:4px 0"><span>${a.t}</span><span class="muted">${a.st==='draft'?'—':s.late&&i===0?'nie oddano':Math.min(100,Math.round(sAvg(s)*(.85+i*.08)))+'%'}</span></div>`).join('')}
-      <h2 style="margin-top:16px">Notatka (prywatna)</h2><textarea placeholder="Notatka o uczniu, widoczna tylko dla nauczyciela"></textarea>
-    </div></div>`;
+    ${q.map(x=>`<div class="q"><div class="ico ${x.kind}">${x.kind==='lesson'?'LEK':'PRA'}</div><div><b>${x.title}</b><div class="muted">${x.meta}</div></div>
+      <div class="btns">${x.btns.map(([t,a,k])=>`<button class="${k||''}" data-act="${a}">${t}</button>`).join('')}</div></div>`).join('')||'<div class="muted">Pusto. Wszystko zrobione.</div>'}`;
 }
 
-// ---------- C: Tablica klas (day strip + one column per class + heatmap class page) ----------
-function C(){
-  return `<div class="c-wrap"><div class="row"><h1 data-act="home">Classlop</h1><span class="muted">${TODAY}</span></div>${S.view==='home'?C_home():C_class()}</div>`;
+// ---------- class page: overview or one student ----------
+function klass(){
+  const c=cur();
+  return `${S.flash?`<div class="flash">${S.flash}</div>`:''}
+    <div class="row"><div><h1>Klasa ${c.id}</h1><div class="muted">${c.size} uczniów · frekwencja ${avg(c.students.map(s=>s.att))}%</div></div>
+      <button data-act="new">+ Nowa praca</button></div>
+    <div class="split" style="margin-top:16px"><div class="panel slist" style="padding:6px;max-height:620px;overflow:auto">
+      <a data-act="student:-1" class="all ${S.student===null?'on':''}"><span>Cała klasa</span>${bar(avg(c.students.map(sAvg)))}</a>
+      ${c.students.map((x,i)=>`<a data-act="student:${i}" class="${S.student===i?'on':''}"><span>${x.name}${x.late?' '+badge('!','warn'):''}</span>${bar(sAvg(x))}</a>`).join('')}
+    </div><div class="panel">${S.student===null?overview(c):student(c,S.student)}</div></div>`;
 }
-function C_home(){
-  const x0=mins('07:30'),span=mins('16:00')-x0,pos=t=>((mins(t)-x0)/span*100)+'%';
-  const day=`<div class="day">${[8,9,10,11,12,13,14,15].map(h=>`<span class="hour" style="left:${pos(h+':00')}">${h}:00</span>`).join('')}
-    ${LESSONS.map(l=>`<span class="blk ${l.state==='live'?'live':''}" data-act="cls:${l.cls}" style="left:${pos(l.time)};width:${(mins(l.end)-mins(l.time))/span*100}%"><b>${l.cls}</b> ${l.title}</span>`).join('')}
-    <span class="nowline" style="left:${pos(NOW)}"></span></div>`;
-  return day+`<div class="board">${CLASSES.map(c=>{
-    const l=LESSONS.find(l=>l.cls===c.id),chk=openChecks().filter(k=>k.cls===c.id).length;
-    const weak=[...Array(c.covered).keys()].sort((a,b)=>topicAvg(c,a)-topicAvg(c,b)).slice(0,2);
-    const risk=c.students.filter(s=>sAvg(s)<35).length;
-    return `<div class="panel col"><div class="row"><h1 data-act="cls:${c.id}">${c.id}</h1><button class="ghost" data-act="cls:${c.id}">Otwórz</button></div>
-      <div class="muted">${c.size} uczniów</div>
-      <section><div class="muted">Dziś</div>${l?`<b>${l.time}</b> ${l.title} ${l.state==='live'?badge('trwa','live'):''}`:'brak lekcji'}</section>
-      <section class="row"><div><div class="muted">Spot-check</div><div class="big">${chk}</div></div><div><div class="muted">Wymaga uwagi</div><div class="big">${risk}</div></div></section>
-      <section><div class="muted">Zadania</div>${ASSIGN[c.id].map(a=>`<div style="margin:6px 0"><div class="row"><span>${badge(TYPE[a.type],a.type)} ${a.t}</span><span class="muted">${a.sub}/${c.size}</span></div><div class="muted" style="font-size:12px">${status(c,a)}</div></div>`).join('')}</section>
-      <section><div class="muted">Najsłabsze tematy</div>${weak.map(i=>`<div class="trow" style="grid-template-columns:1fr 80px 36px"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`).join('')}</section>
-    </div>`}).join('')}</div>`;
+function overview(c){
+  const watch=c.students.map((s,i)=>({s,i})).sort((a,b)=>sAvg(a.s)-sAvg(b.s)).slice(0,5);
+  return `<h2>Postęp klasy według tematów</h2>
+    ${TOPICS.slice(0,c.covered).map((t,i)=>`<div class="trow"><span>${ROMAN[i]}. ${t}</span>${bar(topicAvg(c,i))}<b>${topicAvg(c,i)}%</b></div>`).join('')}
+    <h2>Prace</h2><table><tr><th>Praca</th><th>Typ</th><th>Status</th><th>Średni wynik</th><th>Oddane</th></tr>
+    ${ASSIGN[c.id].map((a,i)=>`<tr data-act="${a.st==='draft'?'edit':'work'}:${c.id}:${i}"><td><a>${a.t}</a></td><td>${badge(TYPE[a.type],a.type)}</td><td>${ST[a.st]}</td><td>${a.st!=='draft'&&workAvg(c,a)!==null?workAvg(c,a)+'%':'—'}</td><td>${a.sub}/${c.size}</td></tr>`).join('')}</table>
+    <h2>Wymagają uwagi</h2>
+    ${watch.map(({s,i})=>`<div class="trow" data-act="student:${i}"><a>${s.name}</a>${bar(sAvg(s))}<b>${sAvg(s)}%</b></div>`).join('')}`;
 }
-function C_class(){
-  const c=cur(),rows=c.students.map((s,i)=>({s,i})).sort((a,b)=>sAvg(a.s)-sAvg(b.s));
-  const [si,ti]=(S.cell||'').split('-').map(Number),sel=S.cell&&c.students[si];
-  return `<div class="row" style="margin-top:12px"><a data-act="home">&larr; Tablica</a><span></span></div>
-    <h1 style="font-size:28px">Klasa ${c.id}</h1>
-    <div class="tiles">
-      <div class="panel"><div class="muted">Średni wynik</div><div class="big">${avg(c.students.map(sAvg))}%</div></div>
-      <div class="panel"><div class="muted">Frekwencja</div><div class="big">${avg(c.students.map(s=>s.att))}%</div></div>
-      <div class="panel"><div class="muted">Spot-check</div><div class="big">${openChecks().filter(k=>k.cls===c.id).length}</div></div>
-      ${ASSIGN[c.id].map(a=>`<div class="panel">${badge(TYPE[a.type],a.type)}<div><b>${a.t}</b></div><div class="muted">${status(c,a)} · ${a.sub}/${c.size}</div></div>`).join('')}
-    </div>
-    <div class="panel"><div class="row"><h2>Uczniowie × tematy (najsłabsi na górze)</h2><span class="muted">${sel?`<b>${sel.name}</b> · ${ROMAN[ti]}. ${TOPICS[ti]}: ${sel.prog[ti]}%`:'Kliknij komórkę'}</span></div>
-    <table class="heat"><tr><th>Uczeń</th>${[...Array(c.covered).keys()].map(i=>`<th title="${TOPICS[i]}">${ROMAN[i]}</th>`).join('')}<th>Śr.</th><th>Frekw.</th></tr>
-      ${rows.map(({s,i})=>`<tr><td>${s.name}${s.late?' '+badge('!','warn'):''}</td>${s.prog.map((p,t)=>`<td class="cell ${S.cell===i+'-'+t?'sel':''}" data-act="cell:${i}-${t}" style="background:${col(p,85)}">${p}</td>`).join('')}<td><b>${sAvg(s)}</b></td><td>${s.att}%</td></tr>`).join('')}
-      <tr><th>Klasa</th>${[...Array(c.covered).keys()].map(i=>`<th style="background:${col(topicAvg(c,i),85)}">${topicAvg(c,i)}</th>`).join('')}<th>${avg(c.students.map(sAvg))}</th><th></th></tr>
-    </table></div>`;
+function student(c,si){
+  const s=c.students[si];
+  return `<a data-act="student:-1">&larr; cała klasa</a>
+    <div class="row" style="margin-top:8px"><h1>${s.name}</h1><span class="muted">frekwencja ${s.att}% · średnio ${sAvg(s)}%</span></div>
+    <h2>Postęp według tematów</h2>
+    ${s.prog.map((p,i)=>`<div class="trow"><span>${ROMAN[i]}. ${TOPICS[i]}</span>${bar(p)}<b>${p}%</b></div>`).join('')}
+    <h2>Prace</h2>
+    ${ASSIGN[c.id].filter(a=>a.st!=='draft').map(a=>{const sb=subs(c,a)[si];return`<div class="row" style="padding:4px 0"><span>${a.t}</span><span class="muted">${sb?Math.round(score(sb)/maxPts(a)*100)+'%':'nie oddano'}</span></div>`}).join('')}
+    <h2>Notatka (prywatna)</h2><textarea style="width:100%;min-height:60px;font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px" placeholder="Widoczna tylko dla nauczyciela"></textarea>`;
+}
+
+// ---------- new Assignment form ----------
+const autoTitle=f=>f.rows.map(x=>TOPICS[x.t]).join(' i ')||'Nowa praca';
+const totals=f=>({e:sum(f.rows.map(x=>x.e)),m:sum(f.rows.map(x=>x.m)),h:sum(f.rows.map(x=>x.h))});
+const canGenerate=f=>{const t=totals(f);return t.e+t.m+t.h>0&&(f.who==='all'||f.students.size>0)};
+function form(){
+  const c=cur(),f=S.form,t=totals(f),used=new Set(f.rows.map(x=>x.t));
+  const opts=(from,to)=>TOPICS.map((n,i)=>({n,i})).slice(from,to).filter(x=>!used.has(x.i)).map(x=>`<option value="${x.i}">${ROMAN[x.i]}. ${x.n}</option>`).join('');
+  return `<div class="row"><h1>Nowa praca · klasa ${c.id}</h1><button class="ghost" data-act="cls:${c.id}">Anuluj</button></div>
+  <div class="panel" style="margin-top:16px">
+    <div class="field"><label>Typ</label><div class="seg">${Object.entries(TYPE).map(([k,v])=>`<a data-act="type:${k}" class="${f.type===k?'on':''}">${v}</a>`).join('')}</div></div>
+    <div class="field"><label>Tytuł</label><input data-f="title" style="width:420px" value="${f.titleTouched?f.title:autoTitle(f)}"> <span class="muted">podpowiedź z tematów, możesz zmienić</span></div>
+    <div class="field"><label>Zadania: tematy × trudność</label>
+      <table class="grid"><tr><th>Dział</th><th>Łatwe (1 pkt)</th><th>Średnie (2 pkt)</th><th>Trudne (4 pkt)</th><th></th></tr>
+      ${f.rows.map((x,ri)=>`<tr><td><b>${ROMAN[x.t]}. ${TOPICS[x.t]}</b>${x.t>=c.covered?' '+badge('nieprzerobiony','warn'):''}
+          <div><a data-act="narrow:${ri}" style="font-size:12px">${x.open?'zwiń':'zawęź do wymagań'}${x.req.length?` (${x.req.length})`:''}</a></div>
+          ${x.open?`<div class="reqs">${REQS[x.t].map((q,j)=>`<label><input type="checkbox" data-c="req:${ri}:${j}" ${x.req.includes(j)?'checked':''}> ${ROMAN[x.t]}.${j+1} ${q}</label>`).join('')}</div>`:''}</td>
+        ${['e','m','h'].map(d=>`<td><input type="number" min="0" max="20" data-f="cnt:${ri}:${d}" value="${x[d]}"></td>`).join('')}
+        <td><a data-act="rmrow:${ri}">usuń</a></td></tr>`).join('')}
+      ${f.rows.length?'':'<tr><td colspan="5" class="muted" style="text-align:left">Brak działów. Dodaj pierwszy poniżej.</td></tr>'}
+      <tr style="background:#f8fafc"><td><b>Razem</b> <span class="muted">(<b id="t-all">${t.e+t.m+t.h}</b> zadań, <b id="t-pts">${t.e+2*t.m+4*t.h}</b> pkt)</span></td>
+        <td id="t-e">${t.e}</td><td id="t-m">${t.m}</td><td id="t-h">${t.h}</td><td></td></tr></table>
+      <select data-c="addrow" style="margin-top:10px"><option value="">+ dodaj dział…</option><optgroup label="Przerobione w klasie">${opts(0,c.covered)}</optgroup><optgroup label="Jeszcze nieprzerobione">${opts(c.covered)}</optgroup></select></div>
+    <div class="field"><label>Dla kogo</label><div class="seg"><a data-act="who:all" class="${f.who==='all'?'on':''}">Cała klasa</a><a data-act="who:pick" class="${f.who==='pick'?'on':''}">Wybierz uczniów</a></div>
+      ${f.who==='pick'?`<div class="panel" style="margin-top:10px;max-height:280px;overflow:auto;padding:6px 10px">
+        <div class="row"><span class="muted">Zaznaczono: <b>${f.students.size}</b></span><span><a data-act="pickall:1">zaznacz wszystkich</a> · <a data-act="pickall:0">odznacz</a></span></div>
+        <table><tr><th></th><th>Uczeń</th><th>Średni wynik z prac</th></tr>${c.students.map((s,i)=>`<tr><td style="width:30px"><input type="checkbox" data-c="stu:${i}" ${f.students.has(i)?'checked':''}></td><td>${s.name}</td><td class="muted">${sAvg(s)}%</td></tr>`).join('')}</table></div>`:''}</div>
+    <div class="foot"><button id="gen" data-act="generate" ${canGenerate(f)?'':'disabled'}>Generuj zadania</button></div>
+  </div>`;
+}
+function liveTotals(){
+  const f=S.form,t=totals(f);
+  for(const k of ['e','m','h'])document.getElementById('t-'+k).textContent=t[k];
+  document.getElementById('t-all').textContent=t.e+t.m+t.h;
+  document.getElementById('t-pts').textContent=t.e+2*t.m+4*t.h;
+  document.getElementById('gen').disabled=!canGenerate(f);
+}
+
+// ---------- preview of generated Items ----------
+function preview(){
+  const d=S.draft,c=CL(d.cls),pts=sum(d.items.map(it=>PTS[it.d]));
+  return `<div class="row"><h1>Podgląd: ${d.title}</h1><button class="ghost" data-act="${d.editing?'cls:'+c.id:'backform'}">${d.editing?'Anuluj':'&larr; Wróć do formularza'}</button></div>
+    <div class="muted" style="margin:6px 0 16px">${badge(TYPE[d.type],d.type)} · klasa ${c.id} · ${d.forWhom}</div>
+    <div class="panel"><div class="muted" style="font-size:12px">Treści przykładowe; prawdziwe generowanie to ticket #10.</div>
+    ${d.items.map((it,i)=>`<div class="item"><span class="n">${i+1}.</span><div>${itemText(it)}
+        <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${it.req!==null?badge(ROMAN[it.t]+'.'+(it.req+1)+' '+REQS[it.t][it.req]):''} ${badge(DIFF[it.d],it.d)} ${badge(PTS[it.d]+' pkt')}</div></div>
+      <div style="display:flex;gap:6px;align-items:start"><button class="ghost" data-act="reroll:${i}">wylosuj inne</button><button class="ghost" data-act="delitem:${i}">usuń</button></div></div>`).join('')||'<div class="muted" style="padding:12px 0">Brak zadań.</div>'}
+    <div class="foot"><span class="muted">${d.items.length} zadań · <b>${pts} pkt</b></span>
+      <label>Termin <input type="date" data-f="due" value="${d.due}"></label>
+      <button class="ghost" data-act="save:draft" ${d.items.length?'':'disabled'}>Zapisz szkic</button>
+      <button data-act="save:open" ${d.items.length?'':'disabled'}>Opublikuj w Teams</button></div></div>`;
+}
+
+// ---------- AI-graded Assignment: list, then one Submission ----------
+function work(){
+  const {cid,i}=S.work,c=CL(cid),a=ASSIGN[cid][i],sb=subs(c,a),m=maxPts(a);
+  return `<div class="row"><a data-act="cls:${cid}">&larr; klasa ${cid}</a>${a.st==='graded'?`<button data-act="ret:${cid}:${i}">Zwróć w Teams</button>`:''}</div>
+    <h1 style="margin-top:8px">${a.t}</h1>
+    <div class="muted" style="margin:6px 0 16px">${badge(TYPE[a.type],a.type)} · klasa ${cid} · ${ST[a.st]} · termin ${a.due} · ${a.items.length} zadań, ${m} pkt</div>
+    <div class="panel"><div class="row"><h2>Prace uczniów</h2><span class="muted">oddane ${a.sub}/${c.size} · średnio <b>${workAvg(c,a)??'—'}%</b></span></div>
+    <table><tr><th>Uczeń</th><th>Wynik AI</th><th>Status</th><th></th></tr>
+    ${c.students.map((s,si)=>{const x=sb[si],edited=x&&x.some(y=>y.pts!==y.ai);
+      return x?`<tr data-act="sub:${si}"><td><a>${s.name}</a></td><td><b>${score(x)}/${m}</b> pkt (${Math.round(score(x)/m*100)}%)</td><td>oddane</td><td>${edited?badge('poprawione przez nauczyciela','warn'):''}</td></tr>`
+        :`<tr><td class="muted">${s.name}</td><td class="muted">—</td><td>${badge('nie oddano','warn')}</td><td></td></tr>`}).join('')}</table></div>`;
+}
+function submission(){
+  const {cid,i}=S.work,c=CL(cid),a=ASSIGN[cid][i],sb=subs(c,a),si=S.sub,x=sb[si],m=maxPts(a);
+  const handed=sb.map((y,k)=>y?k:null).filter(k=>k!==null),pos=handed.indexOf(si);
+  return `<div class="row"><a data-act="${workRef(cid,i)}">&larr; ${a.t}</a>
+      <span><a data-act="sub:${handed[(pos-1+handed.length)%handed.length]}">&larr; poprzedni</a> · <a data-act="sub:${handed[(pos+1)%handed.length]}">następny &rarr;</a></span></div>
+    <div class="row" style="margin:8px 0 16px"><h1>${c.students[si].name}</h1><span style="font-size:18px"><b id="score">${score(x)}</b>/${m} pkt</span></div>
+    <div class="panel">${a.items.map((it,k)=>{const y=x[k];return`<div class="item"><span class="n">${k+1}.</span><div>${itemText(it)}
+        <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${badge(DIFF[it.d],it.d)}</div>
+        <div class="answer">${a.paper?'Odczyt AI z pisma ucznia':'Rozwiązanie ucznia z Teams'} (przykład): obliczenia krok po kroku, wynik końcowy.</div>
+        <div><b>Uzasadnienie AI:</b> ${why(y.ai,PTS[it.d])}</div></div>
+      <div style="text-align:right"><div class="muted" style="font-size:12px">AI: ${y.ai}/${PTS[it.d]}</div>
+        <input type="number" min="0" max="${PTS[it.d]}" data-f="pts:${k}" value="${y.pts}"> / ${PTS[it.d]}
+        <div id="ed-${k}" class="muted" style="font-size:12px">${y.pts!==y.ai?'zmieniono':''}</div></div></div>`}).join('')}</div>`;
 }
 
 // ---------- wiring ----------
+const VIEWS={home,class:klass,new:form,preview,work,sub:submission};
+const LABEL={home:'pulpit',class:'strona klasy',new:'nowa praca',preview:'podgląd zadań',work:'praca ocenione przez AI',sub:'praca ucznia'};
 function render(){
-  try{const p=new URLSearchParams({variant:S.variant,view:S.view});if(S.view==='class')p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
-  document.getElementById('app').innerHTML=({A,B,C})[S.variant]();
-  document.getElementById('bar-label').textContent=`${S.variant} (${VARIANTS[S.variant]}) · ${S.view==='home'?'pulpit':'klasa '+S.cls} · spot-check otwarte: ${openChecks().length}`;
+  try{const p=new URLSearchParams({view:S.view==='home'?'home':'class'});if(S.view!=='home')p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
+  const graded=c=>ASSIGN[c.id].filter(a=>a.st==='graded').length;
+  document.getElementById('app').innerHTML=`<div class="shell"><aside class="side"><b class="logo" data-act="home">Classlop</b>
+    <a data-act="home" class="${S.view==='home'?'on':''}">Do zrobienia <span class="count">${queue().length}</span></a>
+    <div class="label">Klasy</div>
+    ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${S.view!=='home'&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${graded(c)||''}</span></a>`).join('')}
+  </aside><main>${VIEWS[S.view]()}</main></div>`;
+  document.getElementById('bar-label').textContent=`${LABEL[S.view]} · dane wymyślone, nic nie jest zapisywane`;
+  S.flash=null;
 }
-const keys=Object.keys(VARIANTS);
-const cycle=d=>{S.variant=keys[(keys.indexOf(S.variant)+d+keys.length)%keys.length]};
-const ACT={home:()=>{S.view='home'},cls:a=>{S.view='class';S.cls=a;S.student=0;S.cell=null},tab:a=>{S.tab=a},filter:a=>{S.filter=a},
-  student:a=>{S.student=+a},cell:a=>{S.cell=a},check:a=>{S.done.add(+a)},prev:()=>cycle(-1),next:()=>cycle(1),noop:()=>{}};
-document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t)return;const[a,arg]=t.dataset.act.split(':');ACT[a]?.(arg);render()});
-addEventListener('keydown',e=>{if(e.target.closest?.('input,textarea,[contenteditable]'))return;
-  if(e.key==='ArrowLeft'){cycle(-1);render()}if(e.key==='ArrowRight'){cycle(1);render()}});
+const draftFromForm=()=>{const f=S.form,c=cur();return{cls:c.id,type:f.type,title:f.titleTouched&&f.title.trim()?f.title:autoTitle(f),due:'',
+  forWhom:f.who==='all'?'cała klasa':`${f.students.size} wybranych uczniów`,
+  items:f.rows.flatMap(x=>['e','m','h'].flatMap(d=>Array.from({length:x[d]},()=>mkItem(x.t,d,x.req))))}};
+const ACT={
+  noop:()=>{},
+  home:()=>{S.view='home'},
+  cls:id=>{S.view='class';S.cls=id;S.student=null},
+  filter:k=>{S.filter=k},
+  student:i=>{S.student=+i<0?null:+i},
+  new:()=>{S.form={type:'quiz',title:'',titleTouched:false,rows:[],who:'all',students:new Set()};S.view='new'},
+  type:k=>{S.form.type=k},
+  narrow:ri=>{const x=S.form.rows[ri];x.open=!x.open},
+  rmrow:ri=>{S.form.rows.splice(+ri,1)},
+  who:k=>{S.form.who=k},
+  pickall:on=>{S.form.students=new Set(+on?cur().students.map((_,i)=>i):[])},
+  generate:()=>{S.draft=draftFromForm();S.view='preview'},
+  backform:()=>{S.view='new'},
+  edit:(cid,i)=>{const a=ASSIGN[cid][i];S.cls=cid;S.draft={cls:cid,type:a.type,title:a.t,due:'',forWhom:'cała klasa',items:a.items.map(it=>({...it})),editing:a};S.view='preview'},
+  reroll:i=>{S.draft.items[i].k++},
+  delitem:i=>{S.draft.items.splice(+i,1)},
+  save:st=>{const d=S.draft,a=d.editing||{};
+    Object.assign(a,{t:d.title,type:d.type,items:d.items,st,sub:0,due:d.due?fmtDate(d.due):(a.due||'bez terminu')});delete a.subs;
+    if(!d.editing)ASSIGN[d.cls].push(a);
+    S.view='class';S.cls=d.cls;S.student=null;S.flash=st==='open'?`Opublikowano „${a.t}” w Teams (na niby).`:`Zapisano szkic „${a.t}”.`},
+  work:(cid,i)=>{S.cls=cid;S.work={cid,i:+i};S.view='work'},
+  sub:si=>{S.sub=+si;S.view='sub'},
+  ret:(cid,i)=>{ASSIGN[cid][i].st='returned'}
+};
+const FIELD={
+  title:v=>{S.form.title=v;S.form.titleTouched=true},
+  cnt:(v,ri,d)=>{S.form.rows[ri][d]=Math.max(0,parseInt(v)||0);liveTotals()},
+  due:v=>{S.draft.due=v},
+  pts:(v,k,_,el)=>{const {cid,i}=S.work,a=ASSIGN[cid][i],y=subs(CL(cid),a)[S.sub][k];
+    y.pts=Math.max(0,Math.min(PTS[a.items[k].d],parseInt(v)||0));
+    document.getElementById('score').textContent=score(subs(CL(cid),a)[S.sub]);
+    document.getElementById('ed-'+k).textContent=y.pts!==y.ai?'zmieniono':''}
+};
+const CHANGE={
+  addrow:v=>{if(v!=='')S.form.rows.push({t:+v,e:0,m:0,h:0,req:[],open:false})},
+  req:(_,ri,j)=>{const x=S.form.rows[ri].req,n=+j;x.includes(n)?x.splice(x.indexOf(n),1):x.push(n)},
+  stu:(_,i)=>{const s=S.form.students,n=+i;s.has(n)?s.delete(n):s.add(n)}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;const[a,...args]=t.dataset.act.split(':');if(!ACT[a])return;ACT[a](...args);render()});
+document.addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;const[k,...args]=f.split(':');FIELD[k](e.target.value,...args)});
+document.addEventListener('change',e=>{const f=e.target.dataset.c;if(!f)return;const[k,...args]=f.split(':');CHANGE[k](e.target.value,...args);render()});
 render();
 </script>
 </body>
