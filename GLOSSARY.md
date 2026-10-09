@@ -52,6 +52,10 @@ _Avoid_: Comment, observation
 One requirement of the liceum mathematics podstawa programowa at basic level; the unit that items are tagged with and progress is measured in.
 _Avoid_: Topic (unqualified), chapter, skill, standard
 
+**Curriculum section**:
+One of the numbered sections of the podstawa programowa (I. Liczby rzeczywiste, ...), grouping curriculum topics.
+_Avoid_: Chapter, unit, dział (except as the UI label)
+
 **General requirement**:
 One of the four general requirements of the podstawa programowa (I computation, II using information, III representations, IV reasoning); the kind of thinking an item demands.
 _Avoid_: Skill, competence, ability
@@ -157,3 +161,25 @@ _Avoid_: Deleted item, archived item
 **Spot-check**:
 The teacher reviewing the AI-graded submissions flagged for it, the held ones and those with geometry, rather than every one.
 _Avoid_: Review, moderation
+
+### Reports
+
+**Progress**:
+The share of available points a student or class has earned on graded items tagged with one curriculum topic or curriculum section; missing and excused submissions are left out.
+_Avoid_: Mastery, score (unqualified), level
+
+**Assignment summary**:
+The teacher's view of how a class did on one assignment: results per student, submission states, and how each item went.
+_Avoid_: Report (unqualified), statistics
+
+**Suggested grade**:
+The school grade (1 to 6) that a submission's percentage maps to under the teacher's thresholds; shown only to the teacher, who enters grades in the e-gradebook by hand.
+_Avoid_: Grade (unqualified), ocena, mark
+
+**Class overview**:
+The teacher's view of one class: its progress, its assignments and the students needing attention.
+_Avoid_: Teacher overview, dashboard
+
+**Student report**:
+The teacher's view of one student over a chosen period, also downloadable for parent meetings.
+_Avoid_: Report card, świadectwo, student detail
