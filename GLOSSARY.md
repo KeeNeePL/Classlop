@@ -184,6 +184,10 @@ _Avoid_: Mastery, score (unqualified), level
 The teacher's view of how a class did on one assignment: results per student, submission states, and how each item went.
 _Avoid_: Report (unqualified), statistics
 
+**Common mistake**:
+A mistake the AI found in at least three submissions on one item of one assignment.
+_Avoid_: Typical error, frequent error, typowy błąd
+
 **Suggested grade**:
 The school grade (1 to 6) that a submission's percentage maps to under the teacher's thresholds; shown only to the teacher, who enters grades in the e-gradebook by hand.
 _Avoid_: Grade (unqualified), ocena, mark
