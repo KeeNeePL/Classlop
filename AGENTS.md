@@ -26,6 +26,10 @@ This repo is public. Use invented examples everywhere; student data and textbook
 
 GitHub Issues on `KeeNeePL/Classlop`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
+### Shipping an issue
+
+Ship each completed issue as a PR: commit on a new branch `<issue-number>-<short-slug>` cut from `main`, push it, and open the PR with `gh pr create`, its body carrying `Closes #<issue-number>` so merging closes the issue.
+
 ### Triage labels
 
 The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
