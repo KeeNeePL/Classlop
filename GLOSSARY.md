@@ -36,8 +36,20 @@ _Avoid_: Comment, observation
 One requirement of the liceum mathematics podstawa programowa at basic level; the unit that items are tagged with and progress is measured in.
 _Avoid_: Topic (unqualified), chapter, skill, standard
 
+**General requirement**:
+One of the four general requirements of the podstawa programowa (I computation, II using information, III representations, IV reasoning); the kind of thinking an item demands.
+_Avoid_: Skill, competence, ability
+
+**Difficulty**:
+How hard an item or exemplar is: easy, medium or hard.
+_Avoid_: Level (ambiguous with basic and extended level)
+
+**Exemplar**:
+An existing exercise in the knowledge base, tagged like an item, that the AI uses as a model when generating items. Never given to students.
+_Avoid_: Example, source task, template
+
 **Knowledge base**:
-The books and curriculum documents the AI draws on when generating items and grading.
+The material the AI draws on when generating items and grading: exemplars from ZPE e-materials and CKE papers, and the podstawa programowa.
 _Avoid_: RAG, library, sources
 
 ### Work
@@ -45,6 +57,14 @@ _Avoid_: RAG, library, sources
 **Item**:
 A single question or exercise, tagged with curriculum topics and worth a number of points.
 _Avoid_: Task, question, exercise
+
+**Item format**:
+How an item is answered: closed (choosing from given options) or open (a written answer or solution).
+_Avoid_: Item type, question type (type belongs to assignments)
+
+**Generation request**:
+The teacher asking the AI for new items: a free-text description, difficulty, item format, count and optionally curriculum topics.
+_Avoid_: Prompt, generation prompt, query
 
 **Assignment**:
 A set of items given to a whole class or to selected students. Has a type: homework, quiz or exam.
