@@ -91,7 +91,7 @@ The CKE-style scoring scheme of an item: which stages of a solution earn which p
 _Avoid_: Marking scheme, criteria, klucz
 
 **Generation request**:
-The teacher asking the AI for new items in their own words, from which the AI reads difficulty, item format, count and any curriculum topics.
+The teacher asking the AI for new items, in their own words in a chat or by generating the shortfall in Nowa praca; the AI needs difficulty, item format and count, and may take curriculum topics.
 _Avoid_: Prompt, generation prompt, query
 
 **Assignment**:
