@@ -1,6 +1,7 @@
+import json
 from pathlib import Path
 
-from aws_cdk import CfnOutput, Duration, RemovalPolicy, SecretValue, Stack
+from aws_cdk import CfnOutput, Duration, RemovalPolicy, Stack
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_ec2 as ec2
@@ -23,6 +24,10 @@ APP_SECRETS = [
     "LANGSMITH_API_KEY",
     "TYPESAFE_API_KEY",
     "SESSION_KEY",
+    # Not secret, but set per deployment and filled in the same place.
+    "LLM_BASE_URL",
+    "M365_TENANT_ID",
+    "M365_CLIENT_ID",
 ]
 
 
@@ -138,13 +143,20 @@ class ClasslopStack(Stack):
         )
         self.queue.grant_send_messages(self.schedule_role)
 
-        # Filled by hand with `aws secretsmanager put-secret-value`; the keys exist from the
-        # start so the tasks can boot before that.
+        # Filled by hand. Every key exists from the start so the tasks can boot before that, and
+        # a generated secret is never rewritten by later deploys, so hand-filled values stay.
         app_secret = secretsmanager.Secret(
             self,
             "AppSecret",
             secret_name="classlop/app",
-            secret_object_value={k: SecretValue.unsafe_plain_text("") for k in APP_SECRETS},
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template=json.dumps(
+                    {k: "" for k in APP_SECRETS if k != "SESSION_KEY"}
+                ),
+                generate_string_key="SESSION_KEY",
+                exclude_punctuation=True,
+                password_length=64,
+            ),
             removal_policy=RemovalPolicy.DESTROY,
         )
 

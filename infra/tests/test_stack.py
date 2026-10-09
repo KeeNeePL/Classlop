@@ -1,3 +1,5 @@
+import json
+
 import aws_cdk as cdk
 import pytest
 from aws_cdk.assertions import Match, Template
@@ -86,7 +88,22 @@ APP_SECRETS = [
     "LANGSMITH_API_KEY",
     "TYPESAFE_API_KEY",
     "SESSION_KEY",
+    "LLM_BASE_URL",
+    "M365_TENANT_ID",
+    "M365_CLIENT_ID",
 ]
+
+
+def test_app_secret_is_generated_so_deploys_never_overwrite_hand_filled_values(template):
+    secret = next(
+        s["Properties"]
+        for s in template.find_resources("AWS::SecretsManager::Secret").values()
+        if s["Properties"].get("Name") == "classlop/app"
+    )
+    assert "SecretString" not in secret
+    generated = secret["GenerateSecretString"]
+    assert generated["GenerateStringKey"] == "SESSION_KEY"
+    assert set(json.loads(generated["SecretStringTemplate"])) | {"SESSION_KEY"} == set(APP_SECRETS)
 
 
 def task_definitions(template) -> list[dict]:
