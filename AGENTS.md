@@ -6,7 +6,7 @@ A daily dashboard for one mathematics teacher in a Polish liceum, built on the t
 
 ## Stack
 
-Python, LangChain and LangGraph. Run all Python through uv: `uv run` for scripts and tools, `uv add` / `uv remove` for dependencies, `uv sync` to install. Never call `python`, `pip` or `python -m` directly.
+Python backend (FastAPI, LangChain, LangGraph) and an Angular frontend; prod on AWS, dev on local stand-ins through docker compose. The system shape and seams are in the resolution of issue #28 and in `docs/adr/`. Run all Python through uv: `uv run` for scripts and tools, `uv add` / `uv remove` for dependencies, `uv sync` to install. Never call `python`, `pip` or `python -m` directly.
 
 ## Code style
 
