@@ -37,3 +37,7 @@ CLAUDE.local.md
 .idea/
 .DS_Store
 Thumbs.db
+
+# CDK
+cdk.out/
+cdk.context.json
