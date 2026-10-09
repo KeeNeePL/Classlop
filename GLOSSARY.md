@@ -150,6 +150,10 @@ _Avoid_: Conversation, thread, session, rozmowa
 The teacher adding their own exercises to the item bank from a file, split into one item per exercise.
 _Avoid_: Import
 
+**Extraction**:
+The AI's reading of one exercise from an item upload into an item's text; the teacher checks it against the crop of the page when the AI is unsure.
+_Avoid_: Transcription (that is a student's work), OCR
+
 **Flagged item**:
 An item the AI marks for the teacher's attention, such as one with no exemplar or one that kept failing the tag check; it stays usable until the teacher edits it or dismisses the flag.
 _Avoid_: Unreviewed item, draft
