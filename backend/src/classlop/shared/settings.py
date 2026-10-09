@@ -21,6 +21,17 @@ class Settings(BaseSettings):
     # Where the browser reaches S3 when it differs from s3_endpoint_url (MinIO inside compose).
     s3_public_endpoint_url: str | None = None
 
+    sqs_endpoint_url: str | None = None
+    jobs_queue: str = "classlop-jobs"
+    jobs_dlq: str = "classlop-jobs-dlq"
+    jobs_visibility_timeout: int = 60
+    # Seconds before a failed job is redelivered.
+    jobs_retry_delay: int = 10
+    # Set in prod: timed triggers go to EventBridge Scheduler instead of the shared.schedule table.
+    schedule_group: str | None = None
+    schedule_role_arn: str | None = None
+    jobs_queue_arn: str | None = None
+
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
     llm_chat_model: str = "gpt-5.4-mini"
