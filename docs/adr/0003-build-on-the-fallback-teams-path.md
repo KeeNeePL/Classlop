@@ -1,0 +1,3 @@
+# Build on the fallback Teams path, behind one Teams interface
+
+Classlop is built against the fallback path on the Microsoft 365 Business Basic demo tenant: an Assignment is given as a channel post plus an upload folder, hand-ins are read from that folder, and Feedback returns by 1:1 chat with text and PDF. We considered building on Teams Assignments through an Office 365 A1 Education tenant, which gives the full Assignment lifecycle in Graph, but the team has the Business tenant already and the choice shapes the teams, grading and dashboard areas at once, so leaving it open would block all three. Every call to Teams goes through one interface, so the A1 path can later slot in behind it without the other areas changing.
