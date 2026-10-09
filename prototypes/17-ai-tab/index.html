@@ -1,13 +1,10 @@
 <!doctype html>
 <!--
-PROTOTYPE, throwaway (issue #17). Variants of the Classlop AI tab, switchable with ?variant=A|B|C|D
-or the arrows in the bottom bar (keyboard left/right too). D is the Teacher's pick so far; A-C are the first round:
-  D Czaty z historią: like Copilot or ChatGPT; named past chats on the left, a Class as chat context.
-  A Czat: one conversation; the AI reads a Generation request from free text and shows controls to confirm.
-  B Warsztat: a form with controls and a file drop on the left, results on the right, questions in a small box.
-  C Zlecenia: a command bar and a list of jobs running in the background, each opening into its result.
-The rest of the app is the #12 prototype, so the "Nowa praca" shortfall link leads here and back.
-All variants share one faked engine. Invented data only; nothing is persisted.
+PROTOTYPE, throwaway (issue #17). The Classlop AI tab: Chats with named history on the left, like Copilot or ChatGPT.
+A Chat only adds Items to the bank: Generation requests in plain words (the AI asks until what, how many,
+Difficulty and Item format are clear), Item uploads from an attached file, and follow-ups that change the Chat's Items.
+The rejected variants A-C live in commit ea19f7f on branch prototype/17-ai-tab.
+The rest of the app is the #12 prototype. Invented data only; the AI is faked and nothing is persisted.
 -->
 <html lang="pl">
 <head>
@@ -84,16 +81,13 @@ tr[data-act]:hover td{background:#f8fafc}
 
 #bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#111;color:#fff;padding:8px 14px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px;z-index:9;white-space:nowrap}
 #bar .tag{background:#facc15;color:#111;font-weight:700;font-size:10px;padding:2px 6px;border-radius:4px}
-#bar a{color:#fff;cursor:pointer;padding:0 4px;font-size:16px}
 
 textarea{font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px;width:100%;resize:vertical}
-.ctl{display:grid;gap:10px;margin:12px 0}
-.ctl>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.ctl>div>span:first-child{width:70px;color:var(--muted)}
 .steps{margin:6px 0;padding-left:20px;color:var(--muted)}
 .steps .ok{color:#166534}.steps .now{color:var(--ink);font-weight:600}
-.icard{display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.icard{display:grid;grid-template-columns:24px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .icard.gone{opacity:.5}
+.icard .n{font-weight:700;color:var(--muted)}
 .icard .btns{display:flex;gap:6px;align-items:start}
 .dup{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;margin:8px 0}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
@@ -101,15 +95,8 @@ textarea{font:inherit;border:1px solid var(--line);border-radius:6px;padding:8px
 .msg{border-radius:12px;padding:10px 14px}
 .msg.me{align-self:flex-end;max-width:70%;background:var(--accent);color:#fff}
 .msg.bot{margin-right:12%;background:var(--panel);border:1px solid var(--line)}
-.composer{position:sticky;bottom:64px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .sugg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .sugg a{padding:4px 10px;border:1px solid var(--line);border-radius:99px}
-.wb{display:grid;grid-template-columns:380px minmax(0,1fr);gap:16px;margin-top:16px;align-items:start}
-.drop{border:2px dashed var(--line);border-radius:10px;padding:30px 16px;text-align:center}
-.cmd{display:flex;gap:8px;align-items:center;margin:16px 0}
-.cmd input{flex:1;padding:9px 12px}
-.jobs{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
-.selrow td{background:var(--soft)}
 main.wide{max-width:none;padding:0}
 .cg{display:grid;grid-template-columns:260px minmax(0,1fr);height:100vh}
 .clist{background:var(--panel);border-right:1px solid var(--line);padding:12px 8px 80px;overflow:auto}
@@ -121,14 +108,14 @@ main.wide{max-width:none;padding:0}
 .chead{padding:12px 28px;border-bottom:1px solid var(--line);background:var(--panel)}
 #msgs{flex:1;overflow:auto;padding:4px 28px}
 #msgs .chat{max-width:860px;margin:16px auto}
-.cpane .composer{position:static;margin:0 auto 72px;width:calc(100% - 56px);max-width:860px}
+.composer{margin:0 auto 72px;width:calc(100% - 56px);max-width:860px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .welcome{text-align:center;margin:10vh auto 0;max-width:640px}
 .welcome .sugg{justify-content:center;margin-top:16px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div id="bar"><span class="tag">PROTOTYP</span><a data-act="vc:-1">&larr;</a><b id="bar-v"></b><a data-act="vc:1">&rarr;</a><span id="bar-label"></span></div>
+<div id="bar"><span class="tag">PROTOTYP</span><span id="bar-label"></span></div>
 <script>
 // ---------- invented data ----------
 function rng(s){return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -192,9 +179,8 @@ const LESSONS=[
 // ---------- state ----------
 const P=new URLSearchParams(location.search);
 const S={view:['home','class','ai'].includes(P.get('view'))?P.get('view'):'ai',cls:P.get('class')||'2c',student:null,filter:'all',
-  form:null,draft:null,work:null,sub:null,flash:null,variant:['A','B','C','D'].includes(P.get('variant'))?P.get('variant'):'D',
-  ai:{jobs:[],nid:1,text:'',ask:'',attach:null,nf:0,det:new Set(),sel:null,btab:'gen',form:null,
-    chats:[],cid:1,chat:null,q:'',renaming:null,toBottom:true}};
+  form:null,draft:null,work:null,sub:null,flash:null,
+  ai:{chats:[],turns:[],cid:1,chat:null,text:'',attach:null,nf:0,det:new Set(),q:'',renaming:null,toBottom:true,seeding:false}};
 
 // ---------- helpers ----------
 const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):0;
@@ -322,8 +308,7 @@ function preview(){
   const d=S.draft,c=CL(d.cls),pts=sum(d.items.map(it=>it.pts));
   return `<div class="row"><h1>Podgląd: ${d.title}</h1><button class="ghost" data-act="backform">&larr; Wróć do formularza</button></div>
     <div class="muted" style="margin:6px 0 16px">${badge(TYPE[d.type],d.type)} · klasa ${c.id} · ${d.forWhom}</div>
-    ${d.need.length?`<div class="flash" style="background:#fef3c7;color:#92400e">W banku zabrakło: ${d.need.map(needTxt).join(', ')}.
-      Wgraj własne zadania albo wygeneruj nowe w <a data-act="ai">Classlop AI</a>, a potem dobierz ponownie.</div>`:''}
+    ${d.need.length?`<div class="flash" style="background:#fef3c7;color:#92400e">W banku zabrakło: ${d.need.map(m=>`${m.n} × ${DIFF[m.d]} z działu ${ROMAN[m.t]}. ${TOPICS[m.t]}`).join(', ')}.</div>`:''}
     <div class="panel">
     ${d.items.map((it,i)=>`<div class="item"><span class="n">${i+1}.</span><div>${it.text}
         <div style="margin-top:4px">${badge(ROMAN[it.t]+'. '+TOPICS[it.t])} ${badge(ROMAN[it.t]+'.'+(it.req+1)+' '+REQS[it.t][it.req])} ${badge(DIFF[it.d],it.d)} ${badge(it.pts+' pkt')}</div>
@@ -360,236 +345,183 @@ function submission(){
         <div id="ed-${k}" class="muted" style="font-size:12px">${y.pts!==y.ai?'zmieniono':''}</div></div></div>`}).join('')}</div>`;
 }
 
-// ---------- Classlop AI: one faked engine behind all three variants ----------
+// ---------- Classlop AI: a faked engine; a Chat only adds Items to the bank ----------
 const FMT={open:'otwarte',closed:'zamknięte'};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-// Crude stand-in for the AI reading działy out of free text.
+// Crude stand-in for the AI reading działy, counts, Difficulty and Item format out of free text.
 const STEMS=[/rzeczywist|potęg|pierwiast|procent/,/wyrażeni|skrócon/,/nierówn|równani[ea]/,/układ/,/funkcj|parabol/,/ciąg/,
   /trygonometr|sinus|cosinus|tangens/,/planimetr|trójkąt|okręg|czworokąt/,/analityczn|prostej|prostopadł/,/stereometr|graniastosłup|ostrosłup|brył/,
   /kombinator|permutac/,/prawdopodob|statyst|mediana/];
-function parse(x){
-  const s=x.toLowerCase(),n=s.match(/\b(\d{1,2})\b/);
-  return{n:n?Math.max(1,Math.min(20,+n[1])):5,d:/trudn/.test(s)?'h':/łatw|prost(e|ych|sze)\b/.test(s)?'e':'m',
-    f:/zamknię|abcd|testow|wyboru/.test(s)?'closed':'open',topics:STEMS.map((re,i)=>re.test(s)?i:-1).filter(i=>i>=0)};
+const ORD=['pierwsz','drug','trzec','czwart','piąt','szóst','siódm','ósm','dziewiąt','dziesiąt'];
+const one=s=>{const n=s.match(/\b(\d{1,2})\b/);
+  return{n:n?Math.max(1,Math.min(20,+n[1])):null,d:/trudn/.test(s)?'h':/łatw/.test(s)?'e':/średni/.test(s)?'m':null,f:/zamknię|testow|wyboru|abcd/.test(s)?'closed':/otwart/.test(s)?'open':null}};
+function parseReq(x){
+  const s=x.toLowerCase(),parts=s.split(/\s+(?:i|oraz|plus)\s+|,\s*(?=\d)/).map(one).filter(p=>p.n||p.d||p.f);
+  return{parts:parts.length?parts:[{n:null,d:null,f:null}],topics:STEMS.map((re,i)=>re.test(s)?i:-1).filter(i=>i>=0)};
 }
-function kindOf(s){
-  if(/pochodn|całk|granic|rozszerzon/i.test(s))return'refused';
-  if(/wygeneruj|przygotuj|ułóż|stwórz|wymyśl|potrzebuj/i.test(s))return'gen';
-  if(/\?\s*$|^(jak|ile|co|kt[óo]r|czy|kto|dlaczego)\b/i.test(s))return'ask';
-  return/zada/i.test(s)?'gen':'ask';
+// An answer to the AI's question fills only what is still missing.
+function merge(p,x){
+  const q=parseReq(x),a=one(x.toLowerCase());
+  p.parts.forEach((pt,i)=>{const src=q.parts.length===p.parts.length&&q.parts.length>1?q.parts[i]:a;for(const k of 'ndf')pt[k]=pt[k]??src[k]});
+  if(!p.topics.length)p.topics=q.topics;
 }
-function answer(s,ctx){
-  const c=CLASSES.find(c=>new RegExp('\\b'+c.id+'\\b','i').test(s))||CLASSES.find(c=>c.id===ctx);
-  if(c){const ts=TOPICS.slice(0,c.covered).map((n,i)=>({n:`${ROMAN[i]}. ${n}`,p:topicAvg(c,i)})).sort((a,b)=>a.p-b.p);
-    return`Klasa ${c.id}: średni wynik ${avg(c.students.map(sAvg))}%, frekwencja ${avg(c.students.map(x=>x.att))}%. Najsłabiej wypada ${ts[0].n} (${ts[0].p}%), najlepiej ${ts.at(-1).n} (${ts.at(-1).p}%).`}
-  if(/bank/i.test(s)){const L=BANK.filter(b=>!b.retired),low=TOPICS.map((n,i)=>({n:`${ROMAN[i]}. ${n}`,k:L.filter(b=>b.t===i&&b.d==='h').length})).sort((a,b)=>a.k-b.k)[0];
-    return`W banku jest ${L.length} zadań, ${L.filter(b=>b.flag).length} oznaczonych. Najmniej trudnych zadań ma dział ${low.n} (${low.k}).`}
-  return'W prototypie AI odpowiada tylko na pytania o klasę (np. „Jak idzie klasie 2c?”) i o bank zadań.';
+function missing(p){
+  const m=[],many=p.parts.length>1;
+  if(!p.topics.length)m.push('z jakiego działu albo na jaki temat');
+  p.parts.forEach((pt,i)=>{const w=many?` (część ${i+1})`:'';
+    if(!pt.n)m.push('ile zadań'+w);if(!pt.d)m.push('jak trudne: łatwe, średnie czy trudne'+w);if(!pt.f)m.push('otwarte czy zamknięte'+w)});
+  return m;
 }
+const reqTxt=p=>`${p.parts.map(x=>`${x.n} × ${DIFF[x.d]} ${FMT[x.f]}`).join(' i ')}, ${p.topics.map(t=>`${ROMAN[t]}. ${TOPICS[t]}`).join(', ')}`;
 const STEPS={gen:['Szukam wzorców w bazie wiedzy','Generuję zadania','Jev sprawdza działy i trudność','Dodaję do banku zadań'],
-  upload:['Odczytuję plik','Dzielę na zadania','Uzupełniam odpowiedzi, rozwiązania i punktację','Jev taguje zadania','Szukam podobnych zadań w banku'],
-  ask:['Sprawdzam dane klas i banku']};
+  upload:['Odczytuję plik','Dzielę na zadania','Uzupełniam odpowiedzi, rozwiązania i punktację','Jev taguje zadania','Szukam podobnych zadań w banku']};
 const FILES=[{name:'kartkowka_funkcje_skan.pdf',pages:3,t:4},{name:'zadania_ciagi_zdjecie.jpg',pages:1,t:5}];
-const SUGG=['Wygeneruj 5 trudnych zadań otwartych z funkcji kwadratowej','Ułóż 8 łatwych zadań zamkniętych z procentów','Jak idzie klasie 2c?','Ile zadań jest w banku?','Przygotuj 4 zadania z pochodnych'];
-const job=id=>S.ai.jobs.find(j=>j.id===+id);
-const emptyForm=()=>({text:'',req:{n:5,d:'m',f:'open',topics:[]},touched:new Set()});
-S.ai.form=emptyForm();
-function newJob(kind,text,extra){const j={id:S.ai.nid++,chat:S.ai.chat,kind,text,status:'draft',step:0,items:[],skipped:[],dups:[],answer:'',...extra};S.ai.jobs.push(j);return j}
+const SUGG=['Wygeneruj 5 trudnych zadań otwartych z funkcji kwadratowej','3 łatwe zamknięte i 2 trudne otwarte z ciągów','Zadania z trygonometrii','Przygotuj 4 zadania z pochodnych'];
 const chatOf=id=>S.ai.chats.find(c=>c.id===id);
-function newChat(title='Nowy czat'){const c={id:S.ai.cid++,title,when:'dziś',cls:null,draft:null};S.ai.chats.push(c);S.ai.chat=c.id;S.ai.toBottom=true;return c}
-function titleFor(j){
-  if(j.kind==='upload')return j.file.name;
-  if(j.kind==='gen'&&j.status!=='refused')return`${j.req.topics.length?TOPICS[j.req.topics[0]]:'Zadania'}: ${j.req.n} × ${DIFF[j.req.d]}`;
-  return j.text.length>40?j.text.slice(0,38)+'…':j.text;
+const turnsOf=id=>S.ai.turns.filter(t=>t.chat===id);
+const chatItems=id=>turnsOf(id).filter(t=>t.job).flatMap(t=>t.job.items);
+function newChat(){const c={id:S.ai.cid++,title:'Nowy czat',when:'dziś',pending:null,last:null};S.ai.chats.push(c);S.ai.chat=c.id;S.ai.toBottom=true;return c}
+function say(c,who,o){const t={chat:c.id,who,...o};S.ai.turns.push(t);return t}
+// Nudge the last number a little so invented Items differ without turning nonsensical.
+const vary=(s,k)=>s.replace(/\d+(?!.*\d)/,m=>+m+1+k%3);
+const zadan=n=>n===1?'zadanie':n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'zadania':'zadań';
+const ptsFor=(d,f)=>({e:1,m:2,h:3}[d]+(f==='closed'?0:1));
+function addItem(o){const b={id:BANK.length,req:Math.floor(r()*3),pts:ptsFor(o.d,o.f),used:new Set(),flag:null,...o};BANK.push(b);return b}
+// Jobs keep running while the Teacher is in another Chat or screen.
+function startJob(c,o){
+  const j={status:'running',step:0,items:[],skipped:[],dups:[],...o};
+  say(c,'ai',{job:j});
+  if(c.title==='Nowy czat')c.title=o.kind==='upload'?o.file.name:`${TOPICS[o.req.topics[0]]}: ${sum(o.req.parts.map(p=>p.n))} ${zadan(sum(o.req.parts.map(p=>p.n)))}`;
+  if(S.ai.seeding){j.step=STEPS[j.kind].length;finish(j);return}
+  const tick=()=>{if(++j.step<STEPS[j.kind].length)setTimeout(tick,700);else finish(j);render()};setTimeout(tick,700);
 }
-function run(j){j.status='running';j.step=0;
-  const tick=()=>{if(++j.step<STEPS[j.kind].length)setTimeout(tick,700);else finish(j);render()};setTimeout(tick,700)}
-const vary=(s,k)=>s.replace(/\d+/,m=>+m+k);
-function addItem(o){const b={id:BANK.length,req:Math.floor(r()*3),pts:{e:1,m:2,h:3}[o.d]+(o.f==='closed'?0:1),used:new Set(),flag:null,...o};BANK.push(b);return b}
 function finish(j){
   j.status='done';
-  if(j.kind==='ask'){j.answer=answer(j.text,(chatOf(j.chat)||{}).cls);return}
-  if(j.kind==='gen'){const q=j.req,ts=q.topics.length?q.topics:[Math.floor(r()*12)];
-    for(let k=0;k<q.n;k++){const t=ts[k%ts.length];
-      j.items.push(addItem({t,d:q.d,f:q.f,origin:'gen',flag:r()<.15?'brak wzorca':null,
-        text:vary(POOL[t][k%3],k+2+j.id)+(q.f==='closed'?' Wybierz jedną odpowiedź: A, B, C albo D.':'')}).id)}
+  if(j.kind==='gen'){let k=0;const ts=j.req.topics;
+    for(const p of j.req.parts)for(let i=0;i<p.n;i++,k++){const t=ts[k%ts.length];
+      j.items.push(addItem({t,d:p.d,f:p.f,origin:'gen',flag:r()<.15?'brak wzorca':null,
+        text:vary(POOL[t][k%3],k+S.ai.turns.length)+(p.f==='closed'?' Wybierz jedną odpowiedź: A, B, C albo D.':'')}).id)}
     return}
-  const f=j.file,src=k=>`${f.name}, str. ${1+k%f.pages}`;
-  for(let k=0;k<5;k++)j.items.push(addItem({t:f.t,d:'emh'[k%3],f:'open',origin:'upload',src:src(k),flag:k===3?'sprawdź odczyt':null,text:vary(POOL[f.t][k%3],k+11)}).id);
-  j.skipped=[{n:'Zadanie 6',why:'zależy od rysunku'},{n:'Zadanie 8',why:'brak działu z zakresu podstawowego'}];
-  const twin=BANK.find(b=>b.t===f.t&&!b.origin);
-  j.dups=[{n:'Zadanie 7',text:twin.text.replace(/\.$/,', wynik podaj w postaci ułamka.'),of:twin.id,src:src(6),st:null}];
-  j.found=8;
+  // Invented upload: eight exercises; 4 is hard to read, 6 needs a figure, 7 is close to a bank Item, 8 is off the basic level.
+  const f=j.file,[lo,hi]=j.range.length?j.range:[1,8],src=n=>`${f.name}, str. ${1+(n-1)%f.pages}`,twin=BANK.find(b=>b.t===f.t&&!b.origin);
+  j.found=0;
+  for(let n=lo;n<=Math.min(hi,8);n++){j.found++;
+    if(n===6)j.skipped.push({n:'Zadanie 6',why:'zależy od rysunku'});
+    else if(n===8)j.skipped.push({n:'Zadanie 8',why:'brak działu z zakresu podstawowego'});
+    else if(n===7)j.dups.push({n:'Zadanie 7',text:twin.text.replace(/\.$/,', wynik podaj w postaci ułamka.'),of:twin.id,src:src(7),st:null});
+    else j.items.push(addItem({t:f.t,d:'emh'[n%3],f:'open',origin:'upload',src:src(n),flag:n===4?'sprawdź odczyt':null,text:vary(POOL[f.t][n%3],n+10)}).id)}
 }
-const aiCount=()=>S.ai.jobs.filter(j=>j.status==='running').length+sum(S.ai.jobs.map(j=>j.dups.filter(x=>!x.st).length));
-const needTxt=m=>`${m.n} × ${DIFF[m.d]} z działu ${ROMAN[m.t]}. ${TOPICS[m.t]}`;
-const needs=()=>S.draft?S.draft.need:[];
+// Follow-ups that change this Chat's Items: "dorzuć 3", "zrób trzecie łatwiejsze", "wyrzuć piąte".
+function refine(c,x){
+  const s=x.toLowerCase(),its=chatItems(c.id);
+  if(!its.length)return false;
+  if(/dorzuć|jeszcze/.test(s)&&c.last){const o=one(s),l=c.last.parts.at(-1);
+    startJob(c,{kind:'gen',req:c.last={topics:c.last.topics,parts:[{n:o.n||l.n,d:o.d||l.d,f:o.f||l.f}]}});return true}
+  if(!/łatwiejsz|trudniejsz|popraw|zmień|ma być|źle|wyrzuć|usuń|wycofaj/.test(s))return false;
+  const m=s.match(/\b(\d{1,2})\b/),k=m?+m[1]-1:ORD.findIndex(o=>s.includes(o));
+  if(!(k in its)){say(c,'ai',{text:`Którego zadania dotyczy poprawka? W tym czacie są zadania 1–${its.length}.`});return true}
+  const b=BANK[its[k]];
+  if(/wyrzuć|usuń|wycofaj/.test(s)){b.retired=true;say(c,'ai',{text:`Wycofałem zadanie ${k+1} z banku.`});return true}
+  if(/łatwiejsz/.test(s))b.d=b.d==='h'?'m':'e';else if(/trudniejsz/.test(s))b.d=b.d==='e'?'m':'h';
+  if(/zamknię/.test(s))b.f='closed';else if(/otwart/.test(s))b.f='open';
+  b.text=vary(b.text,1);b.pts=ptsFor(b.d,b.f);b.flag=null;b.edited=true;
+  say(c,'ai',{text:`Poprawiłem zadanie ${k+1}; Jev sprawdził je ponownie i zmiana jest już w banku.`,items:[b.id]});
+  return true;
+}
+function ask(c){
+  const m=missing(c.pending);
+  if(m.length)return say(c,'ai',{text:`Zanim wygeneruję, napisz jeszcze: ${m.join('; ')}.`});
+  c.last=c.pending;c.pending=null;startJob(c,{kind:'gen',req:c.last});
+}
+function send(){
+  const a=S.ai,x=a.text.trim(),f=a.attach,c=chatOf(a.chat);
+  if(!x&&!f)return;
+  a.text='';a.attach=null;a.toBottom=true;
+  say(c,'me',{text:x,file:f});
+  // A file is always an Item upload; the text can only narrow which exercises to take.
+  if(f)startJob(c,{kind:'upload',file:f,range:(x.match(/(\d+)\s*[-–]\s*(\d+)/)||[]).slice(1).map(Number)});
+  else if(/pochodn|całk|granic|rozszerzon/i.test(x)){c.pending=null;say(c,'ai',{text:'Tego nie wygeneruję: prośba wykracza poza zakres podstawowy liceum.'})}
+  else if(c.pending){merge(c.pending,x);ask(c)}
+  else if(!refine(c,x)){c.pending=parseReq(x);ask(c)}
+}
+const aiCount=()=>S.ai.turns.filter(t=>t.job&&(t.job.status==='running'||t.job.dups.some(d=>!d.st))).length;
 
-// ---------- Classlop AI: pieces shared by the variants ----------
-const aiHead=()=>`<div class="row"><div><h1>Classlop AI</h1><div class="muted">Wgrywanie zadań, generowanie nowych do banku, pytania o klasy</div></div>
-  ${S.draft?`<button class="ghost" data-act="backdraft">&larr; Wróć do podglądu pracy (klasa ${S.draft.cls})</button>`:''}</div>`;
-function reqCtl(tg,q,hint=()=>''){
-  const on=(k,v)=>q[k]===v?'on':'';
-  return`<div class="ctl">
-    <div><span>Trudność</span><div class="seg">${Object.entries(DIFF).map(([k,v])=>`<a data-act="rq:${tg}:d:${k}" class="${on('d',k)}">${v}</a>`).join('')}</div>${hint('d')}</div>
-    <div><span>Forma</span><div class="seg">${Object.entries(FMT).map(([k,v])=>`<a data-act="rq:${tg}:f:${k}" class="${on('f',k)}">${v}</a>`).join('')}</div>${hint('f')}</div>
-    <div><span>Liczba</span><input type="number" min="1" max="20" id="rqn-${tg}" data-f="rqn:${tg}" value="${q.n}">${hint('n')}</div>
-    <div><span>Działy</span>${q.topics.map(t=>`<span class="badge">${ROMAN[t]}. ${TOPICS[t]} <a data-act="rq:${tg}:t:${t}">×</a></span>`).join('')||'<span class="muted">dowolne</span>'}
-      <select data-c="rqt:${tg}"><option value="">+ dział</option>${TOPICS.map((n,i)=>q.topics.includes(i)?'':`<option value="${i}">${ROMAN[i]}. ${n}</option>`).join('')}</select>${hint('topics')}</div></div>`;
-}
+// ---------- Classlop AI: rendering ----------
 const steps=j=>`<ol class="steps">${STEPS[j.kind].map((s,i)=>`<li class="${i<j.step?'ok':i===j.step?'now':''}">${s}</li>`).join('')}</ol>`;
-function itemCard(id){
+function itemCard(id,cid){
   const b=BANK[id],open=S.ai.det.has(id);
-  return`<div class="icard${b.retired?' gone':''}"><div>${esc(b.text)}
-    <div style="margin-top:4px">${badge(ROMAN[b.t]+'. '+TOPICS[b.t])} ${badge(DIFF[b.d],b.d)} ${badge(FMT[b.f])} ${badge(b.pts+' pkt')} ${b.flag?badge(b.flag,'warn'):''} ${b.retired?badge('wycofane'):''}</div>
+  return`<div class="icard${b.retired?' gone':''}"><span class="n">${chatItems(cid).indexOf(id)+1}.</span><div>${esc(b.text)}
+    <div style="margin-top:4px">${badge(ROMAN[b.t]+'. '+TOPICS[b.t])} ${badge(DIFF[b.d],b.d)} ${badge(FMT[b.f])} ${badge(b.pts+' pkt')} ${b.flag?badge(b.flag,'warn'):''} ${b.edited?badge('poprawione'):''} ${b.retired?badge('wycofane'):''}</div>
     ${open?`<div class="answer">Odpowiedź, rozwiązanie wzorcowe i schemat punktowania (przykład). ${b.origin==='upload'?`Źródło: ${b.src}.`:'Wzorce: 3 zadania z bazy wiedzy, widoczne tylko dla nauczyciela.'}</div>`:''}</div>
     <div class="btns"><button class="ghost" data-act="det:${id}">${open?'zwiń':'szczegóły'}</button><button class="ghost" data-act="retire:${id}">${b.retired?'przywróć':'wycofaj'}</button></div></div>`;
 }
-function result(j){
-  if(j.status==='refused')return'<div>Tego nie wygeneruję: prośba wykracza poza zakres podstawowy liceum. Opisz zadania z zakresu podstawowego.</div>';
+function jobView(t){
+  const j=t.job;
   if(j.status==='running')return steps(j);
-  if(j.status!=='done')return'';
-  if(j.kind==='ask')return`<div>${j.answer}</div>`;
   const fl=j.items.filter(id=>BANK[id].flag).length;
-  const head=j.kind==='gen'?`Dodano do banku <b>${j.items.length}</b> zadań${fl?`, ${fl} oznaczone`:''}.`
-    :`<b>${j.file.name}</b>: ${j.found} zadań w pliku. Dodano <b>${j.items.length}</b>${fl?` (${fl} oznaczone)`:''}, pominięto ${j.skipped.length}, podobne do zadań z banku: ${j.dups.length}.`;
-  return`<div>${head} <span class="muted">${S.draft?'Po powrocie do podglądu pracy brakujące zadania dobiorą się z banku.':'Dobierzesz je w Nowej pracy na stronie klasy.'}</span></div>
+  const head=j.kind==='gen'?`Dodano do banku <b>${j.items.length}</b> ${zadan(j.items.length)} (${reqTxt(j.req)})${fl?`, ${fl} oznaczone`:''}.`
+    :`<b>${j.file.name}</b>: ${j.found} zadań${j.range.length?` (${j.range.join('–')})`:''}. Dodano <b>${j.items.length}</b>${fl?` (${fl} oznaczone)`:''}, pominięto ${j.skipped.length}, podobne do zadań z banku: ${j.dups.length}.`;
+  return`<div>${head}</div>
     ${j.dups.map((x,k)=>`<div class="dup"><b>${x.n}</b> jest podobne do zadania z banku.
       <div class="two"><div><div class="muted">Z pliku (${x.src})</div>${esc(x.text)}</div><div><div class="muted">W banku</div>${esc(BANK[x.of].text)}</div></div>
-      ${x.st?`<span class="muted">${x.st==='keep'?'Wgrane mimo to.':'Pominięte.'}</span>`:`<button data-act="dup:${j.id}:${k}:keep">Wgraj mimo to</button> <button class="ghost" data-act="dup:${j.id}:${k}:drop">Pomiń</button>`}</div>`).join('')}
-    <div>${j.items.map(itemCard).join('')}</div>
+      ${x.st?`<span class="muted">${x.st==='keep'?'Wgrane mimo to.':'Pominięte.'}</span>`:`<button data-act="dup:${S.ai.turns.indexOf(t)}:${k}:keep">Wgraj mimo to</button> <button class="ghost" data-act="dup:${S.ai.turns.indexOf(t)}:${k}:drop">Pomiń</button>`}</div>`).join('')}
+    <div>${j.items.map(id=>itemCard(id,t.chat)).join('')}</div>
     ${j.skipped.length?`<div class="muted" style="margin-top:8px">Pominięte: ${j.skipped.map(x=>`${x.n} (${x.why})`).join(', ')}.</div>`:''}`;
 }
-
-// ---------- variant A: one chat ----------
-function aiA(){
-  const a=S.ai,ns=needs();
-  const intro=ns.length?`<div class="msg bot"><b>Z Nowej pracy (klasa ${S.draft.cls}) brakuje w banku:</b>
-      ${ns.map((m,i)=>`<div class="row" style="padding:4px 0"><span>${needTxt(m)}</span><span><button class="ghost" data-act="needgen:${i}">Wygeneruj</button> <button class="ghost" data-act="needup:${i}">Wgraj plik</button></span></div>`).join('')}</div>`
-    :a.jobs.length?'':`<div class="msg bot">W czym pomóc? Opisz zadania do wygenerowania, załącz plik z zadaniami albo zapytaj o klasę.
-      <div class="sugg">${SUGG.map((s,i)=>`<a data-act="sugg:${i}">${s}</a>`).join('')}</div></div>`;
-  return`${aiHead()}<div class="chat">${intro}${thread(a.jobs)}</div>${composer()}`;
-}
-const thread=js=>js.map(j=>`<div class="msg me">${j.kind==='upload'?`Plik: <b>${j.file.name}</b>`:esc(j.text)}</div>
-  <div class="msg bot">${j.status==='draft'?`Rozumiem tak, popraw w razie potrzeby:${reqCtl(j.id,j.req)}
-    <div class="foot"><button class="ghost" data-act="cancel:${j.id}">Anuluj</button><button data-act="start:${j.id}">Generuj ${j.req.n} zadań</button></div>`:result(j)}</div>`).join('');
-const composer=(extra='')=>`<div class="composer">${S.ai.attach?`<div><span class="badge">Plik: ${S.ai.attach.name} <a data-act="unattach">×</a></span></div>`:''}
-  <textarea id="ai-in" data-f="aitext" rows="2" placeholder="Np. 6 średnich zadań otwartych z ciągu arytmetycznego (Enter wysyła)">${esc(S.ai.text)}</textarea>
-  <div class="row"><span style="display:flex;gap:8px;align-items:center"><button class="ghost" data-act="attach">Załącz plik</button>${extra}</span><button data-act="send">Wyślij</button></div></div>`;
-
-// ---------- variant D: chats with history on the left, like Copilot or ChatGPT ----------
-function aiD(){
-  const a=S.ai,c=chatOf(a.chat),js=a.jobs.filter(j=>j.chat===a.chat),ns=c.draft===S.draft?needs():[],q=a.q.toLowerCase();
+const turnView=t=>t.who==='me'?`<div class="msg me">${t.file?`Plik: <b>${t.file.name}</b>${t.text?'<br>':''}`:''}${esc(t.text)}</div>`
+  :`<div class="msg bot">${t.job?jobView(t):esc(t.text)}${t.items?t.items.map(id=>itemCard(id,t.chat)).join(''):''}</div>`;
+function ai(){
+  const a=S.ai,c=chatOf(a.chat),ts=turnsOf(c.id),q=a.q.toLowerCase();
   let last='';
-  const list=[...a.chats].reverse().filter(x=>(x.id===a.chat||x.draft||a.jobs.some(j=>j.chat===x.id))&&(!q||x.title.toLowerCase().includes(q))).map(x=>{
-    const xj=a.jobs.filter(j=>j.chat===x.id),h=x.when!==last?`<div class="label">${x.when}</div>`:'';last=x.when;
+  const list=[...a.chats].reverse().filter(x=>(x.id===a.chat||turnsOf(x.id).length)&&(!q||x.title.toLowerCase().includes(q))).map(x=>{
+    const xj=turnsOf(x.id).filter(t=>t.job).map(t=>t.job),h=x.when!==last?`<div class="label">${x.when}</div>`:'';last=x.when;
     const tag=xj.some(j=>j.status==='running')?badge('w toku','quiz'):xj.some(j=>j.dups.some(d=>!d.st))?badge('do decyzji','warn'):'';
     return h+(a.renaming===x.id?`<input id="ren" value="${esc(x.title)}" style="width:100%;margin:2px 0">`
       :`<a data-act="chat:${x.id}" class="${x.id===a.chat?'on':''}"><span class="ct">${esc(x.title)}</span>${tag}</a>`)}).join('');
-  const intro=ns.length?`<div class="msg bot"><b>Z Nowej pracy „${esc(S.draft.title)}” (klasa ${S.draft.cls}) brakuje w banku:</b>
-      ${ns.map((m,i)=>`<div class="row" style="padding:4px 0"><span>${needTxt(m)}</span><span><button class="ghost" data-act="needgen:${i}">Wygeneruj</button> <button class="ghost" data-act="needup:${i}">Wgraj plik</button></span></div>`).join('')}
-      <div class="foot" style="justify-content:flex-start"><button data-act="backdraft">&larr; Wróć do podglądu pracy</button></div></div>`
-    :js.length?'':`<div class="welcome"><h1>W czym pomóc?</h1><div class="muted" style="margin-top:6px">Opisz zadania do wygenerowania, załącz plik z zadaniami do banku albo zapytaj o klasę.</div>
-      <div class="sugg">${SUGG.map((s,i)=>`<a data-act="sugg:${i}">${s}</a>`).join('')}</div></div>`;
-  const ctx=`<select data-c="ctx" title="Klasa, o którą pyta ten czat"><option value="">Klasa: dowolna</option>${CLASSES.map(k=>`<option value="${k.id}" ${c.cls===k.id?'selected':''}>Klasa ${k.id}</option>`).join('')}</select>`;
+  const welcome=`<div class="welcome"><h1>Jakie zadania przygotować?</h1><div class="muted" style="margin-top:6px">Napisz, z jakiego działu, ile, jak trudne i czy otwarte, czy zamknięte. Albo załącz plik z zadaniami, a trafią do banku.</div>
+    <div class="sugg">${SUGG.map((s,i)=>`<a data-act="sugg:${i}">${s}</a>`).join('')}</div></div>`;
   return`<div class="cg"><div class="clist"><button style="width:100%;margin-bottom:8px" data-act="newchat">+ Nowy czat</button>
       <input id="chat-q" data-f="chatq" placeholder="Szukaj w czatach" value="${esc(a.q)}" style="width:100%">${list||'<div class="muted" style="padding:10px">Brak czatów.</div>'}</div>
-    <div class="cpane"><div class="chead row"><b>${esc(c.title)}</b><span class="muted" style="font-size:12px">
-      ${S.draft&&!ns.length?`<a data-act="backdraft">&larr; wróć do podglądu pracy</a> · `:''}<a data-act="ren:${c.id}">zmień nazwę</a> · <a data-act="delchat:${c.id}">usuń</a></span></div>
-      <div id="msgs"><div class="chat">${intro}${thread(js)}</div></div>${composer(ctx)}</div></div>`;
+    <div class="cpane"><div class="chead row"><b>${esc(c.title)}</b>${ts.length?`<span class="muted" style="font-size:12px"><a data-act="ren:${c.id}">zmień nazwę</a> · <a data-act="delchat:${c.id}">usuń</a></span>`:''}</div>
+      <div id="msgs"><div class="chat">${ts.length?ts.map(turnView).join(''):welcome}</div></div>
+      <div class="composer">${a.attach?`<div><span class="badge">Plik: ${a.attach.name} <a data-act="unattach">×</a></span></div>`:''}
+        <textarea id="ai-in" data-f="aitext" rows="2" placeholder="${c.pending?'Odpowiedz na pytanie AI':'Np. 6 średnich zadań otwartych z ciągu arytmetycznego'} (Enter wysyła)">${esc(a.text)}</textarea>
+        <div class="row"><button class="ghost" data-act="attach">Załącz plik</button>
+          <span class="muted" style="font-size:12px">Poprawki: „zrób 3 łatwiejsze”, „dorzuć 2”, „wyrzuć 5”</span><button data-act="send">Wyślij</button></div></div></div></div>`;
 }
 function seed(){
-  const mk=(title,when,cls,msgs)=>{const c=newChat(title);c.when=when;c.cls=cls;for(const [k,t,x] of msgs)finish(newJob(k,t,x))};
-  mk('Procenty: 8 × łatwe','zeszły tydzień','1a',[['gen','Ułóż 8 łatwych zadań zamkniętych z procentów',{req:parse('8 łatwych zamkniętych procent')}]]);
-  mk('Jak idzie klasie 1a?','poniedziałek','1a',[['ask','Jak idzie klasie 1a?',{}],['ask','A jak wygląda bank zadań?',{}]]);
-  mk('kartkowka_funkcje_skan.pdf','wczoraj','2c',[['upload','Plik: kartkowka_funkcje_skan.pdf',{file:FILES[0]}]]);
-  mk('Funkcje: 5 × trudne','dziś','2c',[['gen','Wygeneruj 5 trudnych zadań otwartych z funkcji kwadratowej',{req:parse('5 trudnych otwartych funkcji')}]]);
+  const a=S.ai,chat=(when,msgs)=>{const c=newChat();for(const m of msgs){if(m.file)a.attach=m.file;a.text=m.text||'';send()}c.when=when};
+  a.seeding=true;
+  chat('zeszły tydzień',[{text:'Ułóż 8 łatwych zadań zamkniętych z procentów'}]);
+  chat('poniedziałek',[{text:'Zadania z trygonometrii'},{text:'4, średnie, otwarte'},{text:'zrób drugie łatwiejsze'}]);
+  chat('wczoraj',[{file:FILES[0]}]);
+  chat('dziś',[{text:'Wygeneruj 5 trudnych zadań otwartych z funkcji kwadratowej'}]);
+  a.seeding=false;
   newChat();
 }
 
-// ---------- variant B: form with controls, results beside it ----------
-function aiB(){
-  const a=S.ai,f=a.form,ns=needs(),hint=k=>f.text&&!f.touched.has(k)?'<span class="muted" style="font-size:11px">z opisu</span>':'';
-  const gen=`<div class="field"><label>Opisz zadania</label><textarea id="ai-form" data-f="formtext" rows="4" placeholder="Np. zadania z treścią o ciągu arytmetycznym, w kontekście oszczędzania">${esc(f.text)}</textarea>
-      <div class="muted" style="font-size:12px">Ustawienia poniżej uzupełniają się z opisu; jeśli je zmienisz, wygrywają nad opisem.</div></div>
-    ${reqCtl('f',f.req,hint)}
-    <div class="foot"><button data-act="fgen" ${f.text.trim()?'':'disabled'}>Generuj ${f.req.n} zadań</button></div>`;
-  const up=`<div class="drop" data-act="upload"><b>Upuść plik albo kliknij, żeby wybrać</b><div class="muted">${a.attach?`Wybrany: ${a.attach.name}`:'PDF, skany, zdjęcia. Jedno zadanie z pliku to jedno zadanie w banku.'}</div></div>`;
-  const asks=a.jobs.filter(j=>j.kind==='ask'),work=a.jobs.filter(j=>j.kind!=='ask').reverse();
-  return`${aiHead()}
-    ${ns.length?`<div class="flash" style="background:#fef3c7;color:#92400e;margin-top:14px">Z Nowej pracy (klasa ${S.draft.cls}) brakuje w banku:
-      ${ns.map((m,i)=>`<span style="white-space:nowrap">${needTxt(m)} (<a data-act="needgen:${i}">wypełnij formularz</a> · <a data-act="needup:${i}">wgraj plik</a>)</span>`).join('; ')}</div>`:''}
-    <div class="wb"><div><div class="panel"><div class="seg" style="margin-bottom:14px"><a data-act="btab:gen" class="${a.btab==='gen'?'on':''}">Generuj zadania</a><a data-act="btab:up" class="${a.btab==='up'?'on':''}">Wgraj plik</a></div>${a.btab==='gen'?gen:up}</div>
-      <div class="panel" style="margin-top:14px"><h2>Zapytaj AI</h2>
-        ${asks.map(j=>`<div style="margin-bottom:8px"><b>${esc(j.text)}</b><div>${j.status==='done'?j.answer:'<span class="muted">sprawdzam…</span>'}</div></div>`).join('')}
-        <input id="ai-ask" data-f="asktext" style="width:100%" placeholder="Np. Jak idzie klasie 2c? (Enter)" value="${esc(a.ask)}"></div></div>
-    <div><h2 style="margin-top:0">Wyniki</h2>${work.map(j=>`<div class="panel" style="margin-bottom:10px">
-        <div class="row"><b>${j.kind==='upload'?'Wgranie pliku':'Generowanie'}</b><span class="muted">${j.kind==='gen'?`${j.req.n} × ${DIFF[j.req.d]}, ${FMT[j.req.f]}`:''}</span></div>
-        ${j.kind==='gen'?`<div class="muted">${esc(j.text)}</div>`:''}${result(j)}</div>`).join('')||'<div class="muted">Tu pojawią się wygenerowane i wgrane zadania.</div>'}</div></div>`;
-}
-
-// ---------- variant C: jobs running in the background ----------
-function aiC(){
-  const a=S.ai,ns=needs(),sel=job(a.sel);
-  const status=j=>j.status==='running'?`${badge('w toku','quiz')} <span class="muted" style="font-size:12px">${STEPS[j.kind][j.step]}</span>`
-    :j.status==='draft'?badge('do potwierdzenia','warn'):j.status==='refused'?badge('odrzucone','exam')
-    :j.dups.some(x=>!x.st)?badge('do decyzji','warn'):badge('gotowe','homework');
-  const out=j=>j.status!=='done'?'':j.kind==='ask'?'odpowiedź':`${j.items.length} w banku${j.items.some(id=>BANK[id].flag)?', są oznaczone':''}`;
-  return`${aiHead()}
-    <div class="cmd"><input id="ai-cmd" data-f="aitext" placeholder="Napisz, czego potrzebujesz: zadania do wygenerowania albo pytanie (Enter)" value="${esc(a.text)}">
-      ${a.attach?`<span class="badge">Plik: ${a.attach.name} <a data-act="unattach">×</a></span>`:''}<button class="ghost" data-act="attach">Wgraj plik</button><button data-act="send">Zleć</button></div>
-    <div class="jobs"><div class="panel" style="padding:6px 0"><table><tr><th>Rodzaj</th><th>Opis</th><th>Status</th><th>Wynik</th></tr>
-      ${ns.map((m,i)=>`<tr style="background:#fffbeb"><td>Brak w banku</td><td>${needTxt(m)} <span class="muted">(Nowa praca, klasa ${S.draft.cls})</span></td>
-        <td colspan="2"><button class="ghost" data-act="needgen:${i}">Generuj</button> <button class="ghost" data-act="needup:${i}">Wgraj plik</button></td></tr>`).join('')}
-      ${[...a.jobs].reverse().map(j=>`<tr data-act="sel:${j.id}" class="${a.sel===j.id?'selrow':''}"><td>${{ask:'Pytanie',upload:'Wgranie',gen:'Generowanie'}[j.kind]}</td>
-        <td>${j.kind==='upload'?j.file.name:esc(j.text)}</td><td>${status(j)}</td><td class="muted">${out(j)}</td></tr>`).join('')}
-      ${a.jobs.length||ns.length?'':'<tr><td colspan="4" class="muted">Brak zleceń. Zlecenia idą w tle; w tym czasie możesz przejść do innych ekranów.</td></tr>'}</table></div>
-    <div class="panel">${sel?`<b>${esc(sel.kind==='upload'?sel.file.name:sel.text)}</b>
-      ${sel.status==='draft'?`${reqCtl(sel.id,sel.req)}<div class="foot"><button class="ghost" data-act="cancel:${sel.id}">Usuń</button><button data-act="start:${sel.id}">Generuj ${sel.req.n} zadań</button></div>`
-        :`<div style="margin-top:8px">${result(sel)}</div>`}`:'<div class="muted">Wybierz zlecenie, żeby zobaczyć wynik.</div>'}</div></div>`;
-}
-
 // ---------- wiring ----------
-const VARS={A:['Czat',aiA],B:['Warsztat',aiB],C:['Zlecenia',aiC],D:['Czaty z historią',aiD]},VK=Object.keys(VARS);
-const ai=()=>VARS[S.variant][1]();
 const VIEWS={home,class:klass,new:form,preview,work,sub:submission,ai};
 const LABEL={home:'pulpit',class:'strona klasy',new:'nowa praca',preview:'podgląd zadań',work:'praca oceniona przez AI',sub:'praca ucznia',ai:'Classlop AI'};
 function render(){
-  try{const top=['home','ai'].includes(S.view),p=new URLSearchParams({view:top?S.view:'class',variant:S.variant});if(!top)p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
+  try{const top=['home','ai'].includes(S.view),p=new URLSearchParams({view:top?S.view:'class'});if(!top)p.set('class',S.cls);history.replaceState(null,'','?'+p)}catch{}
   const graded=c=>ASSIGN[c.id].filter(a=>a.st==='graded').length;
-  // Re-rendering replaces the DOM; keep the caret in whatever field the Teacher is typing in.
+  // Re-rendering replaces the DOM; keep the caret where the Teacher is typing and follow new messages unless they scrolled up.
   const fe=document.activeElement,fid=fe&&fe.id,s0=fe&&fe.selectionStart,s1=fe&&fe.selectionEnd;
-  // Follow new messages unless the Teacher has scrolled up to read.
   const m0=document.getElementById('msgs'),stick=S.ai.toBottom||!m0||m0.scrollHeight-m0.scrollTop-m0.clientHeight<60,top=m0&&m0.scrollTop;
   document.getElementById('app').innerHTML=`<div class="shell"><aside class="side"><b class="logo" data-act="home">Classlop</b>
     <a data-act="home" class="${S.view==='home'?'on':''}">Do zrobienia <span class="count">${queue().length}</span></a>
     <a data-act="ai" class="${S.view==='ai'?'on':''}">Classlop AI <span class="count">${aiCount()||''}</span></a>
     <div class="label">Klasy</div>
     ${CLASSES.map(c=>`<a data-act="cls:${c.id}" class="${!['home','ai'].includes(S.view)&&S.cls===c.id?'on':''}">Klasa ${c.id}<span class="count">${graded(c)||''}</span></a>`).join('')}
-  </aside><main class="${S.view==='ai'&&S.variant==='D'?'wide':''}">${VIEWS[S.view]()}</main></div>`;
+  </aside><main class="${S.view==='ai'?'wide':''}">${VIEWS[S.view]()}</main></div>`;
   const el=fid&&document.getElementById(fid);
   if(el){el.focus();try{el.setSelectionRange(s0,s1)}catch{}}
   const m1=document.getElementById('msgs');
   if(m1)m1.scrollTop=stick?m1.scrollHeight:top;
   S.ai.toBottom=false;
-  const live=BANK.filter(b=>!b.retired).length,fresh=BANK.filter(b=>b.origin&&!b.retired).length;
-  document.getElementById('bar-v').textContent=`${S.variant} (${VARS[S.variant][0]})`;
-  document.getElementById('bar-label').textContent=`${LABEL[S.view]} · bank: ${live} zadań, nowych ${fresh} · zleceń AI: ${S.ai.jobs.length} · brakuje do pracy: ${sum(needs().map(m=>m.n))}`;
+  document.getElementById('bar-label').textContent=`${LABEL[S.view]} · bank: ${BANK.filter(b=>!b.retired).length} zadań, z Classlop AI ${BANK.filter(b=>b.origin&&!b.retired).length} · dane wymyślone, nic nie jest zapisywane`;
   S.flash=null;
-}
-function send(){
-  const a=S.ai,x=a.text.trim(),f=a.attach;
-  if(!x&&!f)return;
-  a.text='';a.attach=null;
-  let j;
-  if(f)run(j=newJob('upload','Plik: '+f.name,{file:f}));
-  else{const k=kindOf(x);
-    j=newJob(k==='ask'?'ask':'gen',x,k==='ask'?{}:{req:parse(x)});
-    if(k==='ask')run(j);
-    if(k==='refused')j.status='refused'}
-  a.sel=j.id;a.toBottom=true;
-  const c=chatOf(j.chat);
-  if(c&&c.title==='Nowy czat')c.title=titleFor(j);
 }
 function draftFromForm(){
   const f=S.form,c=cur(),items=[],need=[];
@@ -608,13 +540,11 @@ const ACT={
   cls:id=>{S.view='class';S.cls=id;S.student=null},
   filter:k=>{S.filter=k},
   student:i=>{S.student=+i<0?null:+i},
-  ai:()=>{S.view='ai';
-    // A shortfall from Nowa praca gets its own chat, reused on the next visit.
-    if(needs().length){const c=S.ai.chats.find(c=>c.draft===S.draft)||Object.assign(newChat(`Braki: ${S.draft.title} (${S.draft.cls})`),{draft:S.draft,cls:S.draft.cls});S.ai.chat=c.id;S.ai.toBottom=true}},
+  ai:()=>{S.view='ai';S.ai.toBottom=true},
   chat:id=>{S.ai.chat=+id;S.ai.renaming=null;S.ai.toBottom=true},
-  newchat:()=>{const c=chatOf(S.ai.chat);if(!(c.title==='Nowy czat'&&!S.ai.jobs.some(j=>j.chat===c.id)))newChat()},
+  newchat:()=>{if(turnsOf(S.ai.chat).length)newChat()},
   ren:id=>{S.ai.renaming=+id},
-  delchat:id=>{const a=S.ai;a.chats=a.chats.filter(c=>c.id!==+id);a.jobs=a.jobs.filter(j=>j.chat!==+id);
+  delchat:id=>{const a=S.ai;a.chats=a.chats.filter(c=>c.id!==+id);a.turns=a.turns.filter(t=>t.chat!==+id);
     if(a.chat===+id){if(a.chats.length){a.chat=a.chats.at(-1).id;a.toBottom=true}else newChat()}},
   new:()=>{S.form={type:'quiz',title:'',titleTouched:false,rows:[],who:'all',students:new Set(),allowUsed:false};S.view='new'},
   type:k=>{S.form.type=k},
@@ -633,34 +563,14 @@ const ACT={
   work:(cid,i)=>{S.cls=cid;S.work={cid,i:+i};S.view='work'},
   sub:si=>{S.sub=+si;S.view='sub'},
   ret:(cid,i)=>{ASSIGN[cid][i].st='returned'},
-  vc:d=>{S.variant=VK[(VK.indexOf(S.variant)+ +d+VK.length)%VK.length]},
   sugg:i=>{S.ai.text=SUGG[i]},
   attach:()=>{S.ai.attach=FILES[S.ai.nf++%FILES.length]},
   unattach:()=>{S.ai.attach=null},
   send,
-  ask:()=>{const x=S.ai.ask.trim();if(x){S.ai.ask='';run(newJob('ask',x,{}))}},
-  start:id=>run(job(id)),
-  cancel:id=>{S.ai.jobs=S.ai.jobs.filter(j=>j.id!==+id)},
-  sel:id=>{S.ai.sel=+id},
-  rq:(tg,k,v)=>{const q=tg==='f'?S.ai.form.req:job(tg).req;
-    if(k==='t'){const t=+v;q.topics=q.topics.includes(t)?q.topics.filter(x=>x!==t):[...q.topics,t]}else q[k]=v;
-    if(tg==='f')S.ai.form.touched.add(k==='t'?'topics':k)},
   det:id=>{const s=S.ai.det,n=+id;s.has(n)?s.delete(n):s.add(n)},
   retire:id=>{BANK[id].retired=!BANK[id].retired},
-  dup:(id,k,v)=>{const j=job(id),x=j.dups[k],b=BANK[x.of];x.st=v;
-    if(v==='keep')j.items.push(addItem({t:b.t,d:b.d,f:'open',origin:'upload',src:x.src,text:x.text}).id)},
-  btab:k=>{S.ai.btab=k},
-  fgen:()=>{const f=S.ai.form,j=newJob('gen',f.text.trim(),{req:{...f.req,topics:[...f.req.topics]}});
-    if(kindOf(f.text)==='refused')j.status='refused';else run(j);
-    S.ai.form=emptyForm()},
-  upload:()=>{const f=S.ai.attach||FILES[S.ai.nf++%FILES.length];S.ai.attach=null;run(newJob('upload','Plik: '+f.name,{file:f}))},
-  needgen:i=>{const m=needs()[i],text=`Brakujące zadania do pracy w klasie ${S.draft.cls}: ${needTxt(m)}`,req={n:m.n,d:m.d,f:'open',topics:[m.t]};
-    if(S.variant==='B'){S.ai.form={text,req,touched:new Set(['n','d','f','topics'])};S.ai.btab='gen'}
-    else S.ai.sel=newJob('gen',text,{req}).id},
-  needup:i=>{S.ai.attach={name:'zadania_wlasne_skan.pdf',pages:2,t:needs()[i].t};if(S.variant==='B')S.ai.btab='up'},
-  backdraft:()=>{const d=S.draft;
-    for(const m of d.need){const got=shuffle(avail(d.cls,m.t,m.d,[],d.allowUsed,new Set(d.items.map(x=>x.id)))).slice(0,m.n);d.items.push(...got);m.n-=got.length}
-    d.need=d.need.filter(m=>m.n);S.view='preview'}
+  dup:(ti,k,v)=>{const j=S.ai.turns[ti].job,x=j.dups[k],b=BANK[x.of];x.st=v;
+    if(v==='keep')j.items.push(addItem({t:b.t,d:b.d,f:'open',origin:'upload',src:x.src,text:x.text}).id)}
 };
 const FIELD={
   title:v=>{S.form.title=v;S.form.titleTouched=true},
@@ -671,26 +581,19 @@ const FIELD={
     document.getElementById('score').textContent=score(subs(CL(cid),a)[S.sub]);
     document.getElementById('ed-'+k).textContent=y.pts!==y.ai?'zmieniono':''},
   aitext:v=>{S.ai.text=v},
-  asktext:v=>{S.ai.ask=v},
-  chatq:v=>{S.ai.q=v;render()},
-  formtext:v=>{const f=S.ai.form,p=parse(v);f.text=v;for(const k of ['n','d','f','topics'])if(!f.touched.has(k))f.req[k]=p[k];render()},
-  rqn:(v,tg)=>{(tg==='f'?S.ai.form.req:job(tg).req).n=Math.max(1,Math.min(20,parseInt(v)||1));if(tg==='f')S.ai.form.touched.add('n');render()}
+  chatq:v=>{S.ai.q=v;render()}
 };
 const CHANGE={
   addrow:v=>{if(v!=='')S.form.rows.push({t:+v,e:0,m:0,h:0,req:[],open:false})},
   allowused:()=>{S.form.allowUsed=!S.form.allowUsed},
   req:(_,ri,j)=>{const x=S.form.rows[ri].req,n=+j;x.includes(n)?x.splice(x.indexOf(n),1):x.push(n)},
-  stu:(_,i)=>{const s=S.form.students,n=+i;s.has(n)?s.delete(n):s.add(n)},
-  rqt:(v,tg)=>{if(v!=='')ACT.rq(tg,'t',v)},
-  ctx:v=>{chatOf(S.ai.chat).cls=v||null}
+  stu:(_,i)=>{const s=S.form.students,n=+i;s.has(n)?s.delete(n):s.add(n)}
 };
 document.addEventListener('keydown',e=>{
   const id=e.target.id;
   if(id==='ren'&&(e.key==='Enter'||e.key==='Escape')){const c=chatOf(S.ai.renaming),v=e.target.value.trim();
     if(e.key==='Enter'&&v)c.title=v;S.ai.renaming=null;render();return}
-  if(e.key==='Enter'&&!e.shiftKey&&['ai-in','ai-cmd','ai-ask'].includes(id)){e.preventDefault();ACT[id==='ai-ask'?'ask':'send']();render();return}
-  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)||e.target.isContentEditable)return;
-  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ACT.vc(e.key==='ArrowLeft'?-1:1);render()}
+  if(id==='ai-in'&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();render()}
 });
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;const[a,...args]=t.dataset.act.split(':');if(!ACT[a])return;ACT[a](...args);render()});
 document.addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;const[k,...args]=f.split(':');FIELD[k](e.target.value,...args)});
