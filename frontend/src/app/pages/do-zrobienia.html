@@ -11,7 +11,7 @@
   <ol aria-label="Do zrobienia">
     @for (e of h.entries; track $index) {
       <li class="q">
-        <span class="ico {{ tone(e) }}">{{ icon(e) }}</span>
+        <span class="ico {{ mark(e).tone }}">{{ mark(e).icon }}</span>
         <div>
           <b class="title">{{ e.title }}</b>
           <div class="muted">

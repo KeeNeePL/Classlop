@@ -1,7 +1,7 @@
 """The home screen: the sidebar and the Do zrobienia queue, in one response."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -10,11 +10,8 @@ from classlop.dashboard import auth
 
 router = APIRouter()
 
+# In the queue's order: the live Lesson, then the problems, then the rest as in #12.
 Kind = Literal[
-    "live_lesson", "sign_in", "give_failed", "team_removed", "graded", "next_lesson", "deadline"
-]
-# The queue's order: the live Lesson, then the problems, then the rest as in #12.
-ORDER: tuple[Kind, ...] = (
     "live_lesson",
     "sign_in",
     "give_failed",
@@ -22,7 +19,8 @@ ORDER: tuple[Kind, ...] = (
     "graded",
     "next_lesson",
     "deadline",
-)
+]
+ORDER = get_args(Kind)
 
 
 class Entry(BaseModel):
@@ -57,7 +55,7 @@ def invented(now: datetime) -> Home:
     entries = [
         Entry(
             kind="deadline",
-            title="Termin dziś 20:00: Wzory skróconego mnożenia (1A)",
+            title="Termin: Wzory skróconego mnożenia (1A)",
             detail="Praca domowa · oddane 17/26",
             at=now + timedelta(hours=9),
             link="/klasy/1a/prace/wzory",
@@ -79,7 +77,7 @@ def invented(now: datetime) -> Home:
         ),
         Entry(
             kind="next_lesson",
-            title="12:50 lekcja: klasa 3B",
+            title="Lekcja: klasa 3B",
             detail="Graniastosłupy: pola i objętości",
             at=now + timedelta(hours=3),
             link="/klasy/3b/lekcje/graniastoslupy",

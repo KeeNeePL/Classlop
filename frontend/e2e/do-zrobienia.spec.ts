@@ -13,8 +13,8 @@ test('Do zrobienia opens with the sidebar and its queue, badged as invented', as
     'Zespół klasy 3B usunięto w Teams',
     'Ocenione przez AI: Funkcja kwadratowa (2C)',
     'Ocenione przez AI: Graniastosłupy (3B)',
-    '12:50 lekcja: klasa 3B',
-    'Termin dziś 20:00: Wzory skróconego mnożenia (1A)',
+    'Lekcja: klasa 3B',
+    'Termin: Wzory skróconego mnożenia (1A)',
   ]);
   await expect(page.getByText('ZMYŚLONE').first()).toBeVisible();
 
@@ -56,6 +56,12 @@ for (const [path, heading] of routes) {
 
 test('an unknown route says there is no such page', async ({ page }) => {
   await page.goto('/klasy/1a/nie-ma-takiej');
+
+  await expect(page.getByRole('heading', { name: 'Nie ma takiej strony' })).toBeVisible();
+});
+
+test('an unknown top-level route says there is no such page', async ({ page }) => {
+  await page.goto('/nie-ma-takiej');
 
   await expect(page.getByRole('heading', { name: 'Nie ma takiej strony' })).toBeVisible();
 });
