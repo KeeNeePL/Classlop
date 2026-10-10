@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # Signs the session cookie; unset, a random key per process signs everyone out on restart.
     session_key: SecretStr | None = None
 
+    typesafe_api_key: SecretStr | None = None
+    typesafe_base_url: str = "https://api.typesafe.ai/v1"
+
     langsmith_api_key: SecretStr | None = None
     langsmith_endpoint: str = "https://eu.api.smith.langchain.com"
     langsmith_project: str = "classlop"

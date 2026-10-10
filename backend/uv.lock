@@ -435,6 +435,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "itsdangerous" },
+    { name = "jevper" },
     { name = "langchain" },
     { name = "langchain-openai" },
     { name = "langgraph" },
@@ -468,6 +469,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.143.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
+    { name = "jevper", specifier = ">=0.7.12" },
     { name = "langchain", specifier = ">=1.4.4" },
     { name = "langchain-openai", specifier = ">=1.7.0" },
     { name = "langgraph", specifier = ">=1.2.14" },
@@ -909,6 +911,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/9c/cb/8ac0172223afbccb63986cc25049b154ecfb5e85932587206f42317be31d/itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173", size = 54410, upload-time = "2024-04-16T21:28:15.614Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef", size = 16234, upload-time = "2024-04-16T21:28:14.499Z" },
+]
+
+[[package]]
+name = "jevper"
+version = "0.7.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/62/84/268e40913821189e4d9995714d1fb2c667a428683edea77c1abf692a5839/jevper-0.7.12.tar.gz", hash = "sha256:bcb171cd799d3073e79fc0786f9326a63e956b9a13112942e19055751fa51be2", size = 889116, upload-time = "2026-10-07T11:19:40.085Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/27/9cc80dc945af260dcb1bddf27693716a5f32fe11ad7ba1cb445417a9a978/jevper-0.7.12-py3-none-any.whl", hash = "sha256:7ed96ec512ef32a942cdb097f7244c64ccb877b3ca27ee97c723155f13791d7a", size = 123337, upload-time = "2026-10-07T11:19:38.39Z" },
 ]
 
 [[package]]
