@@ -3,7 +3,8 @@ Postgres from compose) and against FakeTeams, so the two cannot drift."""
 
 import asyncio
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fake_graph import FakeGraph
@@ -82,6 +83,7 @@ class Tenant:
         self.graph, self.lapsed = graph, False
         self.add_team, self.add_member = graph.add_team, graph.add_member
         self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
+        self.event_of = graph.event_of
 
     def lapse_sign_in(self) -> None:
         self.lapsed = True
@@ -208,6 +210,100 @@ async def test_a_former_student_who_rejoins_is_a_student_again(tenant, clock):
     assert (student.id, student.former_since) == (original, None)
 
 
+WARSAW = ZoneInfo("Europe/Warsaw")
+YEAR_END = date(2026, 9, 30)
+MONDAY_8 = teams.Slot(weekday=0, start=time(8, 0), end=time(8, 45))
+WEDNESDAY_9 = teams.Slot(weekday=2, start=time(9, 0), end=time(9, 45))
+
+
+async def _class_with_jan(tenant):
+    team = tenant.add_team("2A matematyka")
+    tenant.add_member(team, "Jan Kowalski")
+    return team, await tenant.link_team(team)
+
+
+async def test_each_timetable_slot_becomes_a_series_of_lessons_up_to_the_year_end(tenant):
+    _, linked = await _class_with_jan(tenant)
+
+    await tenant.add_timetable(linked.id, [MONDAY_8, WEDNESDAY_9], YEAR_END)
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert len(lessons) == 9
+    assert [(x.start.weekday(), x.start.hour) for x in lessons[:3]] == [(2, 9), (0, 8), (2, 9)]
+    assert lessons[0].start == datetime(2026, 9, 2, 9, 0, tzinfo=WARSAW)
+    assert lessons[0].end == datetime(2026, 9, 2, 9, 45, tzinfo=WARSAW)
+    assert lessons[-1].start.date() == date(2026, 9, 30)
+    assert all(x.topic is None and x.join_url for x in lessons)
+    assert len({x.join_url for x in lessons}) == 2
+    assert (await tenant.get_class(linked.id)).school_year_end == YEAR_END
+
+
+async def test_a_class_gets_one_timetable(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+
+    with pytest.raises(teams.TimetableExists):
+        await tenant.add_timetable(linked.id, [WEDNESDAY_9], YEAR_END)
+
+
+async def test_lessons_are_per_class(tenant):
+    _, first = await _class_with_jan(tenant)
+    other = await tenant.link_team(tenant.add_team("3B matematyka"))
+    await tenant.add_timetable(first.id, [MONDAY_8], YEAR_END)
+
+    assert await tenant.list_lessons(other.id) == []
+
+
+async def test_a_series_invites_the_students_and_follows_the_roster(tenant, clock):
+    team, linked = await _class_with_jan(tenant)
+    leaver = tenant.add_member(team, "Adam Lis")
+    await tenant.sync_roster(linked.id)
+    await tenant.add_timetable(linked.id, [MONDAY_8, WEDNESDAY_9], YEAR_END)
+    lessons = await tenant.list_lessons(linked.id)
+    assert tenant.event_of(lessons[0].id)[1] == {"jan.kowalski@example.org", "adam.lis@example.org"}
+
+    tenant.add_member(team, "Ewa Zielinska")
+    tenant.remove_member(team, leaver)
+    await tenant.sync_roster(linked.id)
+
+    for lesson in lessons:
+        assert tenant.event_of(lesson.id)[1] == {
+            "jan.kowalski@example.org",
+            "ewa.zielinska@example.org",
+        }
+
+
+async def test_a_single_lesson_needs_a_topic_and_is_one_event(tenant):
+    _, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    end = start + timedelta(minutes=45)
+
+    with pytest.raises(ValueError):
+        await tenant.add_lesson(linked.id, start, end, "  ")
+    assert await tenant.list_lessons(linked.id) == []
+
+    lesson = await tenant.add_lesson(linked.id, start, end, "Funkcje liniowe")
+
+    assert await tenant.list_lessons(linked.id) == [lesson]
+    assert (lesson.topic, lesson.start, lesson.end) == ("Funkcje liniowe", start, end)
+    assert lesson.join_url
+    assert tenant.event_of(lesson.id) == (
+        "2A matematyka: Funkcje liniowe",
+        {"jan.kowalski@example.org"},
+    )
+
+
+async def test_a_single_lesson_follows_the_roster_too(tenant):
+    team, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    lesson = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+
+    tenant.add_member(team, "Ewa Zielinska")
+    await tenant.sync_roster(linked.id)
+
+    assert len(tenant.event_of(lesson.id)[1]) == 2
+
+
 async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypatch):
     team = tenant.add_team("2A matematyka")
     linked = await tenant.link_team(team)
@@ -236,6 +332,12 @@ async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant):
         tenant.list_owned_teams(),
         tenant.link_team(team),
         tenant.sync_roster(linked.id),
+        tenant.add_lesson(
+            linked.id,
+            datetime(2026, 9, 2, 8, tzinfo=UTC),
+            datetime(2026, 9, 2, 8, 45, tzinfo=UTC),
+            "Funkcje",
+        ),
     ):
         with pytest.raises(jobs.SignInRequired):
             await call
