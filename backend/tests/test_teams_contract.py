@@ -65,22 +65,28 @@ def tenant(request, clock):
     if request.param == "fake":
         return FakeTeams(clock=clock)
     graph = FakeGraph(TEACHER)
-    area = GraphTeams(GraphClient(token=lambda: _token(), transport=graph.transport), clock=clock)
-    return Tenant(area, graph)
+    tenant = Tenant(graph)
 
+    async def token() -> str:
+        if tenant.lapsed:
+            raise jobs.SignInRequired
+        return "token"
 
-async def _token() -> str:
-    return "token"
+    tenant.area = GraphTeams(GraphClient(token=token, transport=graph.transport), clock=clock)
+    return tenant
 
 
 class Tenant:
     """The real area plus the fake Microsoft behind it."""
 
-    def __init__(self, area: GraphTeams, graph: FakeGraph):
-        self.area, self.graph = area, graph
+    def __init__(self, graph: FakeGraph):
+        self.graph, self.lapsed = graph, False
         self.add_team, self.add_member = graph.add_team, graph.add_member
         self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
         self.event_of = graph.event_of
+
+    def lapse_sign_in(self) -> None:
+        self.lapsed = True
 
     def __getattr__(self, name):
         return getattr(self.area, name)
@@ -317,14 +323,24 @@ async def _ignore(_):
     pass
 
 
-async def test_a_lapsed_sign_in_raises_what_parks_a_job(monkeypatch):
-    async def lapsed(scopes):
-        raise jobs.SignInRequired
+async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant):
+    team = tenant.add_team("2A matematyka")
+    linked = await tenant.link_team(team)
+    tenant.lapse_sign_in()
 
-    monkeypatch.setattr("classlop.teams.graph.graph_token", lapsed)
-    monkeypatch.setattr(teams, "_backend", GraphTeams(GraphClient()))
-    with pytest.raises(jobs.SignInRequired):
-        await teams.list_owned_teams()
+    for call in (
+        tenant.list_owned_teams(),
+        tenant.link_team(team),
+        tenant.sync_roster(linked.id),
+        tenant.add_lesson(
+            linked.id,
+            datetime(2026, 9, 2, 8, tzinfo=UTC),
+            datetime(2026, 9, 2, 8, 45, tzinfo=UTC),
+            "Funkcje",
+        ),
+    ):
+        with pytest.raises(jobs.SignInRequired):
+            await call
 
 
 async def test_the_fake_backend_serves_the_interface(monkeypatch):
