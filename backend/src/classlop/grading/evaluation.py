@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import uuid
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -61,7 +62,47 @@ def metrics(outputs: list[dict], references: list[dict]) -> dict:
         "held_precision": held_correctly / got_held if got_held else None,
         "feedback_leaks": sum(leaks),
         "summary_leaks": sum(_gives_away(out["summary"], every_leak) for out in outputs),
+        **_held_false(outputs, references),
     }
+
+
+def _held_false(outputs: list[dict], references: list[dict]) -> dict:
+    """The Submissions Held needlessly, counted under every cause that Held them."""
+    held_false = [
+        (out, ref)
+        for out, ref in zip(outputs, references, strict=True)
+        if out["held"] and not ref["held"]
+    ]
+    counts = Counter()
+    for out, ref in held_false:
+        expected = {i["number"]: i["transcription"] for i in ref["items"]}
+        causes = {
+            "unsure_transcription"
+            if not item["disputed"]
+            else "dispute_correct_transcription"
+            if _same_transcription(item["transcription"], expected[item["number"]])
+            else "dispute_wrong_transcription"
+            for item in out["items"]
+            if item["reading"] == "unsure"
+        }
+        counts.update(causes or {"other"})
+    return {"held_false": len(held_false)} | {
+        f"held_false_{cause}": counts[cause]
+        for cause in (
+            "dispute_correct_transcription",
+            "dispute_wrong_transcription",
+            "unsure_transcription",
+            "other",
+        )
+    }
+
+
+def _same_transcription(got: str, expected: str) -> bool:
+    # A description in square brackets need not match word for word.
+    def kept(latex: str) -> str:
+        return _normalised(re.sub(r"\[[^\]]*\]", "[]", latex))
+
+    return kept(got) == kept(expected)
 
 
 def _gives_away(text: str, leaks: list[str]) -> bool:
@@ -92,7 +133,6 @@ def _version(item: dict) -> ItemVersion:
         text=item["text"],
         points=item["max_points"],
         options=item["options"] or {},
-        # A closed Item's answer is its correct option's label.
         correct_options=[item["answer"]] if closed else [],
         answer=None if closed else item["answer"],
         model_solution=item["model_solution"],
@@ -116,7 +156,7 @@ def load(set_dir: Path) -> tuple[list[ItemVersion], dict[str, dict]]:
             "held": expected["held"],
             "items": [
                 {
-                    **{k: i[k] for k in ("number", "points", "reading")},
+                    **{k: i[k] for k in ("number", "points", "reading", "transcription")},
                     "format": by_number[i["number"]]["format"],
                     "leaks": by_number[i["number"]].get("leaks", []),
                 }
@@ -156,7 +196,14 @@ async def grade_submission(versions: list[ItemVersion], files: list[Path]) -> di
         "held": graded.held,
         "summary": graded.summary,
         "items": [
-            {"number": i.number, "points": i.points, "reading": i.reading, "feedback": i.feedback}
+            {
+                "number": i.number,
+                "points": i.points,
+                "reading": i.reading,
+                "feedback": i.feedback,
+                "transcription": i.ai_transcription,
+                "disputed": i.verification_note is not None,
+            }
             for i in graded.items
         ],
     }
@@ -198,8 +245,10 @@ async def _experiment(client, set_dir: Path, submissions: dict, target) -> dict:
     from langsmith import aevaluate
 
     settings = get_settings()
-    # A new dataset whenever the set changes, so experiments on one dataset stay comparable.
-    digest = hashlib.sha256()
+    # A new dataset whenever the set or the shape of its references changes, so experiments on
+    # one dataset stay comparable.
+    references = {name: s["reference"] for name, s in submissions.items()}
+    digest = hashlib.sha256(json.dumps(references).encode())
     for path in sorted(set_dir.rglob("*")):
         if path.is_file():
             digest.update(path.relative_to(set_dir).as_posix().encode() + path.read_bytes())
@@ -250,4 +299,4 @@ def print_report(set_name: str, report: dict) -> None:
     print(f"\nGrading evaluation, {set_name}")
     for key, value in report.items():
         shown = "n/a" if value is None else f"{value:.0%}" if isinstance(value, float) else value
-        print(f"  {key:<24} {shown}")
+        print(f"  {key:<42} {shown}")

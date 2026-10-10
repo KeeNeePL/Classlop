@@ -34,7 +34,8 @@ uv run classlop eval-grading set-01
   - points agreement per Item, overall and for closed and open Items;
   - reading-state agreement;
   - Held recall and precision;
-  - the Feedback and summaries that contain a leak.
+  - the Feedback and summaries that contain a leak;
+  - the needlessly Held Submissions (`held_false`), counted under each cause that Held them: a verification dispute against a correct Transcription, a dispute over a wrong Transcription, an Item the Transcription itself read as unsure, and `other` (unreadable, doubt, failure). A Transcription is wrong when it differs from `expected.json`, ignoring spacing and the wording in square brackets.
 - **LangSmith:** with `LANGSMITH_API_KEY` set, the run is a LangSmith experiment (EU) on the dataset `grading-<set>-<hash>`. The hash changes when the set does, so experiments on one dataset compare like with like.
 - **Without the key:** it grades locally and prints the report only.
 - **Side effects:** the run writes results to the dev database, uploads the files under `grading/evaluation/`, and enqueues the events grading always sends. Leave the dev worker stopped while it runs: `teams` does not handle `teams.submission_graded` yet, so those jobs would retry and end in the dead-letter queue.
