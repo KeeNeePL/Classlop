@@ -86,28 +86,71 @@ ol {
   padding: 0;
 }
 
-ol li {
+.attention li {
   display: flex;
   gap: 12px;
   align-items: baseline;
   padding: 4px 0;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
+.timeline {
+  margin-left: 6px;
+  border-left: 2px solid var(--line);
 }
 
-th {
-  text-align: left;
-  font-size: 12px;
+.timeline li {
+  position: relative;
+  padding: 0 0 18px 22px;
+}
+
+.timeline li:last-child {
+  padding-bottom: 0;
+}
+
+/* the dot on the line: filled while the Assignment is open, hollow until it is given */
+.timeline li::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+}
+
+.timeline li.scheduled::before {
+  background: var(--card);
+}
+
+.timeline li.open::before {
+  border-color: var(--pen);
+  background: var(--pen);
+}
+
+.when {
+  display: flex;
+  gap: 10px;
+  align-items: center;
   color: var(--muted);
-  font-weight: 600;
+  font-size: 13px;
 }
 
-th,
-td {
-  padding: 6px 8px 6px 0;
-  border-bottom: 1px solid var(--line);
+.title {
+  display: block;
+  margin: 2px 0;
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status .state {
+  color: var(--ink);
+  font-weight: 600;
 }

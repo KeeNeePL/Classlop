@@ -43,6 +43,8 @@ class Assignment(Record):
     id: str
     title: str
     type: AssignmentType
+    # When Teams accepted the publication, or the time it will.
+    given_at: datetime
     due: datetime
     state: AssignmentState
     submissions: tuple[Submission, ...]

@@ -74,12 +74,14 @@ def invented(class_id: str, name: str, now: datetime) -> ClassData:
                     for t in items
                 )
             submissions.append(Submission(student_id=s.id, state=state, items=scored))
+        due = now + timedelta(days=7 * (n - len(TITLES) + 1) + 1)
         assignments.append(
             Assignment(
                 id=f"{class_id}-{n}",
                 title=title,
                 type=TYPES[n],
-                due=now + timedelta(days=7 * (n - len(TITLES) + 1) + 1),
+                given_at=due - timedelta(days=7),
+                due=due,
                 state="open" if open_ else "closed",
                 submissions=tuple(submissions),
             )

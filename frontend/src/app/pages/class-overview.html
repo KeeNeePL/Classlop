@@ -59,42 +59,30 @@
 
   <cl-panel>
     <h2>Prace<cl-hint [text]="hints.assignments" /></h2>
-    <cl-line-chart name="Średnia klasy" [points]="line()" />
-    <table>
-      <thead>
-        <tr>
-          <th>Praca</th>
-          <th>Typ</th>
-          <th>Termin</th>
-          <th>Stan</th>
-          <th>Średnia</th>
-          <th>Oddane</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (a of o.assignments; track a.id) {
-          <tr>
-            <td>{{ a.title }}</td>
-            <td>{{ type(a) }}</td>
-            <td>{{ due(a) }}</td>
-            <td>{{ state(a) }}</td>
-            <td>
-              @if (a.average == null) {
-                <span class="muted">brak danych</span>
-              } @else {
-                {{ a.average }}%
-              }
-            </td>
-            <td>{{ a.handed_in }}/{{ a.total }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
+    <ol class="timeline" aria-label="Prace">
+      @for (a of o.assignments; track a.id) {
+        <li [class]="a.state">
+          <div class="when">
+            <time>{{ given(a) }}</time>
+            <cl-badge [tone]="tone(a)">{{ type(a) }}</cl-badge>
+          </div>
+          <b class="title">{{ a.title }}</b>
+          <div class="status">
+            <span class="state">{{ state(a) }}</span>
+            <span>termin {{ due(a) }}</span>
+            <span>oddane {{ a.handed_in }}/{{ a.total }}</span>
+            @if (a.average != null) {
+              <span>średnia {{ a.average }}%</span>
+            }
+          </div>
+        </li>
+      }
+    </ol>
   </cl-panel>
 
   <cl-panel>
     <h2>Wymagają uwagi<cl-hint [text]="hints.attention" /></h2>
-    <ol aria-label="Wymagają uwagi">
+    <ol class="attention" aria-label="Wymagają uwagi">
       @for (a of o.attention; track a.student_id) {
         <li>
           <a [routerLink]="link(a.student_id)">{{ a.name }}</a>

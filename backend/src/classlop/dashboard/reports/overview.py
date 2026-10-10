@@ -1,5 +1,5 @@
-"""The Class overview: Progress by Assignment type, the Assignments, the Class-average line,
-Wymagają uwagi and the Student list."""
+"""The Class overview: Progress by Assignment type, the Assignments, Wymagają uwagi and the
+Student list."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -31,19 +31,11 @@ class AssignmentRow(BaseModel):
     title: str
     type: AssignmentType
     state: AssignmentState
+    given_at: datetime
     due: datetime
     average: int | None
     handed_in: int
     total: int
-
-
-class AveragePoint(BaseModel):
-    """One Given Assignment on the Class-average line, at its due time; no percent is a gap."""
-
-    id: str
-    title: str
-    due: datetime
-    percent: int | None
 
 
 class StudentRow(BaseModel):
@@ -74,13 +66,14 @@ class ClassOverview(BaseModel):
     name: str
     progress: list[TypeProgress]
     assignments: list[AssignmentRow]
-    average_line: list[AveragePoint]
     attention: list[Attention]
     students: list[StudentRow]
 
 
 def given(data: ClassData) -> list[Assignment]:
-    return sorted((a for a in data.assignments if a.state != "draft"), key=lambda a: a.due)
+    """The Given Assignments, newest first."""
+    given = (a for a in data.assignments if a.state != "draft")
+    return sorted(given, key=lambda a: a.given_at, reverse=True)
 
 
 def row(a: Assignment) -> AssignmentRow:
@@ -89,6 +82,7 @@ def row(a: Assignment) -> AssignmentRow:
         title=a.title,
         type=a.type,
         state=a.state,
+        given_at=a.given_at,
         due=a.due,
         average=overall(counted(a.submissions)).percent,
         handed_in=sum(s.state in HANDED_IN for s in a.submissions),
@@ -158,9 +152,6 @@ def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> Cl
         name=data.name,
         progress=[type_progress(kind, data, sections) for kind in TYPES],
         assignments=rows,
-        average_line=[
-            AveragePoint(id=r.id, title=r.title, due=r.due, percent=r.average) for r in rows
-        ],
         attention=flagged[:TOP],
         students=students,
     )

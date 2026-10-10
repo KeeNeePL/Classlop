@@ -134,6 +134,11 @@
             ],
             "title": "State"
           },
+          "given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Given At"
+          },
           "due": {
             "type": "string",
             "format": "date-time",
@@ -165,6 +170,7 @@
           "title",
           "type",
           "state",
+          "given_at",
           "due",
           "average",
           "handed_in",
@@ -214,43 +220,6 @@
           "percent"
         ],
         "title": "Attention"
-      },
-      "AveragePoint": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "due": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Due"
-          },
-          "percent": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Percent"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "title",
-          "due",
-          "percent"
-        ],
-        "title": "AveragePoint",
-        "description": "One Given Assignment on the Class-average line, at its due time; no percent is a gap."
       },
       "ClassLink": {
         "properties": {
@@ -423,13 +392,6 @@
             "type": "array",
             "title": "Assignments"
           },
-          "average_line": {
-            "items": {
-              "$ref": "#/components/schemas/AveragePoint"
-            },
-            "type": "array",
-            "title": "Average Line"
-          },
           "attention": {
             "items": {
               "$ref": "#/components/schemas/Attention"
@@ -455,7 +417,6 @@
           "name",
           "progress",
           "assignments",
-          "average_line",
           "attention",
           "students",
           "invented"

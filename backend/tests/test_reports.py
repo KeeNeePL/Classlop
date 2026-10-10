@@ -40,7 +40,8 @@ def work(
         id=f"w{n}",
         title=f"Praca {n}",
         type=type,
-        due=START + timedelta(days=n),
+        given_at=START + timedelta(days=n),
+        due=START + timedelta(days=n + 7),
         state=state,
         submissions=subs,
     )
@@ -138,7 +139,7 @@ def test_assignments_show_state_average_and_hand_ins_and_leave_drafts_out():
         students=("s1", "s2", "s3", "s4"),
     )
 
-    first, second = view.assignments
+    second, first = view.assignments
     assert (first.title, first.type, first.state) == ("Praca 1", "homework", "closed")
     assert (first.average, first.handed_in, first.total) == (75, 3, 4)
     assert (second.type, second.state, second.average, second.total) == (
@@ -149,19 +150,14 @@ def test_assignments_show_state_average_and_hand_ins_and_leave_drafts_out():
     )
 
 
-def test_the_class_average_line_has_one_point_per_given_assignment_with_gaps():
-    view = overview(
-        work(1, sub("s1", item(1, 2, A1))),
-        work(2, sub("s1", item(0, 2, A1), state="excused")),
-        work(3, sub("s1", item(2, 2, A1))),
-    )
+def test_assignments_come_newest_given_first_with_the_day_they_were_given():
+    view = overview(work(2), work(3), work(1), work(4, state="draft"))
 
-    assert [(p.title, p.percent) for p in view.average_line] == [
-        ("Praca 1", 50),
-        ("Praca 2", None),
-        ("Praca 3", 100),
+    assert [(a.title, a.given_at.day) for a in view.assignments] == [
+        ("Praca 3", START.day + 3),
+        ("Praca 2", START.day + 2),
+        ("Praca 1", START.day + 1),
     ]
-    assert [p.due for p in view.average_line] == sorted(p.due for p in view.average_line)
 
 
 def test_the_student_list_has_former_students_labelled_and_counted_like_any():

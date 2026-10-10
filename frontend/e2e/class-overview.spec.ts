@@ -24,9 +24,18 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();
 
-  await expect(page.getByRole('img', { name: /^Średnia klasy: / })).toBeVisible();
-  await expect(page.locator('cl-line-chart canvas')).toBeVisible();
-  await expect(page.getByRole('row', { name: /Zbiory liczbowe/ })).toBeVisible();
+  const works = page.getByRole('list', { name: 'Prace' }).getByRole('listitem');
+  await expect(works.locator('.title')).toHaveText([
+    'Funkcje',
+    'Nierówności',
+    'Równania',
+    'Wzory skróconego mnożenia',
+    'Zbiory liczbowe',
+  ]);
+  await expect(works.first()).toContainText('Praca domowa');
+  await expect(works.first()).toContainText('Zbieranie prac');
+  await expect(works.nth(1)).toContainText('Kartkówka');
+  await expect(works.nth(1)).toContainText('Zamknięta');
 
   const attention = page.getByRole('list', { name: 'Wymagają uwagi' }).getByRole('listitem');
   await expect(attention.first()).toContainText('Wynik');
