@@ -11,8 +11,9 @@ from pydantic import BaseModel
 
 from classlop import items as items_area
 from classlop.grading.models import GradedItem, GradedSubmission, Reading
+from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
-from classlop.grading.transcription import ItemTranscription, prepare, transcribe
+from classlop.grading.transcription import ItemTranscription, transcribe
 from classlop.items import ItemVersion
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
@@ -55,6 +56,8 @@ class Input(TypedDict):
 class State(Input):
     items: list[tuple[int, ItemVersion]]
     pages: list[bytes]
+    # The Held reason when the files cannot be transcribed at all.
+    file_problem: str | None
     transcriptions: dict[int, ItemTranscription]
     scores: Annotated[dict[int, Score], operator.or_]
     graded: GradedSubmission
@@ -69,10 +72,29 @@ class ScoreTask(TypedDict):
 async def load(state: State) -> dict:
     job = state["job"]
     versions = await items_area.get_versions([i.id for i in job.items])
-    photos = await asyncio.gather(*(asyncio.to_thread(storage.get, key) for key in job.files))
+    files = await asyncio.gather(*(asyncio.to_thread(storage.get, key) for key in job.files))
+    items = [(a.number, v) for a, v in zip(job.items, versions, strict=True)]
+    pages, problem = pages_of(files)
+    return {"items": items, "pages": [prepare(p) for p in pages], "file_problem": problem}
+
+
+def to_transcription(state: State) -> str:
+    return "hold" if state["file_problem"] else "transcribe_pages"
+
+
+async def hold(state: State) -> dict:
+    """Files that cannot be transcribed are not graded at all: the Teacher sees why."""
+    job, held = state["job"], [{"reason": state["file_problem"], "items": []}]
     return {
-        "items": [(a.number, v) for a, v in zip(job.items, versions, strict=True)],
-        "pages": [prepare(p) for p in photos],
+        "graded": GradedSubmission(
+            submission_id=job.submission_id,
+            handed_in_at=job.handed_in_at,
+            status="graded",
+            held_reasons=held,
+            spot_check_reasons=held,
+            comment="",
+            items=[],
+        )
     }
 
 
@@ -196,11 +218,15 @@ async def persist(state: State) -> dict:
 
 grade_graph = (
     StateGraph(State, input_schema=Input)
-    .add_sequence([load, transcribe_pages])
+    .add_node(load)
+    .add_node(transcribe_pages)
     .add_node(score_item)
+    .add_node(hold)
     .add_sequence([assess, persist])
     .add_edge(START, "load")
+    .add_conditional_edges("load", to_transcription, ["transcribe_pages", "hold"])
     .add_conditional_edges("transcribe_pages", to_scoring, ["score_item", "assess"])
     .add_edge("score_item", "assess")
+    .add_edge("hold", "persist")
     .compile()
 )
