@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from classlop.grading.models import GradedSubmission, Reading, Status
 from classlop.shared.db import sessions
@@ -28,12 +28,9 @@ class ItemResult(BaseModel):
     feedback: str
     mistake: str | None
     verification_note: str | None
-
-    @computed_field
-    @property
-    def points(self) -> int:
-        """Effective points: the AI's until the Teacher overrides them."""
-        return self.ai_points
+    override: int | None
+    # Effective points: the AI's until the Teacher overrides them.
+    points: int = Field(validation_alias="effective_points")
 
 
 class Result(BaseModel):
@@ -46,16 +43,17 @@ class Result(BaseModel):
     spot_check_reasons: list[Reason]
     comment: str
     items: list[ItemResult]
+    approved_at: datetime | None
 
     @computed_field
     @property
     def held(self) -> bool:
-        return bool(self.held_reasons)
+        return bool(self.held_reasons) and self.approved_at is None
 
     @computed_field
     @property
     def spot_check(self) -> bool:
-        return bool(self.spot_check_reasons)
+        return bool(self.spot_check_reasons) and self.approved_at is None
 
 
 async def result(submission_id: uuid.UUID, handed_in_at: datetime) -> Result | None:

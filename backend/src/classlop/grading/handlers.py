@@ -14,7 +14,7 @@ async def grade(job: Job, progress: Progress) -> None:
     # SQS delivers at least once: a finished result is never graded or written again, and
     # announcing it again is a no-op unless the first run died before announcing.
     if await result(request.submission_id, request.handed_in_at) is not None:
-        await announce(request)
+        await announce(request.submission_id, request.handed_in_at, first=True)
         await request_if_computed(request.assignment_id)
         return
     await grade_graph.ainvoke({"job": request})
