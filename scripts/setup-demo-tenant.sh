@@ -294,6 +294,8 @@ step "Add: User.Read, OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, 
 step "Files.ReadWrite.All (hand-in folders: create, share, upload)"
 step "and, for the teams area: Group.ReadWrite.All, TeamMember.ReadWrite.All, Channel.ReadBasic.All,"
 step "Team.Create, User.ReadBasic.All, Chat.Create, ChatMessage.Send, ChannelMessage.Send"
+step "(Group.ReadWrite.All also deletes and restores a team; restoring needs the Teacher to be"
+step "a Groups Administrator, otherwise restore it in Teams.)"
 if [[ "$M365_TENANT_KIND" == edu ]]; then
   step "and: EduRoster.ReadBasic, EduAssignments.ReadWrite"
 else

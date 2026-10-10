@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from fake_graph_files import FilesRoutes
+from fake_graph_lifecycle import LifecycleRoutes
 
 from classlop.teams.service import local, zulu
 
@@ -28,7 +29,7 @@ def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -
     return {"caller": {"identity": who}, "startDateTime": zulu(joined), "endDateTime": zulu(left)}
 
 
-class FakeGraph(FilesRoutes):
+class FakeGraph(FilesRoutes, LifecycleRoutes):
     def __init__(self, teacher_id: str):
         self.teacher_id = teacher_id
         self.users: dict[str, tuple[str, str]] = {}
@@ -40,6 +41,7 @@ class FakeGraph(FilesRoutes):
         self.deleted: set[str] = set()
         self.call_records: list[dict] = []
         self._init_files()
+        self._init_lifecycle()
         self.transport = httpx.MockTransport(self._handle)
 
     def add_user(self, name: str) -> str:
@@ -126,6 +128,7 @@ class FakeGraph(FilesRoutes):
             }
         event_id = json.loads(self._create_event(body).content)["id"]
         thread = channel or f"19:{uuid.uuid4().hex}@thread.v2"
+        self.events[event_id]["made_in_teams"] = True
         self.events[event_id]["onlineMeeting"] = {
             "joinUrl": f"https://teams.example.org/l/meetup-join/{quote(thread)}/0"
         }
@@ -184,8 +187,9 @@ class FakeGraph(FilesRoutes):
         }
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
-        if (found := self._files(request)) is not None:
-            return found
+        for routes in (self._lifecycle, self._files):
+            if (found := routes(request)) is not None:
+                return found
         path = request.url.path.removeprefix("/v1.0")
         method = request.method
         if path == "/me/ownedObjects/microsoft.graph.group":
@@ -367,7 +371,8 @@ class FakeGraph(FilesRoutes):
         window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
         rows = []
         for event_id in dict.fromkeys(self.changes[int(params.get("$deltatoken", 0)) :]):
-            event = self.events[event_id]
+            if (event := self.events.get(event_id)) is None:
+                continue  # deleted since
             series = event_id if "recurrence" in event else None
             rows += [
                 {"id": gone, "@removed": {"reason": "deleted"}}

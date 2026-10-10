@@ -12,6 +12,7 @@ from classlop import items
 from classlop.shared import jobs, schedule
 from classlop.shared.jobs import SignInRequired
 from classlop.teams import assignments, ids
+from classlop.teams.lifecycle import check_writable, writable
 from classlop.teams.types import Assignment, AssignmentSpec, Class, Student, Submission
 
 
@@ -78,6 +79,7 @@ class FakeGiving:
     def invitation_emails(self) -> int:
         return 0
 
+    @writable
     async def give_assignment(
         self, class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
     ) -> Assignment:
@@ -116,6 +118,7 @@ class FakeGiving:
         self._require_sign_in()
         if self._assignments[assignment_id].state != "draft":
             raise ValueError("only a Draft is given again")
+        check_writable(await self.get_class(self._assignments[assignment_id].class_id))
         assignments.check_time(when, self._clock())
         self._save(assignment_id, give_failed_at=None)
         if when is None:

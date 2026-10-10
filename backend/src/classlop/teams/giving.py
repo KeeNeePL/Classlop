@@ -19,6 +19,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams import assignments, ids
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.graph import BASE, GraphClient, GraphError
+from classlop.teams.lifecycle import check_writable, writable
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment, AssignmentSpec, Class, Student, Submission
 
@@ -39,6 +40,7 @@ class Giving:
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def sync_roster(self, class_id: str) -> None: ...
 
+    @writable
     async def give_assignment(
         self, class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
     ) -> Assignment:
@@ -85,6 +87,7 @@ class Giving:
         row = await self._row(assignment_id)
         if row.state != "draft":
             raise ValueError("only a Draft is given again")
+        check_writable(await self.get_class(row.class_id))
         assignments.check_time(when, self._clock())
         await self._save_assignment(assignment_id, give_failed_at=None)
         if when is None:
@@ -188,7 +191,10 @@ class Giving:
 
     async def _row(self, assignment_id: str) -> AssignmentRecord:
         async with sessions()() as session:
-            return await session.get_one(AssignmentRecord, assignment_id)
+            row = await session.get(AssignmentRecord, assignment_id)
+        if row is None:
+            raise LookupError(assignment_id)
+        return row
 
     async def _save_assignment(self, assignment_id: str, **fields) -> None:
         async with sessions().begin() as session:

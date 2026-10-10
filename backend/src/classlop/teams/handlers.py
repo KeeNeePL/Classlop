@@ -59,7 +59,10 @@ async def sync_calendar(job: Job, progress: Progress) -> None:
 async def deliver_assignment(job: Job, progress: Progress) -> dict:
     """Retries the Students an Assignment has not reached; fails while any is left, so the job is
     tried again."""
-    left = await teams.deliver_assignment(job.payload["assignment_id"])
+    try:
+        left = await teams.deliver_assignment(job.payload["assignment_id"])
+    except LookupError:  # its Class was deleted
+        return {"left": 0}
     if left:
         raise RuntimeError(f"{left} Students not reached")
     return {"left": 0}
@@ -69,4 +72,7 @@ async def deliver_assignment(job: Job, progress: Progress) -> dict:
 async def give_assignment(job: Job, progress: Progress) -> None:
     """Posts a Scheduled Assignment at its time. If it still fails on the last try it returns to
     Draft, for the home screen to show."""
-    await teams.publish_scheduled(job.payload["assignment_id"], last_try=job.final_attempt)
+    try:
+        await teams.publish_scheduled(job.payload["assignment_id"], last_try=job.final_attempt)
+    except LookupError:  # its Class was deleted
+        return

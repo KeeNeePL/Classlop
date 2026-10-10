@@ -17,6 +17,8 @@ from classlop.teams.types import (
     CalendarQuestion,
     Candidate,
     Class,
+    ClassReadOnly,
+    ClassState,
     Lesson,
     NotOwner,
     Slot,
@@ -39,6 +41,8 @@ __all__ = [
     "AttendanceState",
     "Candidate",
     "Class",
+    "ClassReadOnly",
+    "ClassState",
     "Lesson",
     "NotOwner",
     "Slot",
@@ -56,7 +60,10 @@ __all__ = [
     "cancel_lessons",
     "change_slot",
     "create_class",
+    "delete_class",
     "deliver_assignment",
+    "list_deleted_teams",
+    "restore_team",
     "fetch_due_attendance",
     "get_attendance",
     "get_assignment",
@@ -271,3 +278,19 @@ async def publish_scheduled(assignment_id: str, last_try: bool = False) -> Assig
 async def list_failed_gives() -> list[Assignment]:
     """Drafts that failed to be given, for the home screen."""
     return await backend().list_failed_gives()
+
+
+async def delete_class(class_id: str, name: str) -> None:
+    """Delete a Class and its team, future Lesson events, hand-in folders and records, once its
+    name is typed. Items and 1:1 chats stay; the caller deletes its own Notes."""
+    await backend().delete_class(class_id, name)
+
+
+async def list_deleted_teams() -> list[Class]:
+    """Read-only Classes whose team was deleted in Teams: «przywróć zespół» or «usuń klasę»."""
+    return await backend().list_deleted_teams()
+
+
+async def restore_team(class_id: str) -> Class:
+    """Restore the Class's deleted team in Teams and make the Class active again."""
+    return await backend().restore_team(class_id)
