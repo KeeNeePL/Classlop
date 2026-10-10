@@ -52,13 +52,17 @@ async def get_jobs(ids: Iterable[uuid.UUID]) -> list[Job]:
         return list((await session.scalars(select(Job).where(Job.id.in_(list(ids))))).all())
 
 
-async def ping(timeout: float = 30) -> bool:
-    """Run a `shared.ping` job through the queue and the worker; True if it succeeds."""
-    job_id = await enqueue("shared.ping")
+async def ping(kind: str = "shared.ping", timeout: float = 30) -> bool:
+    """Run a payload-less job through the queue and the worker; True if it succeeds."""
+    job_id = await enqueue(kind)
     async with asyncio.timeout(timeout):
-        while (job := (await get_jobs([job_id]))[0]).status not in ("succeeded", "failed"):
+        while (job := (await get_jobs([job_id]))[0]).status not in (
+            "succeeded",
+            "failed",
+            "waiting_for_sign_in",
+        ):
             await asyncio.sleep(0.5)
-    print(f"{job.kind} {job_id}: {job.status}")
+    print(f"{job.kind} {job_id}: {job.status} {job.result or job.error or ''}")
     return job.status == "succeeded"
 
 

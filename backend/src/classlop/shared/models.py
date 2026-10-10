@@ -38,6 +38,19 @@ class Job(Base):
         return self.attempts >= MAX_RECEIVES
 
 
+class TokenCache(Base):
+    """The MSAL token cache: one row, since one Teacher signs in."""
+
+    __tablename__ = "token_cache"
+    __table_args__ = {"schema": "shared"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    data: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Schedule(Base):
     """Dev stand-in for EventBridge Scheduler: the `scheduler` service fires what is due."""
 
