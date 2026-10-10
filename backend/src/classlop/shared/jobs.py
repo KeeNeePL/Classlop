@@ -124,8 +124,7 @@ async def process(message: dict) -> None:
         await queue.delete(message)
     except Exception as exc:
         log.exception("job %s (%s) failed", job.id, job.kind)
-        final = job.attempts >= queue.MAX_RECEIVES
-        await _set(job.id, status="failed" if final else "queued", error=repr(exc))
+        await _set(job.id, status="failed" if job.final_attempt else "queued", error=repr(exc))
         # Not deleted: SQS redelivers it, and after the last receive moves it to the DLQ.
         await queue.retry_in(message, get_settings().jobs_retry_delay)
     else:
