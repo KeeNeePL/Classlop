@@ -12,6 +12,7 @@ from classlop.grading.models import (
     CommonMistakesRun,
     GradedItem,
     GradedSubmission,
+    Override,
 )
 from classlop.shared import jobs, llm
 from classlop.shared.db import sessions
@@ -121,19 +122,27 @@ async def recompute(assignment_id: uuid.UUID) -> None:
     async with sessions()() as session:
         rows = await session.execute(
             select(
-                GradedItem.item_id, GradedItem.number, GradedItem.submission_id, GradedItem.mistake
-            ).join(
+                GradedItem.item_id,
+                GradedItem.number,
+                GradedItem.submission_id,
+                GradedItem.mistake,
+                GradedItem.max_points,
+                Override.points,
+            )
+            .join(
                 latest,
                 and_(
                     GradedItem.submission_id == latest.c.submission_id,
                     GradedItem.handed_in_at == latest.c.at,
                 ),
             )
+            .outerjoin(Override, GradedItem.override_record)
         )
     numbers: dict[uuid.UUID, int] = {}
     made: dict[uuid.UUID, list[tuple[uuid.UUID, str]]] = {}
-    for item_id, number, submission_id, mistake in rows:
-        if not mistake:
+    for item_id, number, submission_id, mistake, max_points, overridden in rows:
+        # The Teacher's full points say there was no mistake after all.
+        if not mistake or overridden == max_points:
             continue
         numbers[item_id] = number
         made.setdefault(item_id, []).append((submission_id, mistake))

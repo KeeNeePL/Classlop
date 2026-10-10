@@ -8,7 +8,7 @@ import json
 import os
 import re
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pillow_heif
 import pytest
@@ -217,10 +217,12 @@ async def hand_in(
     deliveries: int = 1,
     assignment_id: uuid.UUID | None = None,
     submission_id: uuid.UUID | None = None,
+    handed_in_at: datetime | None = None,
+    due_at: datetime | None = None,
 ):
     """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it; returns the
     hand-in's key."""
-    submission_id, handed_in_at = submission_id or uuid.uuid4(), datetime.now(UTC)
+    submission_id, handed_in_at = submission_id or uuid.uuid4(), handed_in_at or datetime.now(UTC)
     keys = []
     for n, file in enumerate(files or [photo()], 1):
         # Named and typed as the Student's phone sent it; grading goes by content.
@@ -235,6 +237,7 @@ async def hand_in(
         "items": [{"id": str(i.id), "number": n} for n, i in enumerate(assignment, 1)],
         "files": keys,
         "assignment_id": str(assignment_id or uuid.uuid4()),
+        "due_at": (due_at or handed_in_at + timedelta(days=1)).isoformat(),
     }
 
     async def progress(value):
@@ -849,3 +852,140 @@ async def test_a_wrong_option_chosen_by_three_submissions_is_common(bank, fake_l
     assert [(m.description, m.count, set(m.submission_ids)) for m in per_item.mistakes] == [
         ("Uczniowie często zaznaczają odpowiedź C", 3, set(chose_c))
     ]
+
+
+def days_from_now(n: int) -> datetime:
+    return datetime.now(UTC) + timedelta(days=n)
+
+
+async def test_an_override_after_the_due_time_becomes_the_effective_points(bank, fake_llm):
+    assignment_id = uuid.uuid4()
+    item = closed(points=2, correct="B")
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    key = await hand_in(
+        bank,
+        [item],
+        assignment_id=assignment_id,
+        handed_in_at=days_from_now(-2),
+        due_at=days_from_now(-1),
+    )
+
+    await grading.override(*key, item.id, 2)
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert [(i.ai_points, i.override, i.points) for i in result.items] == [(0, 2, 2)]
+    assert result.comment.startswith("Zadanie 1: 2/2 pkt – poprawnie\n")
+    assert len(await graded_events(key[0])) == 2
+    assert len(await mistake_jobs(assignment_id)) == 1
+
+
+async def test_an_override_before_the_due_time_is_refused(bank, fake_llm):
+    item = closed()
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    key = await hand_in(bank, [item], due_at=days_from_now(1))
+
+    with pytest.raises(grading.TooEarly):
+        await grading.override(*key, item.id, 1)
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert [(i.override, i.points) for i in result.items] == [(None, 0)]
+    assert len(await graded_events(key[0])) == 1
+
+
+async def test_a_late_submission_can_be_overridden_once_graded(bank, fake_llm):
+    item = closed()
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    key = await hand_in(bank, [item], handed_in_at=days_from_now(0), due_at=days_from_now(-1))
+
+    await grading.override(*key, item.id, 1)
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert [i.points for i in result.items] == [1]
+
+
+async def test_an_override_outside_the_items_points_is_refused(bank, fake_llm):
+    item = closed(points=1)
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    key = await hand_in(bank, [item], due_at=days_from_now(-1), handed_in_at=days_from_now(-2))
+
+    with pytest.raises(ValueError):
+        await grading.override(*key, item.id, 2)
+
+
+async def test_zatwierdz_releases_a_held_submission_with_the_ai_points(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    fake_llm.transcribes(
+        read(1, chosen="B", transcription="B"),
+        read(2, reading="unreadable", transcription="[nieczytelne]"),
+        read(3, chosen="B", reading="unsure", transcription="B"),
+    )
+    key = await hand_in(bank, [closed(), item, closed()], assignment_id=assignment_id)
+
+    await grading.approve(*key)
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert (result.held, result.spot_check) == (False, False)
+    assert [(i.reading, i.points, i.feedback) for i in result.items] == [
+        ("readable", 1, "poprawnie"),
+        ("unreadable", 0, "nie udało się odczytać rozwiązania"),
+        ("unsure", 1, "poprawnie"),
+    ]
+    assert len(await graded_events(key[0])) == 2
+    assert len(await mistake_jobs(assignment_id)) == 1
+
+
+async def test_a_newer_hand_in_drops_overrides_and_is_flagged_anew(bank, fake_llm):
+    item = closed()
+    fake_llm.transcribes(read(1, chosen="C", reading="unsure", transcription="C"))
+    first = await hand_in(bank, [item], handed_in_at=days_from_now(-2), due_at=days_from_now(-1))
+    await grading.override(*first, item.id, 1)
+    await grading.approve(*first)
+
+    fake_llm.transcribes(read(1, chosen="C", reading="unsure", transcription="C"))
+    second = await hand_in(bank, [item], submission_id=first[0], due_at=days_from_now(-1))
+
+    result = await grading.result(*second)
+    assert result is not None
+    assert [(i.override, i.points) for i in result.items] == [(None, 0)]
+    assert (result.held, result.spot_check) == (True, True)
+
+
+async def test_an_override_never_reaches_another_submissions_grading(bank, fake_llm):
+    item = closed()
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    first = await hand_in(bank, [item], handed_in_at=days_from_now(-2), due_at=days_from_now(-1))
+    await grading.override(*first, item.id, 1)
+
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    other = await grading.result(*await hand_in(bank, [item]))
+
+    assert other is not None
+    assert [(i.ai_points, i.override, i.points) for i in other.items] == [(0, None, 0)]
+
+
+async def test_an_item_overridden_to_full_points_leaves_its_common_mistake(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), closed(correct="B")
+    keys = []
+    for _ in range(3):
+        fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+        keys.append(
+            await hand_in(
+                bank,
+                [item],
+                assignment_id=assignment_id,
+                handed_in_at=days_from_now(-2),
+                due_at=days_from_now(-1),
+            )
+        )
+    await gather(assignment_id)
+    assert len(await grading.common_mistakes(assignment_id)) == 1
+
+    submission_id, handed_in_at = keys[0]
+    await grading.override(submission_id, handed_in_at, item.id, 1)
+    await gather(assignment_id)
+
+    assert await grading.common_mistakes(assignment_id) == []

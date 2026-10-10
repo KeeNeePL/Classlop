@@ -50,6 +50,7 @@ class GradeJob(BaseModel):
     items: list[AssignedItem]
     files: list[str]
     assignment_id: uuid.UUID
+    due_at: datetime
 
 
 class Input(TypedDict):
@@ -95,6 +96,7 @@ async def hold(state: State) -> dict:
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
             assignment_id=job.assignment_id,
+            due_at=job.due_at,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held,
@@ -205,9 +207,19 @@ def _grade_item(
     )
 
 
+def text_comment(items: list[GradedItem]) -> str:
+    """One points line per Item with its effective points, then the fixed AI line."""
+    return "\n".join(_line(i) for i in items) + f"\n\n{AI_LINE}"
+
+
 def _line(item: GradedItem) -> str:
-    line = f"Zadanie {item.number}: {item.ai_points}/{item.max_points} pkt"
-    return f"{line} – {item.feedback}" if item.feedback in FIXED_FEEDBACK else line
+    points = item.effective_points
+    line = f"Zadanie {item.number}: {points}/{item.max_points} pkt"
+    if points == item.max_points:
+        return f"{line} – {CORRECT}"
+    # A wrong remark under the Teacher's points would contradict them; a fixed one never does.
+    remark = item.feedback in FIXED_FEEDBACK and item.feedback != CORRECT
+    return f"{line} – {item.feedback}" if remark else line
 
 
 def _reasons(items: list[GradedItem], rules: list[Rule]) -> list[dict]:
@@ -232,10 +244,11 @@ async def assess(state: State) -> dict:
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
             assignment_id=job.assignment_id,
+            due_at=job.due_at,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
-            comment="\n".join(_line(i) for i in graded) + f"\n\n{AI_LINE}",
+            comment=text_comment(graded),
             items=graded,
         )
     }
@@ -244,18 +257,17 @@ async def assess(state: State) -> dict:
 async def persist(state: State) -> dict:
     async with sessions().begin() as session:
         session.add(state["graded"])
-    await announce(state["job"])
-    await request_if_computed(state["job"].assignment_id)
+    job = state["job"]
+    await announce(job.submission_id, job.handed_in_at, first=True)
+    await request_if_computed(job.assignment_id)
     return {}
 
 
-async def announce(job: GradeJob) -> None:
-    """Tell `teams` the result is written; the key keeps a redelivered job from telling twice."""
-    payload = {
-        "submission_id": str(job.submission_id),
-        "handed_in_at": job.handed_in_at.isoformat(),
-    }
-    key = f"teams.submission_graded:{job.submission_id}@{payload['handed_in_at']}"
+async def announce(submission_id: uuid.UUID, handed_in_at: datetime, first: bool = False) -> None:
+    """Tell `teams` the result was written or changed. The first announcement is keyed, so a
+    redelivered grading job never tells twice; every later change is its own event."""
+    payload = {"submission_id": str(submission_id), "handed_in_at": handed_in_at.isoformat()}
+    key = f"teams.submission_graded:{submission_id}@{payload['handed_in_at']}" if first else None
     await jobs.enqueue("teams.submission_graded", payload, key=key)
 
 
