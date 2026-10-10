@@ -11,7 +11,7 @@ from classlop.shared.models import Job
 log = logging.getLogger(__name__)
 
 
-@handler("grading.grade")
+@handler("grading.grade", traced=True)
 async def grade(job: Job, progress: Progress) -> None:
     request = GradeJob.model_validate(job.payload)
     # SQS delivers at least once: a finished result is never graded or written again, and
@@ -32,7 +32,7 @@ async def grade(job: Job, progress: Progress) -> None:
         await store_failure(request)
 
 
-@handler("grading.common_mistakes")
+@handler("grading.common_mistakes", traced=True)
 async def gather_common_mistakes(job: Job, progress: Progress) -> None:
     """`teams` enqueues it at the due time; a recompute request enqueues it with its time."""
     assignment_id = uuid.UUID(job.payload["assignment_id"])

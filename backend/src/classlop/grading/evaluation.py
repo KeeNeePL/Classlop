@@ -92,7 +92,6 @@ def _version(item: dict) -> ItemVersion:
         text=item["text"],
         points=item["max_points"],
         options=item["options"] or {},
-        # A closed Item's answer is its correct option's label.
         correct_options=[item["answer"]] if closed else [],
         answer=None if closed else item["answer"],
         model_solution=item["model_solution"],

@@ -10,12 +10,15 @@ import re
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import langsmith
 import pillow_heif
 import pypdfium2 as pdfium
 import pytest
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.tracers.langchain import wait_for_all_tracers
+from langsmith.run_helpers import tracing_context
 from PIL import Image
 from pydantic import Field
 from sqlalchemy import select
@@ -1366,3 +1369,93 @@ async def test_fixes_and_edits_open_at_the_due_time(bank, fake_llm):
         await grading.fix_transcription(*key, item.id, "x = 5, x = -1")
     with pytest.raises(grading.TooEarly):
         await grading.edit_feedback(*key, item.id, "Inny tekst.")
+
+
+class Traces(langsmith.Client):
+    """Runs as LangSmith would receive them."""
+
+    def __init__(self):
+        super().__init__(api_key="test", api_url="http://127.0.0.1:9", auto_batch_tracing=False)
+        self.sent: list[dict] = []
+
+    def create_run(self, name, inputs, run_type, *args, **kwargs):
+        self.sent.append(
+            {
+                "name": name,
+                "run_type": run_type,
+                "parent": kwargs.get("parent_run_id"),
+                "trace": kwargs.get("trace_id"),
+                "tags": kwargs.get("tags") or [],
+                "metadata": (kwargs.get("extra") or {}).get("metadata", {}),
+            }
+        )
+
+    def update_run(self, run_id, **kwargs):
+        pass
+
+    def one_trace(self) -> tuple[dict, list[dict]]:
+        """The trace's root and its model calls, after checking every run is in that trace."""
+        wait_for_all_tracers()
+        (root,) = [r for r in self.sent if r["parent"] is None]
+        assert all(r["trace"] == root["trace"] for r in self.sent)
+        return root, [r for r in self.sent if r["run_type"] == "llm"]
+
+
+async def test_one_grading_job_is_one_trace_with_its_model_calls(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback="Brakuje drugiego pierwiastka.")})
+    traces = Traces()
+
+    with tracing_context(client=traces, enabled=True, project_name="test"):
+        submission_id, handed_in_at = await hand_in(bank, [item])
+
+    root, calls = traces.one_trace()
+    assert (root["name"], root["tags"]) == ("grading.grade", ["grading.grade"])
+    assert (root["metadata"]["submission_id"], root["metadata"]["handed_in_at"]) == (
+        str(submission_id),
+        handed_in_at.isoformat(),
+    )
+    # The scoring call runs in a parallel graph branch and still lands in the job's trace.
+    assert [c["name"] for c in calls] == [
+        "grading.transcribe",
+        "grading.verify",
+        "grading.score",
+        "grading.summary",
+    ]
+    assert all({c["name"], "grading.grade"} <= set(c["tags"]) for c in calls)
+    # Only references: the payload's Item and file lists stay out.
+    ours = {k for k in root["metadata"] if not k.startswith("ls_")}
+    assert ours == {"job_id", "submission_id", "handed_in_at", "assignment_id"}
+    assert all(c["metadata"]["submission_id"] == str(submission_id) for c in calls)
+
+
+async def test_a_teacher_action_is_one_trace_with_its_model_calls(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback="Brakuje drugiego pierwiastka.")})
+    key = await hand_in(bank, [item], handed_in_at=days_from_now(-2), due_at=days_from_now(-1))
+    traces = Traces()
+
+    with tracing_context(client=traces, enabled=True, project_name="test"):
+        await grading.edit_feedback(*key, item.id, "Wyznacz drugi pierwiastek.")
+
+    root, calls = traces.one_trace()
+    assert root["name"] == "grading.edit_feedback"
+    assert {k: root["metadata"][k] for k in ("submission_id", "handed_in_at", "item_id")} == {
+        "submission_id": str(key[0]),
+        "handed_in_at": key[1].isoformat(),
+        "item_id": str(item.id),
+    }
+    assert [c["name"] for c in calls] == ["grading.summary"]
+
+
+async def test_nothing_is_traced_while_tracing_is_off(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    traces = Traces()
+
+    with tracing_context(client=traces, enabled=False):
+        await hand_in(bank, [closed()])
+
+    wait_for_all_tracers()
+    assert traces.sent == []

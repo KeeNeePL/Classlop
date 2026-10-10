@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import json
 import logging
 import uuid
@@ -7,7 +8,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
-from classlop.shared import queue
+from classlop.shared import llm, queue
 from classlop.shared.db import sessions
 from classlop.shared.models import Job
 from classlop.shared.settings import get_settings
@@ -24,10 +25,18 @@ class SignInRequired(Exception):
     """Raised by a handler that needs the Teacher to sign in again; the job waits."""
 
 
-def handler(kind: str) -> Callable[[Handler], Handler]:
+def handler(kind: str, traced: bool = False) -> Callable[[Handler], Handler]:
+    """Register a job kind's handler. A traced kind, one that calls models, makes one trace per
+    run; the rest send nothing, so frequent polls do not fill LangSmith with empty traces."""
+
     def register(fn: Handler) -> Handler:
-        _handlers[kind] = fn
-        return fn
+        @functools.wraps(fn)
+        async def run(job: Job, progress: Progress) -> dict | None:
+            with llm.trace(kind, job_id=job.id, **job.payload):
+                return await fn(job, progress)
+
+        _handlers[kind] = run if traced else fn
+        return _handlers[kind]
 
     return register
 
