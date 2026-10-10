@@ -27,6 +27,9 @@ from classlop.teams.models import (
     StudentRecord,
 )
 from classlop.teams.types import (
+    LESSON,
+    PENDING,
+    VERDICTS,
     AlreadyLinked,
     Attendance,
     AttendanceState,
@@ -73,7 +76,11 @@ def attendance_due(end: datetime, fetched_at: datetime | None, at: datetime) -> 
     return at >= end + SECOND_FETCH and fetched_at < end + SECOND_FETCH
 
 
-def _z(when: datetime) -> str:
+def next_weekday(from_day: date, weekday: int) -> date:
+    return from_day + timedelta(days=(weekday - from_day.weekday()) % 7)
+
+
+def zulu(when: datetime) -> str:
     return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -90,7 +97,7 @@ def _utc(when: dict) -> datetime:
     return datetime.fromisoformat(when["dateTime"][:26]).replace(tzinfo=UTC).astimezone(WARSAW)
 
 
-def _local(when: datetime) -> dict:
+def local(when: datetime) -> dict:
     return {
         "dateTime": when.astimezone(WARSAW).replace(tzinfo=None).isoformat(),
         "timeZone": "Europe/Warsaw",
@@ -157,14 +164,14 @@ class GraphTeams:
     async def _start_series(
         self, klass: Class, slot: Slot, from_day: date, upns: list[str], year_end: date
     ) -> SlotRecord:
-        first = from_day + timedelta(days=(slot.weekday - from_day.weekday()) % 7)
+        first = next_weekday(from_day, slot.weekday)
         event = await self._graph.send(
             "POST",
             "/me/events",
             {
                 **self._event_body(klass.name, upns),
-                "start": _local(datetime.combine(first, slot.start, WARSAW)),
-                "end": _local(datetime.combine(first, slot.end, WARSAW)),
+                "start": local(datetime.combine(first, slot.start, WARSAW)),
+                "end": local(datetime.combine(first, slot.end, WARSAW)),
                 "recurrence": {
                     "pattern": {
                         "type": "weekly",
@@ -255,8 +262,8 @@ class GraphTeams:
             "/me/events",
             {
                 **self._event_body(f"{klass.name}: {topic}", await self._invitees(class_id)),
-                "start": _local(start),
-                "end": _local(end),
+                "start": local(start),
+                "end": local(end),
             },
         )
         async with sessions().begin() as session:
@@ -306,7 +313,7 @@ class GraphTeams:
                 select(CalendarEventRecord)
                 .join(CalendarSeriesRecord)
                 .where(CalendarSeriesRecord.class_id == class_id)
-                .where(CalendarSeriesRecord.state == "lesson")
+                .where(CalendarSeriesRecord.state == LESSON)
             )
             for row in rows:
                 if row.id not in lessons:
@@ -356,7 +363,7 @@ class GraphTeams:
                 event = await session.get(CalendarEventRecord, row["id"])
                 if "@removed" in row:
                     if event:
-                        event.cancelled = True
+                        await session.delete(event)
                     continue
                 if event is None:
                     event = CalendarEventRecord(
@@ -372,7 +379,7 @@ class GraphTeams:
         """Where a meeting new to the calendar belongs: its Class, or a question for the Teacher."""
         series = CalendarSeriesRecord(id=key, subject=row["subject"], class_id=None, candidates=[])
         if key in own:
-            series.state, series.class_id = "lesson", own[key]
+            series.state, series.class_id = LESSON, own[key]
             return series
         invited = {a["emailAddress"]["address"].lower() for a in row.get("attendees", [])}
         rosters = {
@@ -389,16 +396,16 @@ class GraphTeams:
         exact = [c for c, students in rosters.items() if students and students == invited]
         for found in (in_channel, exact):
             if len(found) == 1:
-                series.state, series.class_id = "lesson", found[0]
+                series.state, series.class_id = LESSON, found[0]
                 return series
-        series.state = "pending"
+        series.state = PENDING
         series.candidates = in_channel or exact or [c for c, s in rosters.items() if s & invited]
         return series
 
     async def list_calendar_questions(self) -> list[CalendarQuestion]:
         async with sessions()() as session:
             pending = await session.scalars(
-                select(CalendarSeriesRecord).where(CalendarSeriesRecord.state == "pending")
+                select(CalendarSeriesRecord).where(CalendarSeriesRecord.state == PENDING)
             )
             questions = []
             for series in pending:
@@ -408,7 +415,8 @@ class GraphTeams:
                     .order_by(CalendarEventRecord.starts_at)
                     .limit(1)
                 )
-                assert first, "a pending series has an occurrence"
+                if first is None:
+                    continue
                 questions.append(
                     CalendarQuestion(
                         id=series.id,
@@ -422,12 +430,12 @@ class GraphTeams:
     async def answer_calendar_question(self, question_id: str, answer: str) -> None:
         async with sessions().begin() as session:
             series = await session.get(CalendarSeriesRecord, question_id)
-            if series is None or series.state != "pending":
+            if series is None or series.state != PENDING:
                 raise ValueError(f"no open question {question_id}")
-            if answer in ("keep", "hide"):
-                series.state = "kept" if answer == "keep" else "hidden"
+            if answer in VERDICTS:
+                series.state = VERDICTS[answer]
             elif answer in series.candidates:
-                series.state, series.class_id = "lesson", answer
+                series.state, series.class_id = LESSON, answer
             else:
                 raise ValueError(f"{answer!r} is not an answer to {question_id}")
 
@@ -439,7 +447,7 @@ class GraphTeams:
 
     async def _sessions(self, lesson: Lesson) -> list[attendance.Session]:
         """Every session of every call record of the Lesson's meeting that began in its window."""
-        since, until = _z(lesson.start - BEFORE), _z(lesson.end + AFTER)
+        since, until = zulu(lesson.start - BEFORE), zulu(lesson.end + AFTER)
         records = await self._records.get_all(
             "/communications/callRecords",
             **{"$filter": f"startDateTime ge {since} and startDateTime lt {until}"},
@@ -465,6 +473,8 @@ class GraphTeams:
 
     async def refresh_attendance(self, class_id: str, lesson_id: str) -> Attendance:
         lesson = await self._lesson_of(class_id, lesson_id)
+        if lesson.cancelled:
+            return await self.get_attendance(class_id, lesson_id)
         found = attendance.collect(await self._sessions(lesson), get_settings().m365_teacher_oid)
         async with sessions().begin() as session:
             await session.execute(

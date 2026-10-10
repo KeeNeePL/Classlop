@@ -10,14 +10,12 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from classlop.teams.service import local, zulu
+
 PAGE_SIZE = 2
 # A new team is not ready on the first poll, as in Graph.
 CREATION_POLLS = 2
 _DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-
-
-def _z(when: datetime) -> str:
-    return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -> dict:
@@ -26,7 +24,7 @@ def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -
         if user_id
         else {"guest": {"displayName": name}}
     )
-    return {"caller": {"identity": who}, "startDateTime": _z(joined), "endDateTime": _z(left)}
+    return {"caller": {"identity": who}, "startDateTime": zulu(joined), "endDateTime": zulu(left)}
 
 
 class FakeGraph:
@@ -38,6 +36,7 @@ class FakeGraph:
         self.events: dict[str, dict] = {}
         # The events calendarView delta reports as changed, in order.
         self.changes: list[str] = []
+        self.deleted: set[str] = set()
         self.call_records: list[dict] = []
         self.transport = httpx.MockTransport(self._handle)
 
@@ -112,8 +111,8 @@ class FakeGraph:
             "subject": subject,
             "isOnlineMeeting": True,
             "attendees": [{"emailAddress": {"address": a}} for a in attendees],
-            "start": self._local(start),
-            "end": self._local(end),
+            "start": local(start),
+            "end": local(end),
         }
         if weekly_until:
             body["recurrence"] = {
@@ -132,7 +131,12 @@ class FakeGraph:
 
     def reschedule(self, event_id: str, start: datetime, end: datetime) -> None:
         """A time change made in Teams, of an event or of one occurrence of a series."""
-        self._edit(event_id, {"start": self._local(start), "end": self._local(end)})
+        self._edit(event_id, {"start": local(start), "end": local(end)})
+
+    def delete(self, event_id: str) -> None:
+        """A deletion made in Teams: the delta reports the event or occurrence as removed."""
+        self.deleted.add(event_id)
+        self.changes.append(event_id.partition("@")[0])
 
     def cancel(self, event_id: str) -> None:
         """A cancellation made in Teams: the event stays, cancelled."""
@@ -146,11 +150,6 @@ class FakeGraph:
         else:
             event.update(body)
         self.changes.append(base)
-
-    @staticmethod
-    def _local(when: datetime) -> dict:
-        local = when.astimezone(ZoneInfo("Europe/Warsaw")).replace(tzinfo=None)
-        return {"dateTime": local.isoformat(), "timeZone": "Europe/Warsaw"}
 
     def event_of(self, event_id: str) -> tuple[str, set[str]]:
         """The subject and invitee addresses of an event or of an occurrence of a series."""
@@ -167,8 +166,8 @@ class FakeGraph:
             {
                 "id": str(uuid.uuid4()),
                 "joinWebUrl": join_url,
-                "startDateTime": _z(min(s[2] for s in sessions)),
-                "endDateTime": _z(max(s[3] for s in sessions)),
+                "startDateTime": zulu(min(s[2] for s in sessions)),
+                "endDateTime": zulu(max(s[3] for s in sessions)),
                 "sessions": [_session(*s) for s in sessions],
             }
         )
@@ -366,9 +365,14 @@ class FakeGraph:
         for event_id in dict.fromkeys(self.changes[int(params.get("$deltatoken", 0)) :]):
             event = self.events[event_id]
             series = event_id if "recurrence" in event else None
+            rows += [
+                {"id": gone, "@removed": {"reason": "deleted"}}
+                for gone in sorted(self.deleted)
+                if gone.partition("@")[0] == event_id
+            ]
             for shown in self._instances(event, params):
                 begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
-                if window[0] <= begins < window[1]:
+                if shown["id"] not in self.deleted and window[0] <= begins < window[1]:
                     rows.append({**shown, "seriesMasterId": series})
         body = json.loads(self._page(request, rows).content)
         if "@odata.nextLink" not in body:
