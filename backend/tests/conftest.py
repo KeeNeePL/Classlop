@@ -17,3 +17,4 @@ os.environ["JOBS_RETRY_DELAY"] = "1"
 if sys.platform == "win32":
     # psycopg's async mode cannot run on the default Proactor loop.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+os.environ["ITEMS_INDEX"] = f"test-items-{_run}"

@@ -7,6 +7,7 @@ def main(argv: list[str] | None = None) -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("web", help="serve the API and the dashboard on :8000")
     commands.add_parser("migrate", help="apply every area's migrations")
+    commands.add_parser("rebuild-index", help="rebuild the items search index from Postgres")
     commands.add_parser("worker", help="run background jobs from the queue")
     commands.add_parser("scheduler", help="dev only: fire due schedules onto the queue")
     commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
@@ -25,6 +26,12 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.shared.migrate import migrate
 
         migrate()
+    elif args.command == "rebuild-index":
+        import asyncio
+
+        from classlop.items.index import rebuild
+
+        print(f"indexed {asyncio.run(rebuild())} items")
     elif args.command == "worker":
         import asyncio
 
