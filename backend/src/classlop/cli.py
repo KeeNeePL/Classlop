@@ -13,6 +13,10 @@ def main(argv: list[str] | None = None) -> None:
     commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
     commands.add_parser("whoami", help="read the Teacher's name from Graph in a worker job")
     commands.add_parser("openapi", help="print the API's OpenAPI schema")
+    evaluation = commands.add_parser(
+        "eval-grading", help="grade an evaluation set with the real models and report"
+    )
+    evaluation.add_argument("set", nargs="?", default="set-01")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -59,3 +63,11 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.dashboard.app import create_app
 
         print(json.dumps(create_app().openapi(), indent=2))
+    elif args.command == "eval-grading":
+        import asyncio
+
+        from classlop.grading.evaluation import evaluate, print_report
+
+        # psycopg's async mode needs the selector loop, which Windows does not default to.
+        report = asyncio.run(evaluate(args.set), loop_factory=asyncio.SelectorEventLoop)
+        print_report(args.set, report)
