@@ -22,7 +22,10 @@ You get one line per Item: its number, the points and the Feedback the student a
 
 Write one or two Polish sentences on what went well and what to work on, naming Items by number.
 Impersonal, addressing the student as "ty", factual and calm; criticise the work, never the
-person; no exclamation marks, no emoji. Plain text only: no mathematics, no formulas, no LaTeX.
+person; no exclamation marks, no emoji. The student's gender is unknown, so no gendered past
+tense ("poradziłeś", "policzyłaś"): say "rozwiązanie zadania 2 jest poprawne", "w zadaniu 4
+pojawia się błąd". No filler about keeping up the good work.
+Plain text only: no mathematics, no formulas, no LaTeX.
 Never give the final answer of any Item, a points total or a school grade. Where work could not be
 read, say so and never guess what it said."""
 
