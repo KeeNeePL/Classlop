@@ -70,6 +70,16 @@ class GraphClient:
     async def get(self, url: str, **params) -> dict:
         return (await self.request("GET", url, params=params or None)).json()
 
+    async def get_delta(self, url: str, **params) -> tuple[list[dict], str]:
+        """Every changed row of a delta query, and the link that continues it."""
+        rows: list[dict] = []
+        page = await self.get(url, **params)
+        while True:
+            rows += page["value"]
+            if "@odata.nextLink" not in page:
+                return rows, page["@odata.deltaLink"]
+            page = (await self.request("GET", page["@odata.nextLink"])).json()
+
     async def get_all(self, url: str, **params) -> list[dict]:
         """Every row of a collection, following `@odata.nextLink`."""
         rows: list[dict] = []

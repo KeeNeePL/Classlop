@@ -8,6 +8,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams.graph import GRAPH_SCOPES, GraphClient
 from classlop.teams.types import (
     AlreadyLinked,
+    CalendarQuestion,
     Class,
     Lesson,
     NotOwner,
@@ -21,6 +22,7 @@ from classlop.teams.types import (
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
+    "CalendarQuestion",
     "Class",
     "Lesson",
     "NotOwner",
@@ -31,13 +33,16 @@ __all__ = [
     "TimetableExists",
     "add_lesson",
     "add_timetable",
+    "answer_calendar_question",
     "backend",
     "get_class",
     "link_team",
+    "list_calendar_questions",
     "list_lessons",
     "list_classes",
     "list_owned_teams",
     "list_students",
+    "sync_calendar",
     "sync_roster",
 ]
 
@@ -98,3 +103,16 @@ async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) 
 
 async def list_lessons(class_id: str) -> list[Lesson]:
     return await backend().list_lessons(class_id)
+
+
+async def sync_calendar() -> None:
+    """Bring Lessons in step with the Teacher's Teams calendar now."""
+    await backend().sync_calendar()
+
+
+async def list_calendar_questions() -> list[CalendarQuestion]:
+    return await backend().list_calendar_questions()
+
+
+async def answer_calendar_question(question_id: str, answer: str) -> None:
+    await backend().answer_calendar_question(question_id, answer)

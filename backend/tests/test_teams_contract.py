@@ -19,7 +19,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams import handlers
 from classlop.teams.fake import FakeTeams
 from classlop.teams.graph import GraphClient
-from classlop.teams.models import ClassRecord
+from classlop.teams.models import CalendarCursor, CalendarSeriesRecord, ClassRecord
 from classlop.teams.service import GraphTeams
 
 TEACHER = "teacher-oid"
@@ -51,7 +51,8 @@ async def stack():
 async def teacher(monkeypatch):
     monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
     async with sessions().begin() as session:
-        await session.execute(delete(ClassRecord))
+        for table in (ClassRecord, CalendarSeriesRecord, CalendarCursor):
+            await session.execute(delete(table))
 
 
 @pytest.fixture
@@ -81,6 +82,8 @@ class Tenant:
         self.add_team, self.add_member = graph.add_team, graph.add_member
         self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
         self.event_of = graph.event_of
+        self.add_channel, self.add_meeting = graph.add_channel, graph.add_meeting
+        self.reschedule, self.cancel = graph.reschedule, graph.cancel
 
     def __getattr__(self, name):
         return getattr(self.area, name)
@@ -315,6 +318,199 @@ async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypat
 
 async def _ignore(_):
     pass
+
+
+def _at(day: int, hour: int = 10, month: int = 9) -> datetime:
+    return datetime(2026, month, day, hour, 0, tzinfo=WARSAW)
+
+
+async def _two_classes(tenant):
+    """2A has Jan and Ewa, 3B has Adam; Zofia is in neither."""
+    team_a, a = await _class_with_jan(tenant)
+    tenant.add_member(team_a, "Ewa Zielinska")
+    await tenant.sync_roster(a.id)
+    team_b = tenant.add_team("3B matematyka")
+    tenant.add_member(team_b, "Adam Lis")
+    return team_a, a, await tenant.link_team(team_b)
+
+
+JAN, EWA, ADAM, ZOFIA = (
+    f"{n}@example.org" for n in ("jan.kowalski", "ewa.zielinska", "adam.lis", "zofia.nowicka")
+)
+
+
+async def test_a_meeting_made_in_a_class_channel_is_attached_to_that_class(tenant):
+    team, a, b = await _two_classes(tenant)
+    channel = tenant.add_channel(team, "Zadania")
+    meeting = tenant.add_meeting(
+        "Konsultacje", _at(12), _at(12, 11), attendees=[ZOFIA], channel=channel
+    )
+
+    await tenant.sync_calendar()
+
+    [lesson] = await tenant.list_lessons(a.id)
+    assert (lesson.id, lesson.start, lesson.end) == (meeting, _at(12), _at(12, 11))
+    assert lesson.join_url and not lesson.cancelled and lesson.topic is None
+    assert await tenant.list_lessons(b.id) == []
+    assert await tenant.list_calendar_questions() == []
+
+
+async def test_a_meeting_whose_invitees_are_exactly_one_classs_students_is_attached(tenant):
+    _, a, b = await _two_classes(tenant)
+    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+
+    await tenant.sync_calendar()
+
+    assert [x.id for x in await tenant.list_lessons(a.id)] == [meeting]
+    assert await tenant.list_lessons(b.id) == []
+    assert await tenant.list_calendar_questions() == []
+
+
+async def test_a_time_change_in_teams_updates_the_lesson(tenant):
+    _, a, _ = await _two_classes(tenant)
+    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    await tenant.sync_calendar()
+
+    tenant.reschedule(meeting, _at(14, 13), _at(14, 14))
+    await tenant.sync_calendar()
+
+    [lesson] = await tenant.list_lessons(a.id)
+    assert (lesson.start, lesson.end, lesson.cancelled) == (_at(14, 13), _at(14, 14), False)
+
+
+async def test_a_cancellation_in_teams_keeps_the_lesson_marked_cancelled(tenant):
+    _, a, _ = await _two_classes(tenant)
+    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    await tenant.sync_calendar()
+
+    tenant.cancel(meeting)
+    await tenant.sync_calendar()
+
+    [lesson] = await tenant.list_lessons(a.id)
+    assert (lesson.id, lesson.start, lesson.cancelled) == (meeting, _at(12), True)
+
+
+async def test_teams_wins_on_the_time_and_cancellation_of_timetable_lessons(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    before = await tenant.list_lessons(linked.id)
+    await tenant.sync_calendar()
+
+    tenant.reschedule(before[0].id, _at(7, 9), _at(7, 10))
+    tenant.cancel(before[1].id)
+    await tenant.sync_calendar()
+
+    after = await tenant.list_lessons(linked.id)
+    assert len(after) == len(before)
+    assert [(x.start, x.cancelled) for x in after[:3]] == [
+        (_at(7, 9), False),
+        (before[1].start, True),
+        (before[2].start, False),
+    ]
+
+
+async def test_a_cancelled_single_lesson_keeps_its_topic(tenant):
+    _, linked = await _class_with_jan(tenant)
+    lesson = await tenant.add_lesson(linked.id, _at(12), _at(12, 11), "Funkcje liniowe")
+    await tenant.sync_calendar()
+
+    tenant.cancel(lesson.id)
+    await tenant.sync_calendar()
+
+    [kept] = await tenant.list_lessons(linked.id)
+    assert (kept.id, kept.topic, kept.cancelled) == (lesson.id, "Funkcje liniowe", True)
+
+
+async def test_a_series_overlapping_several_classes_asks_which_once_for_every_occurrence(tenant):
+    _, a, b = await _two_classes(tenant)
+    series = tenant.add_meeting(
+        "Kolo naukowe",
+        _at(2, 15),
+        _at(2, 16),
+        attendees=[JAN, ADAM],
+        weekly_until=date(2026, 9, 16),
+    )
+
+    await tenant.sync_calendar()
+    await tenant.sync_calendar()
+
+    [question] = await tenant.list_calendar_questions()
+    assert question.id == series
+    assert question.subject == "Kolo naukowe"
+    assert question.start == _at(2, 15)
+    assert sorted(question.candidates) == sorted([a.id, b.id])
+    assert await tenant.list_lessons(a.id) == []
+
+    await tenant.answer_calendar_question(question.id, b.id)
+
+    assert [x.start.day for x in await tenant.list_lessons(b.id)] == [2, 9, 16]
+    assert await tenant.list_lessons(a.id) == []
+    assert await tenant.list_calendar_questions() == []
+
+
+async def test_only_a_candidate_class_or_keep_or_hide_answers_a_question(tenant):
+    await _two_classes(tenant)
+    other = await tenant.link_team(tenant.add_team("1C matematyka"))
+    tenant.add_meeting("Kolo naukowe", _at(12), _at(12, 11), attendees=[JAN, ADAM])
+    await tenant.sync_calendar()
+    [question] = await tenant.list_calendar_questions()
+
+    with pytest.raises(ValueError):
+        await tenant.answer_calendar_question(question.id, other.id)
+    with pytest.raises(ValueError):
+        await tenant.answer_calendar_question("no-such-question", "keep")
+    assert len(await tenant.list_calendar_questions()) == 1
+
+
+@pytest.mark.parametrize("answer", ["keep", "hide"])
+async def test_a_meeting_matching_no_class_asks_keep_or_hide_once_per_series(tenant, answer):
+    _, a, b = await _two_classes(tenant)
+    tenant.add_meeting(
+        "Rada pedagogiczna",
+        _at(2, 15),
+        _at(2, 16),
+        attendees=[ZOFIA],
+        weekly_until=date(2026, 9, 16),
+    )
+    await tenant.sync_calendar()
+    [question] = await tenant.list_calendar_questions()
+    assert question.candidates == []
+
+    await tenant.answer_calendar_question(question.id, answer)
+    await tenant.sync_calendar()
+
+    assert await tenant.list_calendar_questions() == []
+    assert await tenant.list_lessons(a.id) + await tenant.list_lessons(b.id) == []
+
+
+async def test_the_calendar_window_runs_7_days_back_and_60_ahead(tenant, clock):
+    _, a, _ = await _two_classes(tenant)
+    old = tenant.add_meeting("Za stare", _at(24, month=8), _at(24, 11, 8), attendees=[JAN, EWA])
+    near = tenant.add_meeting("Blisko", _at(26, month=8), _at(26, 11, 8), attendees=[JAN, EWA])
+    far = tenant.add_meeting("Daleko", _at(5, month=11), _at(5, 11, 11), attendees=[JAN, EWA])
+
+    await tenant.sync_calendar()
+    assert [x.id for x in await tenant.list_lessons(a.id)] == [near]
+
+    clock.advance(days=40)
+    await tenant.sync_calendar()
+    ids = {x.id for x in await tenant.list_lessons(a.id)}
+    assert ids == {near, far}
+    assert old not in ids
+
+
+async def test_calendar_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypatch):
+    _, a, _ = await _two_classes(tenant)
+    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    monkeypatch.setattr(teams, "backend", lambda: tenant)
+
+    await handlers.sync_calendar(Job(kind="teams.sync_calendar", payload={}), _ignore)
+
+    assert [x.id for x in await tenant.list_lessons(a.id)] == [meeting]
+    await schedule.sync_declared()
+    async with sessions()() as session:
+        row = await session.get(Schedule, "teams.sync-calendar")
+    assert (row.kind, row.every_seconds) == ("teams.sync_calendar", 15 * 60)
 
 
 async def test_a_lapsed_sign_in_raises_what_parks_a_job(monkeypatch):

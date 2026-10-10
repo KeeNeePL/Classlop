@@ -12,6 +12,7 @@ from classlop.teams import GRAPH_SCOPES
 log = logging.getLogger(__name__)
 
 declare_every("teams.sync-rosters", "rate(15 minutes)", "teams.sync_rosters")
+declare_every("teams.sync-calendar", "rate(15 minutes)", "teams.sync_calendar")
 
 
 @handler("teams.whoami")
@@ -39,3 +40,9 @@ async def sync_rosters(job: Job, progress: Progress) -> dict:
             failed += 1
             log.exception("roster sync of class %s failed", klass.id)
     return {"failed": failed}
+
+
+@handler("teams.sync_calendar")
+async def sync_calendar(job: Job, progress: Progress) -> None:
+    """Also enqueued on demand when the dashboard opens."""
+    await teams.sync_calendar()
