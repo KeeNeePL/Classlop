@@ -42,7 +42,10 @@ class FakeGraph:
     def event_of(self, event_id: str) -> tuple[str, set[str]]:
         """The subject and invitee addresses of an event or of an occurrence of a series."""
         event = self.events[event_id.split("@")[0]]
-        return event["subject"], {a["emailAddress"]["address"] for a in event["attendees"]}
+        subject = event.get("exceptions", {}).get(event_id.partition("@")[2], {}).get("subject")
+        return subject or event["subject"], {
+            a["emailAddress"]["address"] for a in event["attendees"]
+        }
 
     def _join(self, team_id: str, user_id: str, name: str, *, owner: bool) -> None:
         upn = name.lower().replace(" ", ".") + "@example.org"
@@ -73,17 +76,29 @@ class FakeGraph:
             return httpx.Response(200, json={"id": team["channel"], "displayName": "General"})
         if path == "/me/events" and request.method == "POST":
             return self._create_event(json.loads(request.content))
+        if match := re.fullmatch(r"/me/events/([^/]+)/cancel", path):
+            return self._change(match[1], {"isCancelled": True}, request)
         if match := re.fullmatch(r"/me/events/([^/]+)", path):
-            if (event := self.events.get(match[1])) is None:
-                return httpx.Response(404, json={"error": {"code": "NotFound"}})
-            if request.method == "PATCH":
-                event.update(json.loads(request.content))
-            return httpx.Response(200, json=self._shown(event))
+            return self._change(match[1], json.loads(request.content or b"{}"), request)
         if match := re.fullmatch(r"/me/events/([^/]+)/instances", path):
             if (event := self.events.get(match[1])) is None:
                 return httpx.Response(404, json={"error": {"code": "NotFound"}})
             return self._page(request, self._instances(event, request.url.params))
         return httpx.Response(404, json={"error": {"code": "UnknownRoute", "message": path}})
+
+    def _change(self, event_id: str, body: dict, request: httpx.Request) -> httpx.Response:
+        """Read or change an event, or one occurrence of a series (an exception to it)."""
+        base, _, day = event_id.partition("@")
+        if (event := self.events.get(base)) is None:
+            return httpx.Response(404, json={"error": {"code": "NotFound"}})
+        if request.method != "GET":
+            if day:
+                event.setdefault("exceptions", {}).setdefault(day, {}).update(body)
+            else:
+                event.update(body)
+        if day:
+            return httpx.Response(200, json=self._occurrence(event, date.fromisoformat(day)))
+        return httpx.Response(200, json=self._shown(event))
 
     def _create_event(self, body: dict) -> httpx.Response:
         event_id = str(uuid.uuid4())
@@ -105,6 +120,21 @@ class FakeGraph:
     def _shown(self, event: dict) -> dict:
         return {**event, "start": self._utc(event["start"]), "end": self._utc(event["end"])}
 
+    def _occurrence(self, event: dict, day: date) -> dict:
+        start = datetime.fromisoformat(event["start"]["dateTime"])
+        length = datetime.fromisoformat(event["end"]["dateTime"]) - start
+        start = datetime.combine(day, start.time())
+        zone = event["start"]["timeZone"]
+        return self._shown(
+            {
+                **event,
+                **event.get("exceptions", {}).get(str(day), {}),
+                "id": f"{event['id']}@{day}",
+                "start": {"dateTime": start.isoformat(), "timeZone": zone},
+                "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
+            }
+        )
+
     def _instances(self, event: dict, params) -> list[dict]:
         if "recurrence" not in event:
             return [self._shown(event)]
@@ -112,22 +142,10 @@ class FakeGraph:
         rng = event["recurrence"]["range"]
         day, last = date.fromisoformat(rng["startDate"]), date.fromisoformat(rng["endDate"])
         weekday = _DAYS.index(event["recurrence"]["pattern"]["daysOfWeek"][0])
-        first = datetime.fromisoformat(event["start"]["dateTime"]).time()
-        length = datetime.fromisoformat(event["end"]["dateTime"]) - datetime.fromisoformat(
-            event["start"]["dateTime"]
-        )
         out = []
         while day <= last:
             if day.weekday() == weekday:
-                start = datetime.combine(day, first)
-                zone = event["start"]["timeZone"]
-                occurrence = {
-                    **event,
-                    "id": f"{event['id']}@{day}",
-                    "start": {"dateTime": start.isoformat(), "timeZone": zone},
-                    "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
-                }
-                shown = self._shown(occurrence)
+                shown = self._occurrence(event, day)
                 begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
                 if window[0] <= begins < window[1]:
                     out.append(shown)

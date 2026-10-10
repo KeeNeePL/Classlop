@@ -88,44 +88,103 @@ class GraphTeams:
                 raise TimetableExists(class_id)
         today = self._clock().astimezone(WARSAW).date()
         upns = await self._invitees(class_id)
-        rows = []
-        for slot in slots:
-            first = today + timedelta(days=(slot.weekday - today.weekday()) % 7)
-            event = await self._graph.send(
-                "POST",
-                "/me/events",
-                {
-                    **self._event_body(klass.name, upns),
-                    "start": _local(datetime.combine(first, slot.start, WARSAW)),
-                    "end": _local(datetime.combine(first, slot.end, WARSAW)),
-                    "recurrence": {
-                        "pattern": {
-                            "type": "weekly",
-                            "interval": 1,
-                            "daysOfWeek": [_DAYS[slot.weekday]],
-                        },
-                        "range": {
-                            "type": "endDate",
-                            "startDate": first.isoformat(),
-                            "endDate": school_year_end.isoformat(),
-                        },
-                    },
-                },
-            )
-            rows.append(
-                SlotRecord(
-                    id=str(ULID()),
-                    class_id=class_id,
-                    event_id=event["id"],
-                    weekday=slot.weekday,
-                    start_time=slot.start,
-                    end_time=slot.end,
-                    first_on=first,
-                )
-            )
+        rows = [
+            await self._start_series(klass, slot, today, upns, school_year_end) for slot in slots
+        ]
         async with sessions().begin() as session:
             session.add_all(rows)
             (await session.get_one(ClassRecord, class_id)).school_year_end = school_year_end
+
+    async def _start_series(
+        self, klass: Class, slot: Slot, from_day: date, upns: list[str], year_end: date
+    ) -> SlotRecord:
+        first = from_day + timedelta(days=(slot.weekday - from_day.weekday()) % 7)
+        event = await self._graph.send(
+            "POST",
+            "/me/events",
+            {
+                **self._event_body(klass.name, upns),
+                "start": _local(datetime.combine(first, slot.start, WARSAW)),
+                "end": _local(datetime.combine(first, slot.end, WARSAW)),
+                "recurrence": {
+                    "pattern": {
+                        "type": "weekly",
+                        "interval": 1,
+                        "daysOfWeek": [_DAYS[slot.weekday]],
+                    },
+                    "range": {
+                        "type": "endDate",
+                        "startDate": first.isoformat(),
+                        "endDate": year_end.isoformat(),
+                    },
+                },
+            },
+        )
+        return SlotRecord(
+            id=str(ULID()),
+            class_id=klass.id,
+            event_id=event["id"],
+            weekday=slot.weekday,
+            start_time=slot.start,
+            end_time=slot.end,
+            first_on=first,
+        )
+
+    async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+        klass = await self.get_class(class_id)
+        async with sessions()() as session:
+            current = await session.scalar(
+                select(SlotRecord).where(
+                    SlotRecord.class_id == class_id,
+                    SlotRecord.last_on.is_(None),
+                    SlotRecord.weekday == old.weekday,
+                    SlotRecord.start_time == old.start,
+                    SlotRecord.end_time == old.end,
+                )
+            )
+        if current is None:
+            raise LookupError(old)
+        if from_date <= current.first_on:
+            raise ValueError("a slot changes from after its first Lesson")
+        last_on = from_date - timedelta(days=1)
+        series = await self._graph.get(f"/me/events/{current.event_id}")
+        recurrence = series["recurrence"]
+        recurrence["range"]["endDate"] = last_on.isoformat()
+        await self._graph.send(
+            "PATCH", f"/me/events/{current.event_id}", {"recurrence": recurrence}
+        )
+        row = await self._start_series(
+            klass, new, from_date, await self._invitees(class_id), klass.school_year_end
+        )
+        async with sessions().begin() as session:
+            (await session.get_one(SlotRecord, current.id)).last_on = last_on
+            session.add(row)
+
+    async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        for lesson in await self.list_lessons(class_id):
+            if not lesson.cancelled and first <= lesson.start.astimezone(WARSAW).date() <= last:
+                await self._graph.send("POST", f"/me/events/{lesson.id}/cancel", {})
+
+    async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
+        topic = topic.strip()
+        if not topic:
+            raise ValueError("a Lesson topic cannot be empty")
+        lesson = next((x for x in await self.list_lessons(class_id) if x.id == lesson_id), None)
+        if lesson is None:
+            raise LookupError(lesson_id)
+        klass = await self.get_class(class_id)
+        await self._graph.send(
+            "PATCH", f"/me/events/{lesson_id}", {"subject": f"{klass.name}: {topic}"}
+        )
+        async with sessions().begin() as session:
+            row = await session.get(LessonRecord, lesson_id)
+            if row is None:
+                session.add(
+                    LessonRecord(id=lesson_id, class_id=class_id, topic=topic, single=False)
+                )
+            else:
+                row.topic = topic
+        return lesson.model_copy(update={"topic": topic})
 
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         topic = topic.strip()
@@ -151,17 +210,19 @@ class GraphTeams:
             slots = list(
                 await session.scalars(select(SlotRecord).where(SlotRecord.class_id == class_id))
             )
-            singles = list(
+            records = list(
                 await session.scalars(select(LessonRecord).where(LessonRecord.class_id == class_id))
             )
+        topics = {r.id: r.topic for r in records}
         lessons = []
         for slot in slots:
+            last = slot.last_on or klass.school_year_end
             window = {
                 "startDateTime": datetime.combine(slot.first_on, datetime.min.time(), WARSAW)
                 .astimezone(UTC)
                 .isoformat(),
                 "endDateTime": datetime.combine(
-                    klass.school_year_end + timedelta(days=1), datetime.min.time(), WARSAW
+                    last + timedelta(days=1), datetime.min.time(), WARSAW
                 )
                 .astimezone(UTC)
                 .isoformat(),
@@ -169,10 +230,11 @@ class GraphTeams:
             for event in await self._graph.get_all(
                 f"/me/events/{slot.event_id}/instances", **window
             ):
-                lessons.append(self._lesson(class_id, event, None))
-        for single in singles:
-            event = await self._graph.get(f"/me/events/{single.id}")
-            lessons.append(self._lesson(class_id, event, single.topic))
+                lessons.append(self._lesson(class_id, event, topics.get(event["id"])))
+        for record in records:
+            if record.single:
+                event = await self._graph.get(f"/me/events/{record.id}")
+                lessons.append(self._lesson(class_id, event, record.topic))
         return sorted(lessons, key=lambda lesson: lesson.start)
 
     @staticmethod
@@ -193,6 +255,7 @@ class GraphTeams:
             end=_utc(event["end"]),
             join_url=event["onlineMeeting"]["joinUrl"],
             topic=topic,
+            cancelled=event.get("isCancelled", False),
         )
 
     async def _invitees(self, class_id: str) -> list[str]:
@@ -203,11 +266,15 @@ class GraphTeams:
         async with sessions()() as session:
             ids = list(
                 await session.scalars(
-                    select(SlotRecord.event_id).where(SlotRecord.class_id == class_id)
+                    select(SlotRecord.event_id).where(
+                        SlotRecord.class_id == class_id, SlotRecord.last_on.is_(None)
+                    )
                 )
             ) + list(
                 await session.scalars(
-                    select(LessonRecord.id).where(LessonRecord.class_id == class_id)
+                    select(LessonRecord.id).where(
+                        LessonRecord.class_id == class_id, LessonRecord.single
+                    )
                 )
             )
         attendees = _attendees(await self._invitees(class_id))
