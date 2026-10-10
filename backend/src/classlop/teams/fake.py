@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 
 from ulid import ULID
 
+from classlop.shared.jobs import SignInRequired
 from classlop.teams.service import WARSAW, now
 from classlop.teams.types import (
     AlreadyLinked,
@@ -23,6 +24,7 @@ from classlop.teams.types import (
 class FakeTeams:
     def __init__(self, clock: Callable[[], datetime] = now):
         self._clock = clock
+        self._signed_in = True
         self._teams: dict[str, dict] = {}
         self._classes: dict[str, Class] = {}
         self._students: dict[str, dict[str, Student]] = {}
@@ -52,10 +54,20 @@ class FakeTeams:
         name, upn, _ = self._teams[team_id]["members"][user_id]
         self._teams[team_id]["members"][user_id] = (name, upn, True)
 
+    def lapse_sign_in(self) -> None:
+        """From now on every call raises SignInRequired, as with a refresh token that fails."""
+        self._signed_in = False
+
+    def _require_sign_in(self) -> None:
+        if not self._signed_in:
+            raise SignInRequired
+
     async def list_owned_teams(self) -> list[Team]:
+        self._require_sign_in()
         return [Team(id=i, name=t["name"]) for i, t in self._teams.items() if t["mine"]]
 
     async def link_team(self, team_id: str) -> Class:
+        self._require_sign_in()
         if team_id not in {t.id for t in await self.list_owned_teams()}:
             raise NotOwner(team_id)
         if any(c.team_id == team_id for c in self._classes.values()):
@@ -100,6 +112,7 @@ class FakeTeams:
         }
 
     async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
+        self._require_sign_in()
         if self._series[class_id]:
             raise TimetableExists(class_id)
         today = self._clock().astimezone(WARSAW).date()
@@ -150,6 +163,7 @@ class FakeTeams:
         return lesson.model_copy(update={"topic": topic})
 
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
+        self._require_sign_in()
         topic = topic.strip()
         if not topic:
             raise ValueError("a Lesson needs a Lesson topic")
@@ -190,6 +204,7 @@ class FakeTeams:
         return sorted(lessons, key=lambda lesson: lesson.start)
 
     async def sync_roster(self, class_id: str) -> None:
+        self._require_sign_in()
         students = self._students[class_id]
         members = self._teams[self._classes[class_id].team_id]["members"]
         present = {u: m for u, m in members.items() if not m[2]}
