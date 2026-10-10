@@ -309,6 +309,134 @@ async def test_a_single_lesson_follows_the_roster_too(tenant):
     assert len(tenant.event_of(lesson.id)[1]) == 2
 
 
+def _days(lessons):
+    return [x.start.day for x in lessons]
+
+
+async def test_cancelling_a_date_range_cancels_every_occurrence_in_it(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8, WEDNESDAY_9], YEAR_END)
+    start = datetime(2026, 9, 15, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 21))
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert len(lessons) == 10
+    assert _days([x for x in lessons if x.cancelled]) == [14, 15, 16, 21]
+    cancelled_single = next(x for x in lessons if x.id == single.id)
+    assert (cancelled_single.cancelled, cancelled_single.topic) == (True, "Wzory")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 21))
+    assert len([x for x in await tenant.list_lessons(linked.id) if x.cancelled]) == 4
+
+
+async def test_a_cancelled_lesson_keeps_its_topic(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    monday = (await tenant.list_lessons(linked.id))[1]
+    await tenant.set_lesson_topic(linked.id, monday.id, "Wzory skroconego mnozenia")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 14))
+
+    cancelled = (await tenant.list_lessons(linked.id))[1]
+    assert (cancelled.cancelled, cancelled.topic) == (True, "Wzory skroconego mnozenia")
+
+
+async def test_changing_a_slot_ends_the_old_series_and_starts_a_new_one(tenant):
+    team, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    past = (await tenant.list_lessons(linked.id))[0]
+    await tenant.set_lesson_topic(linked.id, past.id, "Potegi")
+    tuesday = teams.Slot(weekday=1, start=time(10, 0), end=time(10, 45))
+
+    await tenant.change_slot(linked.id, MONDAY_8, tuesday, date(2026, 9, 21))
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert [(x.start.weekday(), x.start.day) for x in lessons] == [
+        (0, 7),
+        (0, 14),
+        (1, 22),
+        (1, 29),
+    ]
+    assert lessons[0].topic == "Potegi"
+    assert lessons[2].start == datetime(2026, 9, 22, 10, 0, tzinfo=WARSAW)
+    assert lessons[2].join_url != lessons[0].join_url
+    assert tenant.event_of(lessons[2].id) == ("2A matematyka", {"jan.kowalski@example.org"})
+
+    tenant.add_member(team, "Ewa Zielinska")
+    await tenant.sync_roster(linked.id)
+    assert len(tenant.event_of(lessons[2].id)[1]) == 2
+
+
+async def test_a_slot_changes_only_from_after_its_first_lesson(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+
+    with pytest.raises(ValueError):
+        await tenant.change_slot(linked.id, MONDAY_8, WEDNESDAY_9, date(2026, 9, 7))
+    with pytest.raises(LookupError):
+        await tenant.change_slot(linked.id, WEDNESDAY_9, MONDAY_8, date(2026, 9, 21))
+    assert len(await tenant.list_lessons(linked.id)) == 4
+
+
+async def test_a_slot_can_change_twice(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    await tenant.change_slot(linked.id, MONDAY_8, WEDNESDAY_9, date(2026, 9, 14))
+    await tenant.change_slot(linked.id, WEDNESDAY_9, MONDAY_8, date(2026, 9, 24))
+
+    assert _days(await tenant.list_lessons(linked.id)) == [7, 16, 23, 28]
+
+
+async def test_a_lesson_topic_goes_into_the_occurrence_title(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first, second = (await tenant.list_lessons(linked.id))[:2]
+
+    set_topic = await tenant.set_lesson_topic(linked.id, first.id, "Funkcje liniowe")
+
+    assert set_topic.topic == "Funkcje liniowe"
+    assert tenant.event_of(first.id)[0] == "2A matematyka: Funkcje liniowe"
+    assert tenant.event_of(second.id)[0] == "2A matematyka"
+    lessons = await tenant.list_lessons(linked.id)
+    assert [x.topic for x in lessons[:2]] == ["Funkcje liniowe", None]
+
+    await tenant.set_lesson_topic(linked.id, first.id, " Funkcje kwadratowe ")
+    assert (await tenant.list_lessons(linked.id))[0].topic == "Funkcje kwadratowe"
+    assert tenant.event_of(first.id)[0] == "2A matematyka: Funkcje kwadratowe"
+
+
+async def test_a_topic_cannot_be_cleared_to_empty(tenant):
+    _, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    occurrence = (await tenant.list_lessons(linked.id))[0]
+    await tenant.set_lesson_topic(linked.id, occurrence.id, "Potegi")
+
+    for lesson in (single, occurrence):
+        with pytest.raises(ValueError):
+            await tenant.set_lesson_topic(linked.id, lesson.id, "  ")
+
+    assert tenant.event_of(single.id)[0] == "2A matematyka: Wzory"
+    assert tenant.event_of(occurrence.id)[0] == "2A matematyka: Potegi"
+    assert {x.topic for x in await tenant.list_lessons(linked.id)} >= {"Wzory", "Potegi"}
+
+
+async def test_a_single_lessons_topic_can_change(tenant):
+    _, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+
+    await tenant.set_lesson_topic(linked.id, single.id, "Ulamki")
+
+    assert (await tenant.list_lessons(linked.id))[0].topic == "Ulamki"
+    assert tenant.event_of(single.id)[0] == "2A matematyka: Ulamki"
+    with pytest.raises(LookupError):
+        await tenant.set_lesson_topic(linked.id, "no-such-lesson", "Ulamki")
+
+
 async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypatch):
     team = tenant.add_team("2A matematyka")
     linked = await tenant.link_team(team)

@@ -36,6 +36,8 @@ __all__ = [
     "add_timetable",
     "backend",
     "create_class",
+    "cancel_lessons",
+    "change_slot",
     "get_class",
     "link_team",
     "list_lessons",
@@ -45,6 +47,7 @@ __all__ = [
     "remove_student",
     "rename_class",
     "search_users",
+    "set_lesson_topic",
     "sync_roster",
 ]
 
@@ -129,3 +132,18 @@ async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) 
 
 async def list_lessons(class_id: str) -> list[Lesson]:
     return await backend().list_lessons(class_id)
+
+
+async def cancel_lessons(class_id: str, first: date, last: date) -> None:
+    """Cancel every Lesson from `first` to `last` (a break); they keep their Lesson topic."""
+    await backend().cancel_lessons(class_id, first, last)
+
+
+async def change_slot(class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+    """Change a Timetable slot from a date: the old series ends the day before."""
+    await backend().change_slot(class_id, old, new, from_date)
+
+
+async def set_lesson_topic(class_id: str, lesson_id: str, topic: str) -> Lesson:
+    """Set a Lesson's topic, which also becomes its Teams event title."""
+    return await backend().set_lesson_topic(class_id, lesson_id, topic)

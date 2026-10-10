@@ -30,9 +30,11 @@ class FakeTeams:
         self._teams: dict[str, dict] = {}
         self._classes: dict[str, Class] = {}
         self._students: dict[str, dict[str, Student]] = {}
-        self._series: dict[str, list[tuple[str, Slot, date]]] = {}
+        # Per Class: [event id, slot, first day, last day or None once replaced]
+        self._series: dict[str, list[list]] = {}
         self._singles: dict[str, list[Lesson]] = {}
         self._events: dict[str, dict] = {}
+        self._occurrences: dict[str, dict] = {}  # id@day -> subject, topic, cancelled
 
     def add_user(self, name: str) -> str:
         user_id = str(uuid.uuid4())
@@ -120,7 +122,8 @@ class FakeTeams:
     def event_of(self, event_id: str) -> tuple[str, set[str]]:
         """The subject and invitee addresses of a Lesson's event, as FakeGraph's."""
         event = self._events[event_id.split("@")[0]]
-        return event["subject"], set(event["invitees"])
+        subject = self._occurrences.get(event_id, {}).get("subject")
+        return subject or event["subject"], set(event["invitees"])
 
     def _event(self, class_id: str, subject: str) -> str:
         event_id = str(uuid.uuid4())
@@ -140,12 +143,50 @@ class FakeTeams:
             raise TimetableExists(class_id)
         today = self._clock().astimezone(WARSAW).date()
         for slot in slots:
-            first = today + timedelta(days=(slot.weekday - today.weekday()) % 7)
-            event_id = self._event(class_id, self._classes[class_id].name)
-            self._series[class_id].append((event_id, slot, first))
+            self._start_series(class_id, slot, today)
         self._classes[class_id] = self._classes[class_id].model_copy(
             update={"school_year_end": school_year_end}
         )
+
+    def _start_series(self, class_id: str, slot: Slot, from_day: date) -> None:
+        first = from_day + timedelta(days=(slot.weekday - from_day.weekday()) % 7)
+        event_id = self._event(class_id, self._classes[class_id].name)
+        self._series[class_id].append([event_id, slot, first, None])
+
+    async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+        series = next((x for x in self._series[class_id] if x[1] == old and x[3] is None), None)
+        if series is None:
+            raise LookupError(old)
+        if from_date <= series[2]:
+            raise ValueError("a slot changes from after its first Lesson")
+        series[3] = from_date - timedelta(days=1)
+        self._start_series(class_id, new, from_date)
+
+    async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        for lesson in await self.list_lessons(class_id):
+            if first <= lesson.start.astimezone(WARSAW).date() <= last:
+                if lesson.id in self._events:
+                    self._events[lesson.id]["cancelled"] = True
+                else:
+                    self._occurrences.setdefault(lesson.id, {})["cancelled"] = True
+
+    async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
+        topic = topic.strip()
+        if not topic:
+            raise ValueError("a Lesson topic cannot be empty")
+        lesson = next((x for x in await self.list_lessons(class_id) if x.id == lesson_id), None)
+        if lesson is None:
+            raise LookupError(lesson_id)
+        subject = f"{self._classes[class_id].name}: {topic}"
+        if lesson_id in self._events:
+            self._events[lesson_id]["subject"] = subject
+            self._singles[class_id] = [
+                x.model_copy(update={"topic": topic}) if x.id == lesson_id else x
+                for x in self._singles[class_id]
+            ]
+        else:
+            self._occurrences.setdefault(lesson_id, {}).update(subject=subject, topic=topic)
+        return lesson.model_copy(update={"topic": topic})
 
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         self._require_sign_in()
@@ -165,11 +206,15 @@ class FakeTeams:
         return lesson
 
     async def list_lessons(self, class_id: str) -> list[Lesson]:
-        lessons = list(self._singles[class_id])
-        last = self._classes[class_id].school_year_end
-        for event_id, slot, day in self._series[class_id]:
+        lessons = [
+            x.model_copy(update={"cancelled": self._events[x.id].get("cancelled", False)})
+            for x in self._singles[class_id]
+        ]
+        for event_id, slot, day, last in self._series[class_id]:
+            last = last or self._classes[class_id].school_year_end
             while day <= last:
                 if day.weekday() == slot.weekday:
+                    occurrence = self._occurrences.get(f"{event_id}@{day}", {})
                     lessons.append(
                         Lesson(
                             id=f"{event_id}@{day}",
@@ -177,6 +222,8 @@ class FakeTeams:
                             start=datetime.combine(day, slot.start, WARSAW),
                             end=datetime.combine(day, slot.end, WARSAW),
                             join_url=f"https://teams.example.org/l/{event_id}",
+                            topic=occurrence.get("topic"),
+                            cancelled=occurrence.get("cancelled", False),
                         )
                     )
                 day += timedelta(days=1)

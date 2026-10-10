@@ -52,6 +52,7 @@ class Lesson(BaseModel):
     end: datetime
     join_url: str
     topic: str | None = None
+    cancelled: bool = False
 
 
 class Student(BaseModel):
@@ -113,4 +114,20 @@ class Teams(Protocol):
 
     async def list_lessons(self, class_id: str) -> list[Lesson]:
         """Every Lesson of the Class by start: series occurrences and single Lessons."""
+        ...
+
+    async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        """Cancel every Lesson on the dates first..last (Warsaw, inclusive). A cancelled Lesson
+        stays listed with its Lesson topic."""
+        ...
+
+    async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+        """End the series of `old` the day before `from_date` and start one of `new` on or after
+        it, to the school-year end. Raises LookupError if `old` is not a current slot and
+        ValueError if `from_date` is not after its first Lesson."""
+        ...
+
+    async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
+        """Set the Lesson topic and the occurrence title to "<Class>: <Lesson topic>". Raises
+        ValueError for an empty topic and LookupError for a Lesson not in the Class."""
         ...

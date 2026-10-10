@@ -1,6 +1,15 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import Date, DateTime, ForeignKey, SmallInteger, Text, Time, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    SmallInteger,
+    Text,
+    Time,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from classlop.shared.db import Base
@@ -47,10 +56,13 @@ class SlotRecord(Base):
     start_time: Mapped[time] = mapped_column(Time)
     end_time: Mapped[time] = mapped_column(Time)
     first_on: Mapped[date] = mapped_column(Date)
+    # The series' last day once the slot has been replaced.
+    last_on: Mapped[date | None] = mapped_column(Date)
 
 
 class LessonRecord(Base):
-    """A single Lesson added by hand; series occurrences are read from the calendar."""
+    """A Lesson's topic. Occurrences are read from the calendar; a record exists once one has a
+    topic. `single` marks Lessons added by hand."""
 
     __tablename__ = "lesson"
     __table_args__ = {"schema": "teams"}
@@ -61,3 +73,4 @@ class LessonRecord(Base):
         ForeignKey("teams.class.id", ondelete="CASCADE"), index=True
     )
     topic: Mapped[str] = mapped_column(Text)
+    single: Mapped[bool] = mapped_column(Boolean, default=True)
