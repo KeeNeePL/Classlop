@@ -5,6 +5,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Integer,
     SmallInteger,
     Text,
     Time,
@@ -120,3 +121,65 @@ class CalendarCursor(Base):
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     delta_link: Mapped[str] = mapped_column(Text)
     day: Mapped[date] = mapped_column(Date)
+
+
+def _class_fk():
+    return mapped_column(ForeignKey("teams.class.id", ondelete="CASCADE"), index=True)
+
+
+class FetchRecord(Base):
+    """A Lesson whose Attendance has been fetched; `start` is what Late is measured from."""
+
+    __tablename__ = "attendance_fetch"
+    __table_args__ = {"schema": "teams"}
+
+    lesson_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    class_id: Mapped[str] = _class_fk()
+    start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AttendeeRecord(Base):
+    """One person in a Lesson's Teams attendance, as of the last fetch."""
+
+    __tablename__ = "attendee"
+    __table_args__ = {"schema": "teams"}
+
+    lesson_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    class_id: Mapped[str] = _class_fk()
+    user_id: Mapped[str | None] = mapped_column(Text)
+    display_name: Mapped[str] = mapped_column(Text)
+    first_join: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    seconds: Mapped[int] = mapped_column(Integer)
+
+
+class OverrideRecord(Base):
+    __tablename__ = "attendance_override"
+    __table_args__ = {"schema": "teams"}
+
+    lesson_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(
+        ForeignKey("teams.student.id", ondelete="CASCADE"), primary_key=True
+    )
+    class_id: Mapped[str] = _class_fk()
+    state: Mapped[str] = mapped_column(Text)
+
+
+class LinkRecord(Base):
+    __tablename__ = "attendee_link"
+    __table_args__ = {"schema": "teams"}
+
+    class_id: Mapped[str] = mapped_column(
+        ForeignKey("teams.class.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(ForeignKey("teams.student.id", ondelete="CASCADE"))
+
+
+class SettingRecord(Base):
+    __tablename__ = "setting"
+    __table_args__ = {"schema": "teams"}
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    value: Mapped[str] = mapped_column(Text)

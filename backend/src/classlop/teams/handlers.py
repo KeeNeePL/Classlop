@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 declare_every("teams.sync-rosters", "rate(15 minutes)", "teams.sync_rosters")
 declare_every("teams.sync-calendar", "rate(15 minutes)", "teams.sync_calendar")
+declare_every("teams.fetch-attendance", "rate(5 minutes)", "teams.fetch_attendance")
 
 
 @handler("teams.whoami")
@@ -25,6 +26,12 @@ async def whoami(job: Job, progress: Progress) -> dict:
         )
     response.raise_for_status()
     return {"name": response.json()["displayName"]}
+
+
+@handler("teams.fetch_attendance")
+async def fetch_attendance(job: Job, progress: Progress) -> dict:
+    """Attendance of every Lesson due for a fetch: 45 minutes and 2 hours after its end."""
+    return {"fetched": await teams.fetch_due_attendance()}
 
 
 @handler("teams.sync_rosters")

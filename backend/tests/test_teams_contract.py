@@ -19,7 +19,12 @@ from classlop.shared.settings import get_settings
 from classlop.teams import handlers
 from classlop.teams.fake import FakeTeams
 from classlop.teams.graph import GraphClient
-from classlop.teams.models import CalendarCursor, CalendarSeriesRecord, ClassRecord
+from classlop.teams.models import (
+    CalendarCursor,
+    CalendarSeriesRecord,
+    ClassRecord,
+    SettingRecord,
+)
 from classlop.teams.service import GraphTeams
 
 TEACHER = "teacher-oid"
@@ -51,7 +56,7 @@ async def stack():
 async def teacher(monkeypatch):
     monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
     async with sessions().begin() as session:
-        for table in (ClassRecord, CalendarSeriesRecord, CalendarCursor):
+        for table in (ClassRecord, SettingRecord, CalendarSeriesRecord, CalendarCursor):
             await session.execute(delete(table))
 
 
@@ -73,9 +78,8 @@ def tenant(request, clock):
             raise jobs.SignInRequired
         return "token"
 
-    tenant.area = GraphTeams(
-        GraphClient(token=token, transport=graph.transport, sleep=_ignore), clock=clock
-    )
+    client = GraphClient(token=token, transport=graph.transport, sleep=_ignore)
+    tenant.area = GraphTeams(client, clock=clock, records=client)
     return tenant
 
 
@@ -89,7 +93,7 @@ class Tenant:
         self.add_user, self.rename_team = graph.add_user, graph.rename_team
         self.team_members, self.team_name = graph.team_members, graph.team_name
         self.team_is_private = graph.team_is_private
-        self.event_of = graph.event_of
+        self.event_of, self.attend = graph.event_of, graph.attend
         self.add_channel, self.add_meeting = graph.add_channel, graph.add_meeting
         self.reschedule, self.cancel = graph.reschedule, graph.cancel
 
@@ -459,7 +463,7 @@ async def _ignore(_):
     pass
 
 
-def _at(day: int, hour: int = 10, month: int = 9) -> datetime:
+def _on(day: int, hour: int = 10, month: int = 9) -> datetime:
     return datetime(2026, month, day, hour, 0, tzinfo=WARSAW)
 
 
@@ -482,13 +486,13 @@ async def test_a_meeting_made_in_a_class_channel_is_attached_to_that_class(tenan
     team, a, b = await _two_classes(tenant)
     channel = tenant.add_channel(team, "Zadania")
     meeting = tenant.add_meeting(
-        "Konsultacje", _at(12), _at(12, 11), attendees=[ZOFIA], channel=channel
+        "Konsultacje", _on(12), _on(12, 11), attendees=[ZOFIA], channel=channel
     )
 
     await tenant.sync_calendar()
 
     [lesson] = await tenant.list_lessons(a.id)
-    assert (lesson.id, lesson.start, lesson.end) == (meeting, _at(12), _at(12, 11))
+    assert (lesson.id, lesson.start, lesson.end) == (meeting, _on(12), _on(12, 11))
     assert lesson.join_url and not lesson.cancelled and lesson.topic is None
     assert await tenant.list_lessons(b.id) == []
     assert await tenant.list_calendar_questions() == []
@@ -496,7 +500,7 @@ async def test_a_meeting_made_in_a_class_channel_is_attached_to_that_class(tenan
 
 async def test_a_meeting_whose_invitees_are_exactly_one_classs_students_is_attached(tenant):
     _, a, b = await _two_classes(tenant)
-    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    meeting = tenant.add_meeting("Powtorka", _on(12), _on(12, 11), attendees=[EWA, JAN])
 
     await tenant.sync_calendar()
 
@@ -507,26 +511,26 @@ async def test_a_meeting_whose_invitees_are_exactly_one_classs_students_is_attac
 
 async def test_a_time_change_in_teams_updates_the_lesson(tenant):
     _, a, _ = await _two_classes(tenant)
-    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    meeting = tenant.add_meeting("Powtorka", _on(12), _on(12, 11), attendees=[EWA, JAN])
     await tenant.sync_calendar()
 
-    tenant.reschedule(meeting, _at(14, 13), _at(14, 14))
+    tenant.reschedule(meeting, _on(14, 13), _on(14, 14))
     await tenant.sync_calendar()
 
     [lesson] = await tenant.list_lessons(a.id)
-    assert (lesson.start, lesson.end, lesson.cancelled) == (_at(14, 13), _at(14, 14), False)
+    assert (lesson.start, lesson.end, lesson.cancelled) == (_on(14, 13), _on(14, 14), False)
 
 
 async def test_a_cancellation_in_teams_keeps_the_lesson_marked_cancelled(tenant):
     _, a, _ = await _two_classes(tenant)
-    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    meeting = tenant.add_meeting("Powtorka", _on(12), _on(12, 11), attendees=[EWA, JAN])
     await tenant.sync_calendar()
 
     tenant.cancel(meeting)
     await tenant.sync_calendar()
 
     [lesson] = await tenant.list_lessons(a.id)
-    assert (lesson.id, lesson.start, lesson.cancelled) == (meeting, _at(12), True)
+    assert (lesson.id, lesson.start, lesson.cancelled) == (meeting, _on(12), True)
 
 
 async def test_teams_wins_on_the_time_and_cancellation_of_timetable_lessons(tenant):
@@ -535,14 +539,14 @@ async def test_teams_wins_on_the_time_and_cancellation_of_timetable_lessons(tena
     before = await tenant.list_lessons(linked.id)
     await tenant.sync_calendar()
 
-    tenant.reschedule(before[0].id, _at(7, 9), _at(7, 10))
+    tenant.reschedule(before[0].id, _on(7, 9), _on(7, 10))
     tenant.cancel(before[1].id)
     await tenant.sync_calendar()
 
     after = await tenant.list_lessons(linked.id)
     assert len(after) == len(before)
     assert [(x.start, x.cancelled) for x in after[:3]] == [
-        (_at(7, 9), False),
+        (_on(7, 9), False),
         (before[1].start, True),
         (before[2].start, False),
     ]
@@ -550,7 +554,7 @@ async def test_teams_wins_on_the_time_and_cancellation_of_timetable_lessons(tena
 
 async def test_a_cancelled_single_lesson_keeps_its_topic(tenant):
     _, linked = await _class_with_jan(tenant)
-    lesson = await tenant.add_lesson(linked.id, _at(12), _at(12, 11), "Funkcje liniowe")
+    lesson = await tenant.add_lesson(linked.id, _on(12), _on(12, 11), "Funkcje liniowe")
     await tenant.sync_calendar()
 
     tenant.cancel(lesson.id)
@@ -564,8 +568,8 @@ async def test_a_series_overlapping_several_classes_asks_which_once_for_every_oc
     _, a, b = await _two_classes(tenant)
     series = tenant.add_meeting(
         "Kolo naukowe",
-        _at(2, 15),
-        _at(2, 16),
+        _on(2, 15),
+        _on(2, 16),
         attendees=[JAN, ADAM],
         weekly_until=date(2026, 9, 16),
     )
@@ -576,7 +580,7 @@ async def test_a_series_overlapping_several_classes_asks_which_once_for_every_oc
     [question] = await tenant.list_calendar_questions()
     assert question.id == series
     assert question.subject == "Kolo naukowe"
-    assert question.start == _at(2, 15)
+    assert question.start == _on(2, 15)
     assert sorted(question.candidates) == sorted([a.id, b.id])
     assert await tenant.list_lessons(a.id) == []
 
@@ -590,7 +594,7 @@ async def test_a_series_overlapping_several_classes_asks_which_once_for_every_oc
 async def test_only_a_candidate_class_or_keep_or_hide_answers_a_question(tenant):
     await _two_classes(tenant)
     other = await tenant.link_team(tenant.add_team("1C matematyka"))
-    tenant.add_meeting("Kolo naukowe", _at(12), _at(12, 11), attendees=[JAN, ADAM])
+    tenant.add_meeting("Kolo naukowe", _on(12), _on(12, 11), attendees=[JAN, ADAM])
     await tenant.sync_calendar()
     [question] = await tenant.list_calendar_questions()
 
@@ -606,8 +610,8 @@ async def test_a_meeting_matching_no_class_asks_keep_or_hide_once_per_series(ten
     _, a, b = await _two_classes(tenant)
     tenant.add_meeting(
         "Rada pedagogiczna",
-        _at(2, 15),
-        _at(2, 16),
+        _on(2, 15),
+        _on(2, 16),
         attendees=[ZOFIA],
         weekly_until=date(2026, 9, 16),
     )
@@ -624,9 +628,9 @@ async def test_a_meeting_matching_no_class_asks_keep_or_hide_once_per_series(ten
 
 async def test_the_calendar_window_runs_7_days_back_and_60_ahead(tenant, clock):
     _, a, _ = await _two_classes(tenant)
-    old = tenant.add_meeting("Za stare", _at(24, month=8), _at(24, 11, 8), attendees=[JAN, EWA])
-    near = tenant.add_meeting("Blisko", _at(26, month=8), _at(26, 11, 8), attendees=[JAN, EWA])
-    far = tenant.add_meeting("Daleko", _at(5, month=11), _at(5, 11, 11), attendees=[JAN, EWA])
+    old = tenant.add_meeting("Za stare", _on(24, month=8), _on(24, 11, 8), attendees=[JAN, EWA])
+    near = tenant.add_meeting("Blisko", _on(26, month=8), _on(26, 11, 8), attendees=[JAN, EWA])
+    far = tenant.add_meeting("Daleko", _on(5, month=11), _on(5, 11, 11), attendees=[JAN, EWA])
 
     await tenant.sync_calendar()
     assert [x.id for x in await tenant.list_lessons(a.id)] == [near]
@@ -640,7 +644,7 @@ async def test_the_calendar_window_runs_7_days_back_and_60_ahead(tenant, clock):
 
 async def test_calendar_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypatch):
     _, a, _ = await _two_classes(tenant)
-    meeting = tenant.add_meeting("Powtorka", _at(12), _at(12, 11), attendees=[EWA, JAN])
+    meeting = tenant.add_meeting("Powtorka", _on(12), _on(12, 11), attendees=[EWA, JAN])
     monkeypatch.setattr(teams, "backend", lambda: tenant)
 
     await handlers.sync_calendar(Job(kind="teams.sync_calendar", payload={}), _ignore)
@@ -650,6 +654,235 @@ async def test_calendar_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeyp
     async with sessions()() as session:
         row = await session.get(Schedule, "teams.sync-calendar")
     assert (row.kind, row.every_seconds) == ("teams.sync_calendar", 15 * 60)
+
+
+LESSON_START = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+DAY = 24 * 60
+
+
+def _at(minute: int) -> datetime:
+    return LESSON_START + timedelta(minutes=minute)
+
+
+async def _lesson(tenant, linked):
+    return await tenant.add_lesson(linked.id, LESSON_START, _at(45), "Funkcje liniowe")
+
+
+async def _held(tenant, names=("Jan Kowalski", "Ewa Zielinska", "Adam Lis")):
+    team = tenant.add_team("2A matematyka")
+    ids = {n: tenant.add_member(team, n) for n in names}
+    linked = await tenant.link_team(team)
+    students = {s.display_name: s for s in await tenant.list_students(linked.id)}
+    return linked, ids, students, await _lesson(tenant, linked)
+
+
+def _states(attendance, students):
+    by_id = {e.student_id: e for e in attendance.entries}
+    return {n: (by_id[s.id].state, by_id[s.id].minutes) for n, s in students.items()}
+
+
+async def test_attendance_shows_present_late_and_absent_with_minutes(tenant):
+    linked, ids, students, lesson = await _held(tenant)
+    before = await tenant.get_attendance(linked.id, lesson.id)
+    assert before.fetched_at is None
+    assert all(e.state is None for e in before.entries)
+    tenant.attend(
+        lesson.join_url,
+        [
+            (TEACHER, "Anna Nowak", _at(-2), _at(45)),
+            (ids["Jan Kowalski"], "Jan Kowalski", _at(2), _at(10)),
+            (ids["Ewa Zielinska"], "Ewa Zielinska", _at(7), _at(30)),
+        ],
+    )
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {
+        "Jan Kowalski": ("present", 8),
+        "Ewa Zielinska": ("late", 23),
+        "Adam Lis": ("absent", 0),
+    }
+    assert got.unmatched == []
+    assert not any(e.overridden for e in got.entries)
+    assert await tenant.get_attendance(linked.id, lesson.id) == got
+
+
+async def test_a_first_join_exactly_at_the_threshold_is_not_late(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(5), _at(40))])
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {"Jan Kowalski": ("present", 35)}
+
+
+async def test_the_lateness_threshold_is_one_setting_defaulting_to_five_minutes(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Ewa Zielinska",))
+    tenant.attend(lesson.join_url, [(ids["Ewa Zielinska"], "Ewa Zielinska", _at(7), _at(45))])
+    assert await tenant.lateness_threshold() == timedelta(minutes=5)
+    assert _states(await tenant.refresh_attendance(linked.id, lesson.id), students) == {
+        "Ewa Zielinska": ("late", 38)
+    }
+
+    await tenant.set_lateness_threshold(timedelta(minutes=10))
+
+    assert await tenant.lateness_threshold() == timedelta(minutes=10)
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Ewa Zielinska": ("present", 38)
+    }
+
+
+async def test_every_record_of_the_meeting_is_merged_and_rejoins_count_once(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = ids["Jan Kowalski"]
+    tenant.attend(
+        lesson.join_url,
+        [(jan, "Jan Kowalski", _at(1), _at(10)), (jan, "Jan Kowalski", _at(8), _at(15))],
+    )
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(30), _at(40))])
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {"Jan Kowalski": ("present", 24)}
+
+
+async def test_a_series_shares_one_join_link_but_each_lesson_keeps_its_own_records(tenant):
+    _, linked = await _class_with_jan(tenant)
+    [jan] = await tenant.list_students(linked.id)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first, second = (await tenant.list_lessons(linked.id))[:2]
+    assert first.join_url == second.join_url
+    tenant.attend(
+        first.join_url,
+        [(jan.user_id, "Jan Kowalski", first.start + timedelta(minutes=1), first.end)],
+    )
+
+    one = await tenant.refresh_attendance(linked.id, first.id)
+    two = await tenant.refresh_attendance(linked.id, second.id)
+
+    assert [(e.state, e.minutes) for e in one.entries] == [("present", 44)]
+    assert [(e.state, e.minutes) for e in two.entries] == [("absent", 0)]
+
+
+async def test_an_override_is_marked_and_survives_every_later_fetch(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = students["Jan Kowalski"]
+
+    await tenant.override_attendance(linked.id, lesson.id, jan.id, "present")
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(20), _at(40))])
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    [entry] = got.entries
+    assert (entry.state, entry.overridden, entry.minutes) == ("present", True, 20)
+
+    await tenant.override_attendance(linked.id, lesson.id, jan.id, None)
+
+    [entry] = (await tenant.get_attendance(linked.id, lesson.id)).entries
+    assert (entry.state, entry.overridden) == ("late", False)
+
+
+async def test_attendees_not_linked_to_a_student_are_unmatched_and_a_link_is_remembered(tenant):
+    linked, _, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    later = await tenant.add_lesson(linked.id, _at(DAY), _at(DAY + 45), "Wzory")
+    tenant.attend(
+        lesson.join_url,
+        [("stranger-oid", "Telefon Janka", _at(1), _at(41)), (None, "Ola", _at(2), _at(32))],
+    )
+    tenant.attend(later.join_url, [("stranger-oid", "Telefon Janka", _at(DAY + 1), _at(DAY + 21))])
+    jan = students["Jan Kowalski"]
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert sorted((u.display_name, u.minutes) for u in got.unmatched) == [
+        ("Ola", 30),
+        ("Telefon Janka", 40),
+    ]
+    assert _states(got, students) == {"Jan Kowalski": ("absent", 0)}
+
+    phone = next(u for u in got.unmatched if u.display_name == "Telefon Janka")
+    await tenant.link_attendee(linked.id, phone.key, jan.id)
+
+    now = await tenant.get_attendance(linked.id, lesson.id)
+    assert _states(now, students) == {"Jan Kowalski": ("present", 40)}
+    assert [u.display_name for u in now.unmatched] == ["Ola"]
+    ahead = await tenant.refresh_attendance(linked.id, later.id)
+    assert _states(ahead, students) == {"Jan Kowalski": ("present", 20)}
+    assert ahead.unmatched == []
+
+
+async def test_a_guest_is_linked_by_display_name_within_the_class(tenant):
+    linked, _, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    other = await tenant.link_team(tenant.add_team("3B matematyka"))
+    other_lesson = await _lesson(tenant, other)
+    later = await tenant.add_lesson(linked.id, _at(2 * DAY), _at(2 * DAY + 45), "Wzory")
+    tenant.attend(lesson.join_url, [(None, "Ola", _at(1), _at(41))])
+    tenant.attend(later.join_url, [(None, "Ola", _at(2 * DAY + 3), _at(2 * DAY + 20))])
+    tenant.attend(other_lesson.join_url, [(None, "Ola", _at(1), _at(41))])
+    [guest] = (await tenant.refresh_attendance(linked.id, lesson.id)).unmatched
+
+    await tenant.link_attendee(linked.id, guest.key, students["Jan Kowalski"].id)
+
+    assert _states(await tenant.refresh_attendance(linked.id, later.id), students) == {
+        "Jan Kowalski": ("present", 17)
+    }
+    assert len((await tenant.refresh_attendance(other.id, other_lesson.id)).unmatched) == 1
+
+
+async def test_attendance_is_fetched_at_the_end_plus_45_minutes_and_again_at_2_hours(tenant, clock):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = ids["Jan Kowalski"]
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(1), _at(20))])
+
+    clock.now = lesson.end + timedelta(minutes=44)
+    assert await tenant.fetch_due_attendance() == 0
+    assert (await tenant.get_attendance(linked.id, lesson.id)).fetched_at is None
+
+    clock.now = lesson.end + timedelta(minutes=45)
+    assert await tenant.fetch_due_attendance() == 1
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 19)
+    }
+    assert await tenant.fetch_due_attendance() == 0
+
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(30), _at(40))])
+    clock.now = lesson.end + timedelta(hours=2)
+    assert await tenant.fetch_due_attendance() == 1
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 29)
+    }
+    clock.now = lesson.end + timedelta(days=1)
+    assert await tenant.fetch_due_attendance() == 0
+
+
+async def test_a_cancelled_lesson_has_no_attendance_fetched(tenant, clock):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first = (await tenant.list_lessons(linked.id))[0]
+    await tenant.cancel_lessons(linked.id, first.start.date(), first.start.date())
+
+    clock.now = first.end + timedelta(hours=1)
+
+    assert await tenant.fetch_due_attendance() == 0
+    assert (await tenant.get_attendance(linked.id, first.id)).fetched_at is None
+
+
+async def test_the_attendance_fetch_is_a_job_that_runs_every_five_minutes(
+    tenant, clock, monkeypatch
+):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(1), _at(40))])
+    clock.now = lesson.end + timedelta(hours=1)
+    monkeypatch.setattr(teams, "backend", lambda: tenant)
+
+    await handlers.fetch_attendance(Job(kind="teams.fetch_attendance", payload={}), _ignore)
+
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 39)
+    }
+    await schedule.sync_declared()
+    async with sessions()() as session:
+        row = await session.get(Schedule, "teams.fetch-attendance")
+    assert (row.kind, row.every_seconds) == ("teams.fetch_attendance", 5 * 60)
 
 
 async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant):

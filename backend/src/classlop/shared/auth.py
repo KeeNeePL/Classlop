@@ -92,6 +92,17 @@ async def complete_sign_in(flow: dict, params: dict) -> dict:
     return claims
 
 
+async def app_token() -> str:
+    """An app-only Graph token for the permissions that have no delegated form (call records)."""
+    async with _cache() as app:
+        result = await asyncio.to_thread(
+            app.acquire_token_for_client, ["https://graph.microsoft.com/.default"]
+        )
+    if "access_token" not in result:
+        raise SignInFailed(result.get("error_description", "no app token"))
+    return result["access_token"]
+
+
 async def graph_token(scopes: list[str]) -> str:
     """A delegated Graph token for the Teacher, refreshed as needed. Raises SignInRequired once
     refreshing fails."""
