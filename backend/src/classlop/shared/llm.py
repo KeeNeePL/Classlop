@@ -1,4 +1,6 @@
+import json
 import os
+import re
 
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -21,7 +23,22 @@ def chat_model(job: str) -> ChatOpenAI:
 async def ask[T: BaseModel](job: str, schema: type[T], messages: list[BaseMessage]) -> T:
     """A reply in `schema` from the job's chat model."""
     reply = await chat_model(job).bind(response_format=schema).ainvoke(messages)
-    return schema.model_validate_json(reply.text)
+    return schema.model_validate(_clean(json.loads(reply.text)))
+
+
+# Every C0 control character but tab and newline, and DEL. Models occasionally emit them,
+# and Postgres refuses NUL in text.
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+
+
+def _clean(value):
+    if isinstance(value, str):
+        return _CONTROL.sub("", value)
+    if isinstance(value, list):
+        return [_clean(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _clean(v) for k, v in value.items()}
+    return value
 
 
 def embeddings() -> OpenAIEmbeddings:
