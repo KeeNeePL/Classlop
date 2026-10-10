@@ -55,6 +55,16 @@ class Lesson(BaseModel):
     cancelled: bool = False
 
 
+class CalendarQuestion(BaseModel):
+    """A Teams meeting the Teacher is asked about, once per series: which of `candidates` (Class
+    ids) it belongs to, or, with none, whether to keep it as a calendar event or hide it."""
+
+    id: str
+    subject: str
+    start: datetime
+    candidates: list[str]
+
+
 class Student(BaseModel):
     id: str
     class_id: str
@@ -148,7 +158,21 @@ class Teams(Protocol):
         ...
 
     async def list_lessons(self, class_id: str) -> list[Lesson]:
-        """Every Lesson of the Class by start: series occurrences and single Lessons."""
+        """Every Lesson of the Class by start: series occurrences, single Lessons and Teams
+        meetings attached to it. Lessons cancelled in Teams stay, marked `cancelled`."""
+        ...
+
+    async def sync_calendar(self) -> None:
+        """Pull what changed in the Teacher's calendar, 7 days back to 60 ahead. Teams wins on
+        time and cancellation; a new Teams meeting is attached to a Class by its channel or by
+        invitees that are exactly the Class's Students, else it becomes a CalendarQuestion."""
+        ...
+
+    async def list_calendar_questions(self) -> list[CalendarQuestion]: ...
+
+    async def answer_calendar_question(self, question_id: str, answer: str) -> None:
+        """`answer` is one of the question's candidate Class ids, or "keep" or "hide"; it covers
+        every occurrence of the series. Raises ValueError for anything else."""
         ...
 
     async def get_attendance(self, class_id: str, lesson_id: str) -> Attendance:

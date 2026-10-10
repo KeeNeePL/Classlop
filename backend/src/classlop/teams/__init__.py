@@ -12,6 +12,7 @@ from classlop.teams.types import (
     Attendance,
     AttendanceEntry,
     AttendanceState,
+    CalendarQuestion,
     Candidate,
     Class,
     Lesson,
@@ -27,6 +28,7 @@ from classlop.teams.types import (
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
+    "CalendarQuestion",
     "Attendance",
     "AttendanceEntry",
     "AttendanceState",
@@ -43,6 +45,7 @@ __all__ = [
     "add_lesson",
     "add_student",
     "add_timetable",
+    "answer_calendar_question",
     "backend",
     "cancel_lessons",
     "change_slot",
@@ -53,6 +56,7 @@ __all__ = [
     "lateness_threshold",
     "link_attendee",
     "link_team",
+    "list_calendar_questions",
     "override_attendance",
     "refresh_attendance",
     "set_lateness_threshold",
@@ -60,6 +64,7 @@ __all__ = [
     "list_classes",
     "list_owned_teams",
     "list_students",
+    "sync_calendar",
     "remove_student",
     "rename_class",
     "search_users",
@@ -148,6 +153,19 @@ async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) 
 
 async def list_lessons(class_id: str) -> list[Lesson]:
     return await backend().list_lessons(class_id)
+
+
+async def sync_calendar() -> None:
+    """Bring Lessons in step with the Teacher's Teams calendar now."""
+    await backend().sync_calendar()
+
+
+async def list_calendar_questions() -> list[CalendarQuestion]:
+    return await backend().list_calendar_questions()
+
+
+async def answer_calendar_question(question_id: str, answer: str) -> None:
+    await backend().answer_calendar_question(question_id, answer)
 
 
 async def get_attendance(class_id: str, lesson_id: str) -> Attendance:

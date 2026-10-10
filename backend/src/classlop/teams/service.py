@@ -1,6 +1,7 @@
 import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import unquote
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
@@ -10,9 +11,12 @@ from ulid import ULID
 from classlop.shared.db import sessions
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
-from classlop.teams.graph import BASE, GraphClient
+from classlop.teams.graph import BASE, GraphClient, GraphError
 from classlop.teams.models import (
     AttendeeRecord,
+    CalendarCursor,
+    CalendarEventRecord,
+    CalendarSeriesRecord,
     ClassRecord,
     FetchRecord,
     LessonRecord,
@@ -27,6 +31,7 @@ from classlop.teams.types import (
     Attendance,
     AttendanceState,
     Attendee,
+    CalendarQuestion,
     Candidate,
     Class,
     Lesson,
@@ -51,6 +56,12 @@ FIRST_FETCH, SECOND_FETCH, GIVE_UP = timedelta(minutes=45), timedelta(hours=2), 
 
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+def calendar_window(today: date) -> tuple[datetime, datetime]:
+    """The calendar sync's span: 7 days back to 60 ahead, in Warsaw midnights."""
+    first = datetime.combine(today - timedelta(days=7), datetime.min.time(), WARSAW)
+    return first, first + timedelta(days=68)
 
 
 def attendance_due(end: datetime, fetched_at: datetime | None, at: datetime) -> bool:
@@ -262,7 +273,7 @@ class GraphTeams:
                 await session.scalars(select(LessonRecord).where(LessonRecord.class_id == class_id))
             )
         topics = {r.id: r.topic for r in records}
-        lessons = []
+        lessons: dict[str, Lesson] = {}
         for slot in slots:
             last = slot.last_on or klass.school_year_end
             window = {
@@ -278,12 +289,147 @@ class GraphTeams:
             for event in await self._graph.get_all(
                 f"/me/events/{slot.event_id}/instances", **window
             ):
-                lessons.append(self._lesson(class_id, event, topics.get(event["id"])))
+                lessons[event["id"]] = self._lesson(class_id, event, topics.get(event["id"]))
         for record in records:
-            if record.single:
+            if not record.single:
+                continue
+            try:
                 event = await self._graph.get(f"/me/events/{record.id}")
-                lessons.append(self._lesson(class_id, event, record.topic))
-        return sorted(lessons, key=lambda lesson: lesson.start)
+            except GraphError as error:
+                if error.status != 404:
+                    raise
+                continue
+            lessons[record.id] = self._lesson(class_id, event, record.topic)
+        # Teams-made meetings, and what Teams has cancelled, are known from the calendar sync.
+        async with sessions()() as session:
+            rows = await session.scalars(
+                select(CalendarEventRecord)
+                .join(CalendarSeriesRecord)
+                .where(CalendarSeriesRecord.class_id == class_id)
+                .where(CalendarSeriesRecord.state == "lesson")
+            )
+            for row in rows:
+                if row.id not in lessons:
+                    lessons[row.id] = Lesson(
+                        id=row.id,
+                        class_id=class_id,
+                        start=row.starts_at.astimezone(WARSAW),
+                        end=row.ends_at.astimezone(WARSAW),
+                        join_url=row.join_url,
+                        topic=topics.get(row.id),
+                        cancelled=row.cancelled,
+                    )
+        return sorted(lessons.values(), key=lambda lesson: lesson.start)
+
+    async def sync_calendar(self) -> None:
+        today = self._clock().astimezone(WARSAW).date()
+        async with sessions()() as session:
+            cursor = await session.get(CalendarCursor, "me")
+            own = {
+                key: class_id
+                for key, class_id in [
+                    *await session.execute(select(SlotRecord.event_id, SlotRecord.class_id)),
+                    *await session.execute(select(LessonRecord.id, LessonRecord.class_id)),
+                ]
+            }
+            known = set(await session.scalars(select(CalendarSeriesRecord.id)))
+        if cursor and cursor.day == today:
+            rows, link = await self._graph.get_delta(cursor.delta_link)
+        else:
+            first, last = calendar_window(today)
+            rows, link = await self._graph.get_delta(
+                "/me/calendarView/delta",
+                startDateTime=first.astimezone(UTC).isoformat(),
+                endDateTime=last.astimezone(UTC).isoformat(),
+            )
+        meetings = [r for r in rows if "@removed" in r or r.get("isOnlineMeeting")]
+        fresh: dict[str, dict] = {}
+        for row in meetings:
+            key = row.get("seriesMasterId") or row["id"]
+            if "@removed" not in row and key not in known:
+                fresh.setdefault(key, row)
+        placed = [await self._place(key, row, own) for key, row in fresh.items()]
+        async with sessions().begin() as session:
+            session.add_all(placed)
+            await session.flush()
+            for row in meetings:
+                event = await session.get(CalendarEventRecord, row["id"])
+                if "@removed" in row:
+                    if event:
+                        event.cancelled = True
+                    continue
+                if event is None:
+                    event = CalendarEventRecord(
+                        id=row["id"], series_id=row.get("seriesMasterId") or row["id"]
+                    )
+                    session.add(event)
+                event.starts_at, event.ends_at = _utc(row["start"]), _utc(row["end"])
+                event.cancelled = row.get("isCancelled", False)
+                event.join_url = row["onlineMeeting"]["joinUrl"]
+            await session.merge(CalendarCursor(id="me", delta_link=link, day=today))
+
+    async def _place(self, key: str, row: dict, own: dict[str, str]) -> CalendarSeriesRecord:
+        """Where a meeting new to the calendar belongs: its Class, or a question for the Teacher."""
+        series = CalendarSeriesRecord(id=key, subject=row["subject"], class_id=None, candidates=[])
+        if key in own:
+            series.state, series.class_id = "lesson", own[key]
+            return series
+        invited = {a["emailAddress"]["address"].lower() for a in row.get("attendees", [])}
+        rosters = {
+            k.id: {s.upn.lower() for s in await self.list_students(k.id) if not s.former_since}
+            for k in await self.list_classes()
+        }
+        url = unquote(row["onlineMeeting"]["joinUrl"])
+        in_channel = []
+        if "@thread.tacv2" in url:
+            for klass in await self.list_classes():
+                channels = await self._graph.get_all(f"/teams/{klass.team_id}/channels")
+                if any(c["id"] in url for c in channels):
+                    in_channel.append(klass.id)
+        exact = [c for c, students in rosters.items() if students and students == invited]
+        for found in (in_channel, exact):
+            if len(found) == 1:
+                series.state, series.class_id = "lesson", found[0]
+                return series
+        series.state = "pending"
+        series.candidates = in_channel or exact or [c for c, s in rosters.items() if s & invited]
+        return series
+
+    async def list_calendar_questions(self) -> list[CalendarQuestion]:
+        async with sessions()() as session:
+            pending = await session.scalars(
+                select(CalendarSeriesRecord).where(CalendarSeriesRecord.state == "pending")
+            )
+            questions = []
+            for series in pending:
+                first = await session.scalar(
+                    select(CalendarEventRecord.starts_at)
+                    .where(CalendarEventRecord.series_id == series.id)
+                    .order_by(CalendarEventRecord.starts_at)
+                    .limit(1)
+                )
+                assert first, "a pending series has an occurrence"
+                questions.append(
+                    CalendarQuestion(
+                        id=series.id,
+                        subject=series.subject,
+                        start=first.astimezone(WARSAW),
+                        candidates=series.candidates,
+                    )
+                )
+        return sorted(questions, key=lambda q: q.start)
+
+    async def answer_calendar_question(self, question_id: str, answer: str) -> None:
+        async with sessions().begin() as session:
+            series = await session.get(CalendarSeriesRecord, question_id)
+            if series is None or series.state != "pending":
+                raise ValueError(f"no open question {question_id}")
+            if answer in ("keep", "hide"):
+                series.state = "kept" if answer == "keep" else "hidden"
+            elif answer in series.candidates:
+                series.state, series.class_id = "lesson", answer
+            else:
+                raise ValueError(f"{answer!r} is not an answer to {question_id}")
 
     async def _lesson_of(self, class_id: str, lesson_id: str) -> Lesson:
         lesson = next((x for x in await self.list_lessons(class_id) if x.id == lesson_id), None)

@@ -5,6 +5,7 @@ import json
 import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -35,6 +36,8 @@ class FakeGraph:
         self.teams: dict[str, dict] = {}
         self._operations: dict[str, int] = {}
         self.events: dict[str, dict] = {}
+        # The events calendarView delta reports as changed, in order.
+        self.changes: list[str] = []
         self.call_records: list[dict] = []
         self.transport = httpx.MockTransport(self._handle)
 
@@ -50,9 +53,11 @@ class FakeGraph:
 
     def _new_team(self, name: str, visibility: str) -> str:
         team_id = str(uuid.uuid4())
+        general = self._channel_id()
         self.teams[team_id] = {
             "name": name,
-            "channel": str(uuid.uuid4()),
+            "channel": general,
+            "channels": [general],
             "visibility": visibility,
             "members": {},
         }
@@ -82,6 +87,70 @@ class FakeGraph:
 
     def team_is_private(self, team_id: str) -> bool:
         return self.teams[team_id]["visibility"] == "private"
+
+    @staticmethod
+    def _channel_id() -> str:
+        return f"19:{uuid.uuid4().hex}@thread.tacv2"
+
+    def add_channel(self, team_id: str, name: str) -> str:
+        channel = self._channel_id()
+        self.teams[team_id]["channels"].append(channel)
+        return channel
+
+    def add_meeting(
+        self,
+        subject: str,
+        start: datetime,
+        end: datetime,
+        *,
+        attendees: list[str],
+        channel: str | None = None,
+        weekly_until: date | None = None,
+    ) -> str:
+        """An online meeting the Teacher made in Teams, in a channel or by inviting people."""
+        body = {
+            "subject": subject,
+            "isOnlineMeeting": True,
+            "attendees": [{"emailAddress": {"address": a}} for a in attendees],
+            "start": self._local(start),
+            "end": self._local(end),
+        }
+        if weekly_until:
+            body["recurrence"] = {
+                "pattern": {"type": "weekly", "daysOfWeek": [_DAYS[start.weekday()]]},
+                "range": {
+                    "startDate": start.date().isoformat(),
+                    "endDate": weekly_until.isoformat(),
+                },
+            }
+        event_id = json.loads(self._create_event(body).content)["id"]
+        thread = channel or f"19:{uuid.uuid4().hex}@thread.v2"
+        self.events[event_id]["onlineMeeting"] = {
+            "joinUrl": f"https://teams.example.org/l/meetup-join/{quote(thread)}/0"
+        }
+        return event_id
+
+    def reschedule(self, event_id: str, start: datetime, end: datetime) -> None:
+        """A time change made in Teams, of an event or of one occurrence of a series."""
+        self._edit(event_id, {"start": self._local(start), "end": self._local(end)})
+
+    def cancel(self, event_id: str) -> None:
+        """A cancellation made in Teams: the event stays, cancelled."""
+        self._edit(event_id, {"isCancelled": True})
+
+    def _edit(self, event_id: str, body: dict) -> None:
+        base, _, day = event_id.partition("@")
+        event = self.events[base]
+        if day:
+            event.setdefault("exceptions", {}).setdefault(day, {}).update(body)
+        else:
+            event.update(body)
+        self.changes.append(base)
+
+    @staticmethod
+    def _local(when: datetime) -> dict:
+        local = when.astimezone(ZoneInfo("Europe/Warsaw")).replace(tzinfo=None)
+        return {"dateTime": local.isoformat(), "timeZone": "Europe/Warsaw"}
 
     def event_of(self, event_id: str) -> tuple[str, set[str]]:
         """The subject and invitee addresses of an event or of an occurrence of a series."""
@@ -163,6 +232,12 @@ class FakeGraph:
             return httpx.Response(200, json={"id": team["channel"], "displayName": "General"})
         if path == "/me/events" and request.method == "POST":
             return self._create_event(json.loads(request.content))
+        if path == "/me/calendarView/delta":
+            return self._delta(request)
+        if match := re.fullmatch(r"/teams/([^/]+)/channels", path):
+            if (team := self.teams.get(match[1])) is None:
+                return _not_found()
+            return self._page(request, [{"id": c} for c in team["channels"]])
         if match := re.fullmatch(r"/me/events/([^/]+)/cancel", path):
             return self._change(match[1], {"isCancelled": True}, request)
         if match := re.fullmatch(r"/me/events/([^/]+)", path):
@@ -226,6 +301,7 @@ class FakeGraph:
                 event.setdefault("exceptions", {}).setdefault(day, {}).update(body)
             else:
                 event.update(body)
+            self.changes.append(base)
         if day:
             return httpx.Response(200, json=self._occurrence(event, date.fromisoformat(day)))
         return httpx.Response(200, json=self._shown(event))
@@ -237,6 +313,7 @@ class FakeGraph:
             "id": event_id,
             "onlineMeeting": {"joinUrl": f"https://teams.example.org/l/{event_id}"},
         }
+        self.changes.append(event_id)
         return httpx.Response(201, json=self._shown(self.events[event_id]))
 
     @staticmethod
@@ -258,10 +335,10 @@ class FakeGraph:
         return self._shown(
             {
                 **event,
-                **event.get("exceptions", {}).get(str(day), {}),
                 "id": f"{event['id']}@{day}",
                 "start": {"dateTime": start.isoformat(), "timeZone": zone},
                 "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
+                **event.get("exceptions", {}).get(str(day), {}),
             }
         )
 
@@ -281,6 +358,23 @@ class FakeGraph:
                     out.append(shown)
             day += timedelta(days=1)
         return out
+
+    def _delta(self, request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
+        rows = []
+        for event_id in dict.fromkeys(self.changes[int(params.get("$deltatoken", 0)) :]):
+            event = self.events[event_id]
+            series = event_id if "recurrence" in event else None
+            for shown in self._instances(event, params):
+                begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
+                if window[0] <= begins < window[1]:
+                    rows.append({**shown, "seriesMasterId": series})
+        body = json.loads(self._page(request, rows).content)
+        if "@odata.nextLink" not in body:
+            link = request.url.copy_remove_param("skip")
+            body["@odata.deltaLink"] = str(link.copy_set_param("$deltatoken", len(self.changes)))
+        return httpx.Response(200, json=body)
 
     def _page(self, request: httpx.Request, rows: list[dict]) -> httpx.Response:
         start = int(request.url.params.get("skip", 0))
