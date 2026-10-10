@@ -21,6 +21,10 @@ docker compose up --build        # http://localhost:8000/healthz
 cd backend && uv sync && uv run pytest
 ```
 
+Signing in at http://localhost:8000 needs `M365_CLIENT_SECRET`, `M365_TEACHER_OID` and `SESSION_KEY` in `.env`, written by `scripts/setup-demo-tenant.sh`. `docker compose run --rm worker classlop whoami` then shows a worker job reaching Graph as the Teacher.
+
+Frontend with live reload: `cd frontend && npm ci && npm start` serves http://localhost:4200 and proxies `/api` and `/auth` to :8000 (sign-in itself returns to :8000). After changing the API, refresh the generated client's source: `cd backend && uv run classlop openapi > ../frontend/openapi.json`.
+
 New migration on your area's branch: `cd backend && uv run alembic revision -m "..." --head=<area>@head`.
 
 If Windows blocks compiled packages (Smart App Control), run the tests in Linux instead:

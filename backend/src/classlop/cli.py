@@ -10,6 +10,8 @@ def main(argv: list[str] | None = None) -> None:
     commands.add_parser("worker", help="run background jobs from the queue")
     commands.add_parser("scheduler", help="dev only: fire due schedules onto the queue")
     commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
+    commands.add_parser("whoami", help="read the Teacher's name from Graph in a worker job")
+    commands.add_parser("openapi", help="print the API's OpenAPI schema")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -37,9 +39,16 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.shared.schedule import run_scheduler
 
         asyncio.run(run_scheduler())
-    elif args.command == "ping":
+    elif args.command in ("ping", "whoami"):
         import asyncio
 
         from classlop.shared.jobs import ping
 
-        raise SystemExit(0 if asyncio.run(ping()) else 1)
+        kind = "shared.ping" if args.command == "ping" else "teams.whoami"
+        raise SystemExit(0 if asyncio.run(ping(kind)) else 1)
+    elif args.command == "openapi":
+        import json
+
+        from classlop.dashboard.app import create_app
+
+        print(json.dumps(create_app().openapi(), indent=2))

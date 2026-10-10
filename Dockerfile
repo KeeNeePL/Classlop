@@ -1,4 +1,11 @@
 # syntax=docker/dockerfile:1
+FROM node:24-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.13-slim AS backend
 COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0
@@ -11,6 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 FROM python:3.13-slim
 WORKDIR /app
 COPY --from=backend /app /app
+COPY --from=frontend /frontend/dist/frontend/browser /app/frontend
 ENV PATH=/app/.venv/bin:$PATH
 EXPOSE 8000
 CMD ["classlop", "web"]

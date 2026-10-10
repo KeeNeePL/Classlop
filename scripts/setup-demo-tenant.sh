@@ -190,7 +190,7 @@ finish() {
 # ──────────────────────────────────────────────────────────────────────────
 
 cd "$(dirname "$0")/.."
-TOTAL_STAGES=9
+TOTAL_STAGES=10
 GRAPH_EXPLORER="https://developer.microsoft.com/en-us/graph/graph-explorer"
 
 banner "Classlop demo tenant"
@@ -279,16 +279,18 @@ write_env M365_CLIENT_ID "$M365_CLIENT_ID"
 write_env M365_TENANT_ID "$M365_TENANT_ID"
 pause
 
-stage "Make it a public client (delegated sign-in as the Teacher)"
-note "No client secret: Classlop signs in as the Teacher, as the Graph research recommends."
-step "In Classlop dev: Manage > Authentication > Add a platform > 'Mobile and desktop applications'."
-step "Add the redirect URI exactly: http://localhost"
-step "Advanced settings > 'Allow public client flows' > Yes > Save."
-pause "Press Enter once saved."
+stage "Make it a confidential Web client (the Teacher signs in to Classlop)"
+step "In Classlop dev: Manage > Authentication > Add a platform > 'Web'."
+step "Add the redirect URI exactly: http://localhost:8000/auth/callback > Configure."
+step "Manage > Certificates & secrets > Client secrets > New client secret > Add."
+step "Copy its 'Value' now: it is shown only once."
+ask_secret M365_CLIENT_SECRET "Client secret value:"
+write_env M365_CLIENT_SECRET "$M365_CLIENT_SECRET"
+pause
 
 stage "Grant Graph permissions"
 step "In Classlop dev: API permissions > Add a permission > Microsoft Graph > Delegated permissions."
-step "Add: OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, Calendars.ReadWrite, Files.Read.All"
+step "Add: User.Read, OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, Calendars.ReadWrite, Files.Read.All"
 if [[ "$M365_TENANT_KIND" == edu ]]; then
   step "and: EduRoster.ReadBasic, EduAssignments.ReadWrite"
 else
@@ -297,6 +299,17 @@ fi
 step "Select 'Grant admin consent for <tenant>' > Yes > Refresh."
 step "Every row must show 'Granted for <tenant>'."
 pause "Press Enter once consent shows as granted."
+
+stage "Admit the Teacher"
+open_url "https://entra.microsoft.com"
+step "Entra ID > Users > $M365_TEACHER_UPN > Overview: copy 'Object ID'."
+note "Only this account may sign in to Classlop."
+ask M365_TEACHER_OID "Teacher's object ID:"
+write_env M365_TEACHER_OID "$M365_TEACHER_OID"
+if ! _existing SESSION_KEY >/dev/null; then
+  write_env SESSION_KEY "$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+fi
+pause
 
 stage "Smoke check: find the Class through Graph"
 open_url "$GRAPH_EXPLORER"
@@ -322,7 +335,7 @@ printf '\n'
 cat <<FACTS
   - Tenant: $M365_TENANT_KIND trial, $M365_TENANT_DOMAIN (created $(date +%F), expires after 30 days)
   - Tenant ID: $M365_TENANT_ID
-  - App registration: 'Classlop dev', client ID $M365_CLIENT_ID, public client, redirect http://localhost
+  - App registration: 'Classlop dev', client ID $M365_CLIENT_ID, Web client, redirect http://localhost:8000/auth/callback
   - Teacher: $M365_TEACHER_UPN; Students: $M365_STUDENT_UPNS
   - Class team: '$M365_CLASS_NAME' ($M365_CLASS_ID)
   - Passwords: Teacher and Students in each dev's gitignored .env (M365_TEACHER_PASSWORD,
