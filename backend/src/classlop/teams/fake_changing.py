@@ -1,14 +1,16 @@
 """Changing a Given Assignment in memory, for FakeTeams. It follows changing.py; the rules and the
 words are the shared ones in amendments.py."""
 
+import asyncio
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ulid import ULID
 
-from classlop.shared import jobs
-from classlop.teams import amendments, assignments
+from classlop.shared import jobs, schedule, storage
+from classlop.teams import amendments, assignments, lifecycle
+from classlop.teams import submissions as rules
 from classlop.teams.fake_giving import Post
 from classlop.teams.fake_handins import Hand
 from classlop.teams.lifecycle import check_writable
@@ -20,10 +22,16 @@ class FakeChanging:
     _submissions: dict[str, dict[str, Submission]]
     _posts: dict[str, list[Post]]
     _rejected: set[str]
+    _pdfs: dict[str, bytes]
+    _chat_log: dict[str, list[str]]
+    _hands: dict[str, Hand]
+    _assignment_dirs: dict[str, str]
 
     if TYPE_CHECKING:
 
         def _require_sign_in(self) -> None: ...
+        def _read(self) -> None: ...
+        def _drop_folders(self, path: str | None) -> None: ...
         def _hand(self, submission: Submission) -> Hand: ...
         def _save(self, assignment_id: str, **fields) -> Assignment: ...
         def _update(self, submission: Submission, **fields) -> Submission: ...
@@ -38,6 +46,37 @@ class FakeChanging:
     # What a test inspects, as FakeGraph's.
     def replies_to(self, post_id: str) -> list[str]:
         return self._replies.get(post_id, [])
+
+    def delete_post(self, team_id: str, post_id: str) -> None:
+        """A post deleted in Teams, as FakeGraph's."""
+        self._posts[team_id] = [p for p in self._posts[team_id] if p.id != post_id]
+
+    async def delete_assignment(self, assignment_id: str) -> None:
+        self._require_sign_in()
+        given = self._assignments[assignment_id]
+        klass = await self.get_class(given.class_id)
+        check_writable(klass)
+        self._read()
+        submissions = list(self._submissions[assignment_id].values())
+        uploaded = {s.id for s in submissions if self._hand(s).files}
+        amendments.check_deletable(submissions, uploaded)
+        if given.post_id:
+            if klass.team_id in self._rejected:
+                raise RuntimeError("the post was refused")
+            self.delete_post(klass.team_id, given.post_id)
+        self._drop_folders(self._assignment_dirs.pop(assignment_id, None))
+        for name in lifecycle.schedule_names(assignment_id):
+            await schedule.cancel(name)
+        students = {s.id: s for s in await self.list_students(given.class_id)}
+        for submission in submissions:
+            await asyncio.to_thread(storage.delete_prefix, rules.prefix(submission.id))
+            user_id = students[submission.student_id].user_id
+            if submission.chat_id and submission.notice_id and user_id not in self._rejected:
+                html = amendments.cancelled_html(given.title)
+                self._chat_log.setdefault(user_id, []).append(html)
+            self._hands.pop(submission.id, None)
+        del self._assignments[assignment_id], self._submissions[assignment_id]
+        del self._pdfs[assignment_id]
 
     async def add_recipients(self, assignment_id: str, student_ids: list[str]) -> list[Submission]:
         self._require_sign_in()

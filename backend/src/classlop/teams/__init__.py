@@ -63,6 +63,7 @@ __all__ = [
     "change_times",
     "close_due_assignments",
     "create_class",
+    "delete_assignment",
     "delete_class",
     "excuse_submission",
     "deliver_assignment",
@@ -310,6 +311,11 @@ async def poll_handins() -> int:
 async def close_due_assignments() -> int:
     """Close Open Assignments whose close time has come."""
     return await backend().close_due_assignments()
+
+
+async def delete_assignment(assignment_id: str) -> None:
+    """Delete an Assignment before anything is handed in, telling the Students it reached."""
+    await backend().delete_assignment(assignment_id)
 
 
 async def add_recipients(assignment_id: str, student_ids: list[str]) -> list[Submission]:

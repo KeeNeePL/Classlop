@@ -7,6 +7,10 @@ import pytest
 from tenant import CLOSE, DUE, PDF, make_class
 from tenant import spec as _spec
 
+from classlop import teams
+from classlop.shared.db import sessions
+from classlop.shared.jobs import SignInRequired
+from classlop.shared.models import Schedule
 from classlop.teams import amendments
 
 
@@ -75,9 +79,7 @@ async def test_the_close_time_decides_when_the_poll_closes_the_assignment(tenant
     assert (await tenant.get_assignment(given.id)).state == "closed"
 
 
-async def test_a_late_submission_is_late_against_the_due_time_as_it_now_stands(
-    tenant, gave, clock
-):
+async def test_a_late_submission_is_late_against_the_due_time_as_it_now_stands(tenant, gave, clock):
     klass, users, given = await _given(tenant, "Jan Kowalski")
     clock.now = DUE + timedelta(hours=1)
     tenant.upload(users["Jan Kowalski"], "strona-1.jpg", b"page")
@@ -339,3 +341,167 @@ async def test_only_current_students_of_the_class_are_added(tenant, gave, clock)
     jan = next(s for s in await tenant.list_students(klass.id) if s.display_name == "Jan Kowalski")
     with pytest.raises(ValueError):
         await tenant.add_recipients(given.id, [jan.id])
+
+
+async def test_deleting_removes_the_post_and_folders_and_tells_each_recipient(tenant, gave):
+    klass, users, given = await _given(tenant, "Jan Kowalski", "Ewa Zielinska")
+    [post] = tenant.channel_posts(klass.team_id)
+    kept = await tenant.give_assignment(klass.id, _spec(title="Potegi"), PDF)
+
+    await tenant.delete_assignment(given.id)
+
+    assert [a.id for a in await tenant.list_assignments(klass.id)] == [kept.id]
+    assert [p.html for p in tenant.channel_posts(klass.team_id) if p.id == post.id] == []
+    for name, user in users.items():
+        assert [s.path for s in tenant.shared_with(user)] == [
+            f"Classlop/2A matematyka/Potegi/{name}"
+        ]
+        first, second, cancelled = tenant.chat_messages(user)
+        assert "Praca «Funkcje liniowe» została anulowana" in cancelled
+        assert "Potegi" in second
+
+
+async def test_deleting_a_scheduled_assignment_cancels_its_schedule(tenant, gave, clock):
+    klass, users = await make_class(tenant, "Jan Kowalski")
+    given = await tenant.give_assignment(klass.id, _spec(), PDF, clock.now + timedelta(days=2))
+    async with sessions()() as session:
+        assert await session.get(Schedule, f"teams.give:{given.id}")
+
+    await tenant.delete_assignment(given.id)
+
+    async with sessions()() as session:
+        assert await session.get(Schedule, f"teams.give:{given.id}") is None
+    assert await tenant.list_assignments(klass.id) == []
+    assert tenant.chat_messages(users["Jan Kowalski"]) == []
+
+
+async def test_deleting_is_refused_once_a_hand_in_has_settled(tenant, gave, clock):
+    klass, users, given = await _given(tenant, "Jan Kowalski", "Ewa Zielinska")
+    tenant.upload(users["Ewa Zielinska"], "strona-1.jpg", b"page")
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+
+    with pytest.raises(ValueError):
+        await tenant.delete_assignment(given.id)
+
+    assert await tenant.get_assignment(given.id) == given
+    assert len(tenant.channel_posts(klass.team_id)) == 1
+    assert len(tenant.shared_with(users["Ewa Zielinska"])) == 1
+    assert len(tenant.chat_messages(users["Ewa Zielinska"])) == 1
+
+
+async def test_deleting_is_refused_while_a_hand_in_is_still_settling(tenant, gave, clock):
+    klass, users, given = await _given(tenant, "Jan Kowalski")
+    tenant.upload(users["Jan Kowalski"], "strona-1.jpg", b"page")
+    clock.advance(minutes=1)
+
+    with pytest.raises(ValueError):
+        await tenant.delete_assignment(given.id)
+
+    assert await tenant.get_assignment(given.id) == given
+
+
+async def test_a_hand_in_taken_back_leaves_the_assignment_deletable(tenant, gave, clock):
+    klass, users, given = await _given(tenant, "Jan Kowalski")
+    tenant.upload(users["Jan Kowalski"], "strona-1.jpg", b"page")
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+    tenant.delete_file(users["Jan Kowalski"], "strona-1.jpg")
+    await tenant.poll_handins()  # sees the deletion
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+    [mine] = await tenant.list_submissions(given.id)
+    assert mine.state == "not_handed_in"
+
+    await tenant.delete_assignment(given.id)
+
+    assert await tenant.list_assignments(klass.id) == []
+
+
+async def test_a_closed_assignment_nobody_handed_in_can_be_deleted(tenant, gave, clock):
+    klass, users, given = await _given(tenant, "Jan Kowalski")
+    clock.now = CLOSE
+    await tenant.poll_handins()
+    [mine] = await tenant.list_submissions(given.id)
+    assert mine.state == "missing"
+
+    await tenant.delete_assignment(given.id)
+
+    assert await tenant.list_assignments(klass.id) == []
+    assert tenant.shared_with(users["Jan Kowalski"]) == []
+
+
+async def test_only_students_the_assignment_reached_are_told_it_was_cancelled(tenant, gave):
+    klass, users = await make_class(tenant, "Jan Kowalski", "Ewa Zielinska")
+    tenant.reject_chats(users["Ewa Zielinska"])
+    given = await tenant.give_assignment(klass.id, _spec(), PDF)
+    tenant.accept_chats(users["Ewa Zielinska"])
+
+    await tenant.delete_assignment(given.id)
+
+    assert len(tenant.chat_messages(users["Jan Kowalski"])) == 2
+    assert tenant.chat_messages(users["Ewa Zielinska"]) == []
+
+
+async def test_a_message_that_fails_does_not_stop_the_deletion(tenant, gave):
+    klass, users, given = await _given(tenant, "Jan Kowalski", "Ewa Zielinska")
+    tenant.reject_chats(users["Jan Kowalski"])
+
+    await tenant.delete_assignment(given.id)
+
+    assert await tenant.list_assignments(klass.id) == []
+    assert len(tenant.chat_messages(users["Ewa Zielinska"])) == 2
+    assert tenant.channel_posts(klass.team_id) == []
+
+
+async def test_a_post_already_deleted_in_teams_does_not_stop_the_deletion(tenant, gave):
+    klass, _, given = await _given(tenant, "Jan Kowalski")
+    tenant.delete_post(klass.team_id, tenant.channel_posts(klass.team_id)[0].id)
+
+    await tenant.delete_assignment(given.id)
+
+    assert await tenant.list_assignments(klass.id) == []
+
+
+async def test_deleting_an_assignment_that_is_not_there_is_a_lookup_error(tenant, gave):
+    with pytest.raises(LookupError):
+        await tenant.delete_assignment("01JZZZZZZZZZZZZZZZZZZZZZZZ")
+    with pytest.raises(LookupError):
+        await tenant.change_times("01JZZZZZZZZZZZZZZZZZZZZZZZ", due_at=DUE)
+    with pytest.raises(LookupError):
+        await tenant.add_recipients("01JZZZZZZZZZZZZZZZZZZZZZZZ", [])
+    with pytest.raises(LookupError):
+        await tenant.excuse_submission("01JZZZZZZZZZZZZZZZZZZZZZZZ")
+
+
+async def test_a_class_whose_team_was_deleted_in_teams_takes_no_changes(tenant, gave):
+    klass, users, given = await _given(tenant, "Jan Kowalski")
+    jan = await _mine(tenant, given, klass, "Jan Kowalski")
+    tenant.delete_team(klass.team_id)
+    await tenant.sync_roster(klass.id)
+
+    for call in (
+        tenant.change_times(given.id, due_at=DUE + timedelta(days=1)),
+        tenant.add_recipients(given.id, [jan.student_id]),
+        tenant.excuse_submission(jan.id),
+        tenant.delete_assignment(given.id),
+    ):
+        with pytest.raises(teams.ClassReadOnly):
+            await call
+
+    assert await tenant.get_assignment(given.id) == given
+
+
+async def test_changing_waits_for_a_lapsed_sign_in(tenant, gave):
+    klass, users = await make_class(tenant, "Jan Kowalski", "Ewa Zielinska")
+    jan, ewa = (await tenant.list_students(klass.id))[:2]
+    given = await tenant.give_assignment(klass.id, _spec(student_ids=[jan.id]), PDF)
+    tenant.lapse_sign_in()
+
+    for call in (
+        tenant.change_times(given.id, due_at=DUE + timedelta(days=1)),
+        tenant.add_recipients(given.id, [ewa.id]),
+        tenant.delete_assignment(given.id),
+    ):
+        with pytest.raises(SignInRequired):
+            await call

@@ -61,6 +61,10 @@ class FilesRoutes:
     def channel_posts(self, team_id: str) -> list[Post]:
         return self._posts.get(team_id, [])
 
+    def delete_post(self, team_id: str, post_id: str) -> None:
+        """A post deleted in Teams."""
+        self._posts[team_id] = [p for p in self._posts[team_id] if p.id != post_id]
+
     def replies_to(self, post_id: str) -> list[str]:
         """The HTML of the replies in the thread of a channel post."""
         return self._replies.get(post_id, [])

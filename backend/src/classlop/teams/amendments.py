@@ -8,7 +8,9 @@ from classlop.teams import assignments
 from classlop.teams.types import Assignment, Submission
 
 
-def moved(a: Assignment, due_at: datetime | None, close_at: datetime | None) -> tuple[datetime, datetime]:
+def moved(
+    a: Assignment, due_at: datetime | None, close_at: datetime | None
+) -> tuple[datetime, datetime]:
     """The due and close times after a change, which only a Given Assignment that is not yet
     Closed takes."""
     if a.state not in ("scheduled", "open"):
@@ -31,8 +33,10 @@ def is_late(handed_in_at: datetime, due_at: datetime) -> bool:
 def worked_on(submission: Submission, uploaded: bool) -> bool:
     """Whether the Student has handed anything in: a settled hand-in, or files in their folder that
     have not settled yet (`uploaded`)."""
-    return uploaded or submission.state in ("handed_in", "graded", "returned") or bool(
-        submission.files
+    return (
+        uploaded
+        or submission.state in ("handed_in", "graded", "returned")
+        or bool(submission.files)
     )
 
 

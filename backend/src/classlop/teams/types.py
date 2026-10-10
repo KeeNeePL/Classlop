@@ -388,6 +388,13 @@ class Teams(Protocol):
         state or a close before the due time."""
         ...
 
+    async def delete_assignment(self, assignment_id: str) -> None:
+        """Delete an Assignment nothing has been handed in to: the post in General, the hand-in
+        folders, its schedules and its records go, and each Student it reached gets "Praca «...»
+        została anulowana". Its Items stay Given. Raises ValueError once any Student has handed in
+        (including files not yet settled) and LookupError for an unknown Assignment."""
+        ...
+
     async def add_recipients(self, assignment_id: str, student_ids: list[str]) -> list[Submission]:
         """Give the Students (current Students of the Class) a Scheduled or Open Assignment too:
         each gets a folder and a «Nowa praca» message, a Scheduled one's when it is posted.
