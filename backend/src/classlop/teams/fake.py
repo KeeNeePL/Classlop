@@ -3,12 +3,21 @@ Its seeding methods mirror FakeGraph's, which the contract suite relies on."""
 
 import uuid
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from ulid import ULID
 
-from classlop.teams.service import now
-from classlop.teams.types import AlreadyLinked, Class, NotOwner, Student, Team
+from classlop.teams.service import WARSAW, now
+from classlop.teams.types import (
+    AlreadyLinked,
+    Class,
+    Lesson,
+    NotOwner,
+    Slot,
+    Student,
+    Team,
+    TimetableExists,
+)
 
 
 class FakeTeams:
@@ -17,6 +26,9 @@ class FakeTeams:
         self._teams: dict[str, dict] = {}
         self._classes: dict[str, Class] = {}
         self._students: dict[str, dict[str, Student]] = {}
+        self._series: dict[str, list[tuple[str, Slot, date]]] = {}
+        self._singles: dict[str, list[Lesson]] = {}
+        self._events: dict[str, dict] = {}
 
     def add_team(self, name: str, *, owner: str | None = None) -> str:
         team_id = str(uuid.uuid4())
@@ -54,6 +66,7 @@ class FakeTeams:
         )
         self._classes[klass.id] = klass
         self._students[klass.id] = {}
+        self._series[klass.id], self._singles[klass.id] = [], []
         await self.sync_roster(klass.id)
         return klass
 
@@ -65,6 +78,69 @@ class FakeTeams:
 
     async def list_students(self, class_id: str) -> list[Student]:
         return sorted(self._students[class_id].values(), key=lambda s: s.display_name)
+
+    def event_of(self, event_id: str) -> tuple[str, set[str]]:
+        """The subject and invitee addresses of a Lesson's event, as FakeGraph's."""
+        event = self._events[event_id.split("@")[0]]
+        return event["subject"], set(event["invitees"])
+
+    def _event(self, class_id: str, subject: str) -> str:
+        event_id = str(uuid.uuid4())
+        self._events[event_id] = {"subject": subject, "class_id": class_id, "invitees": set()}
+        self._invite(event_id)
+        return event_id
+
+    def _invite(self, event_id: str) -> None:
+        event = self._events[event_id]
+        event["invitees"] = {
+            s.upn for s in self._students[event["class_id"]].values() if not s.former_since
+        }
+
+    async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
+        if self._series[class_id]:
+            raise TimetableExists(class_id)
+        today = self._clock().astimezone(WARSAW).date()
+        for slot in slots:
+            first = today + timedelta(days=(slot.weekday - today.weekday()) % 7)
+            event_id = self._event(class_id, self._classes[class_id].name)
+            self._series[class_id].append((event_id, slot, first))
+        self._classes[class_id] = self._classes[class_id].model_copy(
+            update={"school_year_end": school_year_end}
+        )
+
+    async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
+        topic = topic.strip()
+        if not topic:
+            raise ValueError("a Lesson needs a Lesson topic")
+        event_id = self._event(class_id, f"{self._classes[class_id].name}: {topic}")
+        lesson = Lesson(
+            id=event_id,
+            class_id=class_id,
+            start=start,
+            end=end,
+            join_url=f"https://teams.example.org/l/{event_id}",
+            topic=topic,
+        )
+        self._singles[class_id].append(lesson)
+        return lesson
+
+    async def list_lessons(self, class_id: str) -> list[Lesson]:
+        lessons = list(self._singles[class_id])
+        last = self._classes[class_id].school_year_end
+        for event_id, slot, day in self._series[class_id]:
+            while day <= last:
+                if day.weekday() == slot.weekday:
+                    lessons.append(
+                        Lesson(
+                            id=f"{event_id}@{day}",
+                            class_id=class_id,
+                            start=datetime.combine(day, slot.start, WARSAW),
+                            end=datetime.combine(day, slot.end, WARSAW),
+                            join_url=f"https://teams.example.org/l/{event_id}",
+                        )
+                    )
+                day += timedelta(days=1)
+        return sorted(lessons, key=lambda lesson: lesson.start)
 
     async def sync_roster(self, class_id: str) -> None:
         students = self._students[class_id]
@@ -82,6 +158,9 @@ class FakeTeams:
         for user_id, student in students.items():
             if user_id not in present and student.former_since is None:
                 students[user_id] = student.model_copy(update={"former_since": self._clock()})
+        for event_id, event in self._events.items():
+            if event["class_id"] == class_id:
+                self._invite(event_id)
 
 
 def demo() -> FakeTeams:
