@@ -4,7 +4,7 @@ from classlop.items.curriculum import (
     curriculum,
     general_requirements,
 )
-from classlop.items.index import count_items, search_items
+from classlop.items.index import count_items, pick_items, search_items
 from classlop.items.records import (
     ItemEdit,
     create_item,
@@ -58,6 +58,7 @@ __all__ = [
     "get_versions",
     "give",
     "new_version",
+    "pick_items",
     "restore_item",
     "retag",
     "retire_item",

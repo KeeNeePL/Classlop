@@ -3,7 +3,7 @@
 import re
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from contextlib import suppress
 
 from opensearchpy import ConflictError, NotFoundError, RequestError
@@ -13,7 +13,7 @@ from sqlalchemy import select
 from classlop.items import embedding
 from classlop.items.models import ItemRow, UsageRow
 from classlop.items.records import get_items
-from classlop.items.types import Filters, Item, SearchPage, SectionCount
+from classlop.items.types import Difficulty, Filters, Item, SearchPage, SectionCount
 from classlop.shared.db import sessions
 from classlop.shared.search import client
 from classlop.shared.settings import get_settings
@@ -276,3 +276,36 @@ def _counts(sections: list[dict]) -> Iterator[SectionCount]:
             yield SectionCount(
                 section=section["key"], difficulty=difficulty["key"], count=difficulty["doc_count"]
             )
+
+
+async def pick_items(
+    section: str,
+    difficulty: Difficulty,
+    n: int,
+    class_id: uuid.UUID,
+    *,
+    allow_reuse: bool = False,
+    exclude: Collection[uuid.UUID] = (),
+) -> list[Item]:
+    """Up to `n` random Items of a Curriculum section and Difficulty for Nowa praca, never
+    Retired, skipping those the Class got unless `allow_reuse`. A swap is a pick of one with the
+    previewed Items in `exclude`."""
+    await create_index()
+    clauses = _clauses(
+        Filters(
+            curriculum_sections=[section],
+            difficulty=[difficulty],
+            never_used_with_class=None if allow_reuse else class_id,
+        )
+    )
+    clauses["must_not"].append({"terms": {"item_id": [str(i) for i in exclude]}})
+    result = await client().search(
+        index=get_settings().items_index,
+        body={
+            "query": {"function_score": {"query": {"bool": clauses}, "random_score": {}}},
+            "size": n,
+            "_source": ["item_id"],
+        },
+    )
+    ids = [uuid.UUID(hit["_source"]["item_id"]) for hit in result["hits"]["hits"]]
+    return await get_items(ids)

@@ -520,3 +520,103 @@ async def test_a_reindex_that_read_postgres_earlier_does_not_overwrite_a_later_o
     monkeypatch.setattr(index, "_clock", real_clock)
     await index.reindex(item_id)
     assert (await indexed_document(item_id))["points"] == 4
+
+
+def lone_section(n: int) -> items.CurriculumSection:
+    """A Curriculum section no other test in this module puts Items in."""
+    return items.curriculum()[-n]
+
+
+async def bank(section: items.CurriculumSection, count: int, **kw) -> list[uuid.UUID]:
+    """Items in a section of their own; earlier runs' leftovers there are retired first."""
+    await indexed()
+    page = await items.search_items("", items.Filters(curriculum_sections=[section.id]), size=500)
+    for old in page.items:
+        await items.retire_item(old.id)
+    topic = section.topics[0]
+    return [
+        await items.create_item(closed(curriculum_topics=[topic], **kw), origin="chat")
+        for _ in range(count)
+    ]
+
+
+async def test_a_pick_takes_n_items_of_the_section_and_difficulty(fake_embeddings):
+    section = lone_section(1)
+    easy = await bank(section, 5, difficulty="easy")
+    await bank(section, 2, difficulty="hard")
+    await indexed()
+
+    picked = await items.pick_items(section.id, "easy", 3, uuid.uuid4())
+
+    assert len(picked) == 3 and len({i.id for i in picked}) == 3
+    assert {i.id for i in picked} <= set(easy)
+
+
+async def test_a_pick_returns_fewer_when_the_bank_has_fewer(fake_embeddings):
+    section = lone_section(2)
+    ids = await bank(section, 2, difficulty="easy")
+    await indexed()
+
+    picked = await items.pick_items(section.id, "easy", 5, uuid.uuid4())
+
+    assert {i.id for i in picked} == set(ids)
+
+
+async def test_a_pick_never_takes_a_retired_item(fake_embeddings):
+    section = lone_section(3)
+    kept, dropped = await bank(section, 2, difficulty="easy")
+    await items.retire_item(dropped)
+    await indexed()
+
+    picked = await items.pick_items(section.id, "easy", 5, uuid.uuid4(), allow_reuse=True)
+
+    assert [i.id for i in picked] == [kept]
+
+
+async def test_a_pick_skips_items_the_class_got_unless_reuse_is_allowed(fake_embeddings):
+    section = lone_section(4)
+    used, fresh = await bank(section, 2, difficulty="easy")
+    class_x = uuid.uuid4()
+    await items.give([used], uuid.uuid4(), class_x, datetime.now(UTC))
+    await indexed()
+
+    other_class = await items.pick_items(section.id, "easy", 5, uuid.uuid4())
+    skipped = await items.pick_items(section.id, "easy", 5, class_x)
+    reused = await items.pick_items(section.id, "easy", 5, class_x, allow_reuse=True)
+
+    assert {i.id for i in other_class} == {used, fresh}
+    assert [i.id for i in skipped] == [fresh]
+    assert {i.id for i in reused} == {used, fresh}
+
+
+async def test_a_swap_gives_a_match_that_is_not_in_the_preview(fake_embeddings):
+    section = lone_section(5)
+    ids = await bank(section, 3, difficulty="easy")
+    await indexed()
+
+    (swapped,) = await items.pick_items(section.id, "easy", 1, uuid.uuid4(), exclude=ids[:2])
+    nothing = await items.pick_items(section.id, "easy", 1, uuid.uuid4(), exclude=ids)
+
+    assert swapped.id == ids[2]
+    assert nothing == []
+
+
+async def test_get_versions_takes_a_few_hundred_ids_in_one_call():
+    ids = [await items.create_item(closed(text=f"Zadanie {n}"), origin="chat") for n in range(300)]
+    current = [i.version.id for i in await items.get_items(ids)]
+
+    versions = await items.get_versions(current)
+
+    assert [v.id for v in versions] == current
+
+
+async def test_the_demo_items_fill_every_cell_of_their_sections(fake_embeddings):
+    from classlop.items.demo import DIFFICULTIES, SECTIONS, write_demo_items
+
+    ids = await write_demo_items(per_cell=2)
+    await indexed()
+
+    assert len(ids) == SECTIONS * len(DIFFICULTIES) * 2
+    for section in items.curriculum()[:SECTIONS]:
+        for difficulty in DIFFICULTIES:
+            assert len(await items.pick_items(section.id, difficulty, 2, uuid.uuid4())) == 2
