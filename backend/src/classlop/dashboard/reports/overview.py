@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from classlop.dashboard.reports.progress import SectionBar, counted, overall, progress
+from classlop.dashboard.reports.progress import Bar, SectionBar, counted, overall, progress
 from classlop.dashboard.reports.records import (
     Assignment,
     AssignmentState,
@@ -86,7 +86,7 @@ def row(a: Assignment) -> AssignmentRow:
     )
 
 
-def reasons(student: Student, data: ClassData, percent: int | None) -> list[str]:
+def reasons(student: Student, data: ClassData, result: Bar) -> list[str]:
     """The Missing window skips Excused Submissions and Assignments not yet closed, where nothing
     can be Missing."""
     window = [
@@ -102,36 +102,42 @@ def reasons(student: Student, data: ClassData, percent: int | None) -> list[str]
     found = []
     if missing >= MISSING_AT:
         found.append(f"Nie oddano {missing} z ostatnich {MISSING_OF} prac")
-    if percent is not None and percent < LOW_PERCENT:
-        found.append(f"Wynik {percent}%")
+    # On the real ratio: 29.6% rounds to 30% on screen but is still under the line.
+    if result.available and 100 * result.earned < LOW_PERCENT * result.available:
+        found.append(f"Wynik {result.percent}%")
     if absent >= ABSENT_AT:
         found.append(f"{absent} nieobecności w ostatnich {ABSENT_OF} lekcjach")
     return found
 
 
 def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> ClassOverview:
-    submissions = [(a, s) for a in data.assignments for s in a.submissions]
+    submissions = [s for a in data.assignments for s in a.submissions]
     rows = [row(a) for a in given(data)]
+    results = {
+        s.id: overall(counted(x for x in submissions if x.student_id == s.id))
+        for s in data.students
+    }
     students = [
-        StudentRow(
-            id=s.id,
-            name=s.name,
-            former=s.former,
-            percent=overall(counted(x for _, x in submissions if x.student_id == s.id)).percent,
-        )
+        StudentRow(id=s.id, name=s.name, former=s.former, percent=results[s.id].percent)
         for s in data.students
     ]
     flagged = [
-        Attention(student_id=s.id, name=s.name, former=s.former, reasons=why, percent=r.percent)
-        for s, r in zip(data.students, students, strict=True)
-        if (why := reasons(s, data, r.percent))
+        Attention(
+            student_id=s.id,
+            name=s.name,
+            former=s.former,
+            reasons=why,
+            percent=results[s.id].percent,
+        )
+        for s in data.students
+        if (why := reasons(s, data, results[s.id]))
     ]
     # Worst first: most reasons, then the lowest result.
     flagged.sort(key=lambda a: (-len(a.reasons), 101 if a.percent is None else a.percent, a.name))
     return ClassOverview(
         id=data.id,
         name=data.name,
-        sections=progress(counted(s for _, s in submissions), sections),
+        sections=progress(counted(submissions), sections),
         assignments=rows,
         average_line=[
             AveragePoint(id=r.id, title=r.title, due=r.due, percent=r.average) for r in rows

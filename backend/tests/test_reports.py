@@ -260,3 +260,12 @@ def test_wymagaja_uwagi_is_the_five_worst_students_with_every_reason_and_former_
         ("s3", "Uczeń 3", False, 1),
         ("s4", "Uczeń 4", False, 1),
     ]
+
+
+def test_the_thirty_percent_line_is_judged_on_the_real_ratio_not_the_rounded_one():
+    view = overview(
+        work(1, sub("s1", item(296, 1000, A1)), sub("s2", item(300, 1000, A1))),
+        students=("s1", "s2"),
+    )
+
+    assert attention(view) == [("s1", ["Wynik 30%"])]
