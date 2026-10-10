@@ -522,7 +522,7 @@ async def test_files_that_are_neither_images_nor_pdfs_are_skipped(bank, fake_llm
     assert not result.held
 
 
-async def test_more_than_six_pages_are_held_without_transcription(bank, fake_llm):
+async def test_more_than_six_pages_are_held_and_not_graded(bank, fake_llm):
     # Counted after the PDF is split: 5 + 2 pages.
     result = await grading.result(
         *await hand_in(bank, [closed(), open_item()], files=[pdf(pages=5), photo(), photo()])
@@ -534,11 +534,11 @@ async def test_more_than_six_pages_are_held_without_transcription(bank, fake_llm
         {"reason": "za dużo stron", "items": []}
     ]
     assert result.spot_check
-    assert [(i.reading, i.ai_points) for i in result.items] == [("unreadable", 0)] * 2
+    assert (result.items, result.comment) == ([], "")
     assert len(await graded_events(result.submission_id)) == 1
 
 
-async def test_a_hand_in_with_no_usable_file_is_held_without_transcription(bank, fake_llm):
+async def test_a_hand_in_with_no_usable_file_is_held_and_not_graded(bank, fake_llm):
     result = await grading.result(*await hand_in(bank, [closed()], files=[b"notatki.txt"]))
 
     assert result is not None
@@ -546,9 +546,7 @@ async def test_a_hand_in_with_no_usable_file_is_held_without_transcription(bank,
     assert [r.model_dump() for r in result.held_reasons] == [
         {"reason": "brak czytelnych plików", "items": []}
     ]
-    assert result.comment == (
-        f"Zadanie 1: 0/1 pkt – nie udało się odczytać rozwiązania\n\n{AI_LINE}"
-    )
+    assert (result.items, result.comment) == ([], "")
 
 
 async def test_work_that_fits_no_single_item_makes_that_item_unsure(bank, fake_llm):

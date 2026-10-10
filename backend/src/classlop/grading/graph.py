@@ -56,7 +56,7 @@ class Input(TypedDict):
 class State(Input):
     items: list[tuple[int, ItemVersion]]
     pages: list[bytes]
-    # Why the files could not be transcribed at all; it alone holds the Submission.
+    # The Held reason when the files cannot be transcribed at all.
     file_problem: str | None
     transcriptions: dict[int, ItemTranscription]
     scores: Annotated[dict[int, Score], operator.or_]
@@ -75,23 +75,27 @@ async def load(state: State) -> dict:
     files = await asyncio.gather(*(asyncio.to_thread(storage.get, key) for key in job.files))
     items = [(a.number, v) for a, v in zip(job.items, versions, strict=True)]
     pages, problem = pages_of(files)
-    if problem is None:
-        return {"items": items, "pages": [prepare(p) for p in pages], "file_problem": None}
-    # Nothing is transcribed, so every Item is unreadable until the Teacher looks.
-    return {
-        "items": items,
-        "file_problem": problem,
-        "transcriptions": {
-            n: ItemTranscription(
-                number=n, transcription="", reading="unreadable", drawing=False, chosen_option=None
-            )
-            for n, _ in items
-        },
-    }
+    return {"items": items, "pages": [prepare(p) for p in pages], "file_problem": problem}
 
 
 def to_transcription(state: State) -> str:
-    return "assess" if state["file_problem"] else "transcribe_pages"
+    return "hold" if state["file_problem"] else "transcribe_pages"
+
+
+async def hold(state: State) -> dict:
+    """Files that cannot be transcribed are not graded at all: the Teacher sees why."""
+    job, held = state["job"], [{"reason": state["file_problem"], "items": []}]
+    return {
+        "graded": GradedSubmission(
+            submission_id=job.submission_id,
+            handed_in_at=job.handed_in_at,
+            status="graded",
+            held_reasons=held,
+            spot_check_reasons=held,
+            comment="",
+            items=[],
+        )
+    }
 
 
 async def transcribe_pages(state: State) -> dict:
@@ -187,8 +191,7 @@ async def assess(state: State) -> dict:
         _grade_item(position, n, item, transcriptions.get(n), scores.get(n))
         for position, (n, item) in enumerate(state["items"])
     ]
-    problem = state["file_problem"]
-    held = [{"reason": problem, "items": []}] if problem else _reasons(graded, HELD_REASONS)
+    held = _reasons(graded, HELD_REASONS)
     return {
         "graded": GradedSubmission(
             submission_id=job.submission_id,
@@ -218,10 +221,12 @@ grade_graph = (
     .add_node(load)
     .add_node(transcribe_pages)
     .add_node(score_item)
+    .add_node(hold)
     .add_sequence([assess, persist])
     .add_edge(START, "load")
-    .add_conditional_edges("load", to_transcription, ["transcribe_pages", "assess"])
+    .add_conditional_edges("load", to_transcription, ["transcribe_pages", "hold"])
     .add_conditional_edges("transcribe_pages", to_scoring, ["score_item", "assess"])
     .add_edge("score_item", "assess")
+    .add_edge("hold", "persist")
     .compile()
 )
