@@ -7,6 +7,7 @@ from datetime import datetime
 
 from ulid import ULID
 
+from classlop.shared.jobs import SignInRequired
 from classlop.teams.service import now
 from classlop.teams.types import AlreadyLinked, Class, NotOwner, Student, Team
 
@@ -14,6 +15,7 @@ from classlop.teams.types import AlreadyLinked, Class, NotOwner, Student, Team
 class FakeTeams:
     def __init__(self, clock: Callable[[], datetime] = now):
         self._clock = clock
+        self._signed_in = True
         self._teams: dict[str, dict] = {}
         self._classes: dict[str, Class] = {}
         self._students: dict[str, dict[str, Student]] = {}
@@ -38,10 +40,20 @@ class FakeTeams:
         name, upn, _ = self._teams[team_id]["members"][user_id]
         self._teams[team_id]["members"][user_id] = (name, upn, True)
 
+    def lapse_sign_in(self) -> None:
+        """From now on every call raises SignInRequired, as with a refresh token that fails."""
+        self._signed_in = False
+
+    def _require_sign_in(self) -> None:
+        if not self._signed_in:
+            raise SignInRequired
+
     async def list_owned_teams(self) -> list[Team]:
+        self._require_sign_in()
         return [Team(id=i, name=t["name"]) for i, t in self._teams.items() if t["mine"]]
 
     async def link_team(self, team_id: str) -> Class:
+        self._require_sign_in()
         if team_id not in {t.id for t in await self.list_owned_teams()}:
             raise NotOwner(team_id)
         if any(c.team_id == team_id for c in self._classes.values()):
@@ -58,15 +70,19 @@ class FakeTeams:
         return klass
 
     async def get_class(self, class_id: str) -> Class:
+        self._require_sign_in()
         return self._classes[class_id]
 
     async def list_classes(self) -> list[Class]:
+        self._require_sign_in()
         return sorted(self._classes.values(), key=lambda c: c.name)
 
     async def list_students(self, class_id: str) -> list[Student]:
+        self._require_sign_in()
         return sorted(self._students[class_id].values(), key=lambda s: s.display_name)
 
     async def sync_roster(self, class_id: str) -> None:
+        self._require_sign_in()
         students = self._students[class_id]
         members = self._teams[self._classes[class_id].team_id]["members"]
         present = {u: m for u, m in members.items() if not m[2]}

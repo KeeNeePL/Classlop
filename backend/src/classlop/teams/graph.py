@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from classlop.shared.auth import graph_token
+from classlop.shared.jobs import SignInRequired
 
 GRAPH_SCOPES = [
     "User.Read",
@@ -53,6 +54,8 @@ class GraphClient:
                 await self._sleep(
                     float(retry_after) if retry_after else 2**attempt + random.random()
                 )
+        if response.status_code == 401:
+            raise SignInRequired
         if response.is_error:
             raise GraphError(response)
         return response
