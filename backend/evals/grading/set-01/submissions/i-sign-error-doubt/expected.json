@@ -1,0 +1,23 @@
+{
+  "notes": "Zad. 2 answers with the value (3,0), which is option B. Zad. 3: the discriminant line has a crossed-out 36 and the wrong decomposition 25 + 11 = 36 instead of 16 + 20, yet both roots are right: correct result after a wrong step, a grading doubt that holds the Submission. Zad. 4: sign error when moving 6a, so the proof shows (a+3)^2 >= 0 and reaches no Rubric level. Zad. 5 blank.",
+  "held": true,
+  "spot_check": ["wątpliwa ocena"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {
+      "number": 3,
+      "reading": "readable",
+      "doubt": true,
+      "points": 2,
+      "transcription": "x^2 - 4x - 5 = 0\n\\Delta = b^2 - 4ac = [przekreślone: 36] 25 + 11 = 36\n\\sqrt{\\Delta} = 6\nx_1 = -1 \\quad x_2 = 5"
+    },
+    {
+      "number": 4,
+      "reading": "readable",
+      "points": 0,
+      "transcription": "a^2 + 6a + 9 \\geq 0\n(a + 3)^2 \\geq 0\n\\text{liczba} + 3 \\text{ do kwadratu zawsze większa lub równa } 0"
+    },
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}
