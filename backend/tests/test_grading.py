@@ -217,7 +217,6 @@ async def hand_in(
     deliveries: int = 1,
     assignment_id: uuid.UUID | None = None,
     submission_id: uuid.UUID | None = None,
-    late: bool = False,
 ):
     """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it; returns the
     hand-in's key."""
@@ -236,7 +235,6 @@ async def hand_in(
         "items": [{"id": str(i.id), "number": n} for n, i in enumerate(assignment, 1)],
         "files": keys,
         "assignment_id": str(assignment_id or uuid.uuid4()),
-        "late": late,
     }
 
     async def progress(value):
@@ -473,7 +471,7 @@ async def test_a_mixed_submission_scores_only_open_items_with_the_model(bank, fa
     assert result is not None
     assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
     assert [(i.ai_points, i.feedback, i.mistake) for i in result.items] == [
-        (0, "błędna odpowiedź", None),
+        (0, "błędna odpowiedź", "zaznaczona odpowiedź C"),
         (2, "poprawnie", None),
         (0, "brak rozwiązania", None),
     ]
@@ -820,12 +818,34 @@ async def test_a_recompute_runs_only_if_no_newer_request_came(bank, fake_llm):
     assert len(await grading.common_mistakes(assignment_id)) == 1
 
 
-async def test_grading_a_late_submission_requests_a_recompute(bank, fake_llm):
+async def test_grading_after_the_first_run_requests_a_recompute(bank, fake_llm):
+    # A Late submission, or an on-time one graded after the due-time run.
     assignment_id, item = uuid.uuid4(), open_item()
 
     await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak")
     assert await mistake_jobs(assignment_id) == []
 
-    await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak", late=True)
+    fake_llm.clusters_alike()
+    await gather(assignment_id)
+    await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak")
     (job,) = await mistake_jobs(assignment_id)
     assert "requested_at" in job.payload
+
+
+async def test_a_wrong_option_chosen_by_three_submissions_is_common(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), closed(correct="B")
+    chose_c = []
+    for chosen in ["C", "C", "D", "C", "D", "B"]:
+        fake_llm.transcribes(read(1, chosen=chosen, transcription=chosen))
+        submission_id, _ = await hand_in(bank, [item], assignment_id=assignment_id)
+        if chosen == "C":
+            chose_c.append(submission_id)
+    fake_llm.keys.clear()
+
+    await gather(assignment_id)
+
+    assert fake_llm.keys == []
+    (per_item,) = await grading.common_mistakes(assignment_id)
+    assert [(m.description, m.count, set(m.submission_ids)) for m in per_item.mistakes] == [
+        ("Uczniowie często zaznaczają odpowiedź C", 3, set(chose_c))
+    ]

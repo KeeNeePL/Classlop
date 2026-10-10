@@ -29,9 +29,10 @@ def upgrade() -> None:
         schema="grading",
     )
     op.create_table(
-        "common_mistakes_request",
+        "common_mistakes_run",
         sa.Column("assignment_id", sa.UUID(), nullable=False),
-        sa.Column("requested_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("requested_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("computed_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("assignment_id"),
         schema="grading",
     )
@@ -52,5 +53,5 @@ def downgrade() -> None:
         op.f("ix_grading_submission_assignment_id"), table_name="submission", schema="grading"
     )
     op.drop_column("submission", "assignment_id", schema="grading")
-    op.drop_table("common_mistakes_request", schema="grading")
+    op.drop_table("common_mistakes_run", schema="grading")
     op.drop_table("common_mistake", schema="grading")

@@ -80,11 +80,13 @@ class CommonMistake(Base):
     submission_ids: Mapped[list] = mapped_column(JSONB)
 
 
-class CommonMistakesRequest(Base):
-    """The latest recompute request per Assignment; older delayed jobs see it and stand down."""
+class CommonMistakesRun(Base):
+    """Per Assignment: the latest recompute request, which older delayed jobs see and stand
+    down for, and the last recompute, after which every newly graded Submission asks again."""
 
-    __tablename__ = "common_mistakes_request"
+    __tablename__ = "common_mistakes_run"
     __table_args__ = {"schema": "grading"}
 
     assignment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

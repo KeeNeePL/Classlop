@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from classlop import items as items_area
 from classlop.grading.models import (
     CommonMistake,
-    CommonMistakesRequest,
+    CommonMistakesRun,
     GradedItem,
     GradedSubmission,
 )
@@ -80,7 +80,7 @@ async def request_common_mistakes(assignment_id: uuid.UUID) -> None:
     now = datetime.now(UTC)
     async with sessions().begin() as session:
         await session.execute(
-            insert(CommonMistakesRequest)
+            insert(CommonMistakesRun)
             .values(assignment_id=assignment_id, requested_at=now)
             .on_conflict_do_update(index_elements=["assignment_id"], set_={"requested_at": now})
         )
@@ -88,11 +88,24 @@ async def request_common_mistakes(assignment_id: uuid.UUID) -> None:
     await jobs.enqueue("grading.common_mistakes", payload, delay=DELAY)
 
 
+async def request_if_computed(assignment_id: uuid.UUID) -> None:
+    """After the first run, every newly graded Submission (a Late one, or one graded after the
+    due-time run) asks for a recompute."""
+    async with sessions()() as session:
+        computed = await session.scalar(
+            select(CommonMistakesRun.computed_at).where(
+                CommonMistakesRun.assignment_id == assignment_id
+            )
+        )
+    if computed is not None:
+        await request_common_mistakes(assignment_id)
+
+
 async def superseded(assignment_id: uuid.UUID, requested_at: datetime) -> bool:
     async with sessions()() as session:
         latest = await session.scalar(
-            select(CommonMistakesRequest.requested_at).where(
-                CommonMistakesRequest.assignment_id == assignment_id
+            select(CommonMistakesRun.requested_at).where(
+                CommonMistakesRun.assignment_id == assignment_id
             )
         )
     return latest is not None and latest > requested_at
@@ -143,15 +156,36 @@ async def recompute(assignment_id: uuid.UUID) -> None:
     async with sessions().begin() as session:
         # Serialises overlapping runs for one Assignment, so their rewrites never collide.
         await session.execute(select(func.pg_advisory_xact_lock(func.hashtext(str(assignment_id)))))
+        now = datetime.now(UTC)
+        await session.execute(
+            insert(CommonMistakesRun)
+            .values(assignment_id=assignment_id, computed_at=now)
+            .on_conflict_do_update(index_elements=["assignment_id"], set_={"computed_at": now})
+        )
         await session.execute(
             delete(CommonMistake).where(CommonMistake.assignment_id == assignment_id)
         )
         session.add_all(kept)
 
 
+def chosen_option_mistake(label: str) -> str:
+    """A closed Item's mistake: the wrong option the Student chose."""
+    return f"zaznaczona odpowiedź {label}"
+
+
 async def _cluster(item_id: uuid.UUID, made: list[tuple[uuid.UUID, str]]) -> list[Mistake]:
-    """One call per Item; then at most MAX_PER_ITEM clusters of MIN_SUBMISSIONS or more."""
+    """At most MAX_PER_ITEM clusters of MIN_SUBMISSIONS or more, most frequent first."""
     (item,) = await items_area.get_versions([item_id])
+    if item.item_format == "closed":
+        # A wrong option is already exact, so it is grouped in code, without a call.
+        clusters = [
+            Mistake(
+                description=f"Uczniowie często zaznaczają odpowiedź {label}",
+                submission_ids=[s for s, m in made if m == chosen_option_mistake(label)],
+            )
+            for label in item.options
+        ]
+        return _top([c for c in clusters if c.count >= MIN_SUBMISSIONS])
     listed = "\n".join(f"{n}. {' '.join(m.split())}" for n, (_, m) in enumerate(made, 1))
     reply = await llm.ask(
         "grading.common_mistakes",
@@ -169,5 +203,8 @@ async def _cluster(item_id: uuid.UUID, made: list[tuple[uuid.UUID, str]]) -> lis
         if len(members) >= MIN_SUBMISSIONS:
             submissions = [made[n - 1][0] for n in members]
             clusters.append(Mistake(description=cluster.description, submission_ids=submissions))
-    clusters.sort(key=lambda c: c.count, reverse=True)
-    return clusters[:MAX_PER_ITEM]
+    return _top(clusters)
+
+
+def _top(clusters: list[Mistake]) -> list[Mistake]:
+    return sorted(clusters, key=lambda c: c.count, reverse=True)[:MAX_PER_ITEM]
