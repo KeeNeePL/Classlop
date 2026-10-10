@@ -1,0 +1,15 @@
+{
+  "notes": "Zad. 1: a first choice is scribbled out and A written after it; the crossed-out mark is ignored. Zad. 2 complete, the roots joined with a wedge. Zad. 3 is only its label, so it is blank.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "A"},
+    {
+      "number": 2,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "\\Delta = 25 - 24 = 1\nx = 2 \\wedge x = 3\nx \\in [2, 3]"
+    },
+    {"number": 3, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}

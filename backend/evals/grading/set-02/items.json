@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "number": 1,
+      "format": "closed",
+      "max_points": 1,
+      "text": "Liczba $\\log_2 8 + \\log_3 9$ jest równa:",
+      "options": {"A": "$5$", "B": "$6$", "C": "$17$", "D": "$72$"},
+      "answer": "A",
+      "model_solution": "$\\log_2 8 = 3$, $\\log_3 9 = 2$, więc $\\log_2 8 + \\log_3 9 = 5$.",
+      "rubric": null,
+      "curriculum_topics": [{"id": "lo2024:I.9", "name": "Logarytmy"}],
+      "difficulty": "easy",
+      "general_requirements": ["I"]
+    },
+    {
+      "number": 2,
+      "format": "open",
+      "max_points": 2,
+      "text": "Rozwiąż nierówność $x^2 - 5x + 6 \\leq 0$.",
+      "options": null,
+      "answer": "$x \\in [2, 3]$",
+      "model_solution": "$\\Delta = 25 - 24 = 1$, $x_1 = \\dfrac{5 - 1}{2} = 2$, $x_2 = \\dfrac{5 + 1}{2} = 3$. Ramiona paraboli są skierowane w górę, więc $x^2 - 5x + 6 \\leq 0$ dla $x \\in [2, 3]$.",
+      "rubric": [
+        {"points": 1, "description": "Poprawne pierwiastki trójmianu: $x_1 = 2$, $x_2 = 3$."},
+        {"points": 2, "description": "Poprawny zbiór rozwiązań: $x \\in [2, 3]$."}
+      ],
+      "curriculum_topics": [{"id": "lo2024:III.4", "name": "Nierówności kwadratowe"}],
+      "leaks": ["x \\in [2, 3]", "x \\in \\langle 2, 3 \\rangle", "2 \\leq x \\leq 3"],
+      "difficulty": "medium",
+      "general_requirements": ["II"]
+    },
+    {
+      "number": 3,
+      "format": "open",
+      "max_points": 3,
+      "text": "W ciągu arytmetycznym $(a_n)$ dane są $a_1 = 4$ i $a_3 = 10$. Oblicz sumę dwudziestu początkowych wyrazów tego ciągu.",
+      "options": null,
+      "answer": "$S_{20} = 650$",
+      "model_solution": "$a_3 = a_1 + 2r$, więc $10 = 4 + 2r$ i $r = 3$. $a_{20} = 4 + 19 \\cdot 3 = 61$. $S_{20} = \\dfrac{4 + 61}{2} \\cdot 20 = 650$.",
+      "rubric": [
+        {"points": 1, "description": "Poprawna różnica ciągu: $r = 3$."},
+        {"points": 2, "description": "Poprawny wyraz $a_{20} = 61$ albo wzór na sumę z poprawnie podstawionymi $a_1$ i $r$."},
+        {"points": 3, "description": "Poprawna suma: $S_{20} = 650$."}
+      ],
+      "curriculum_topics": [{"id": "lo2024:VI.5", "name": "Ciąg arytmetyczny: wyraz ogólny i suma"}],
+      "leaks": ["S_{20} = 650", "a_{20} = 61"],
+      "difficulty": "medium",
+      "general_requirements": ["II"]
+    }
+  ]
+}
