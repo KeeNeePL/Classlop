@@ -1,11 +1,12 @@
 """The `items` search index: a copy of Postgres that a job and `rebuild-index` keep current."""
 
 import re
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import suppress
 
-from opensearchpy import NotFoundError, RequestError
+from opensearchpy import ConflictError, NotFoundError, RequestError
 from opensearchpy.helpers import async_bulk
 from sqlalchemy import select
 
@@ -20,6 +21,7 @@ from classlop.shared.settings import get_settings
 DIMENSIONS = 1536  # text-embedding-ada-002
 PIPELINE = "classlop-hybrid"
 BATCH = 50
+_created: set[str] = set()  # indexes this process has made sure of
 # The nearest neighbours the vector half of a search contributes before paging.
 NEIGHBOURS = 100
 
@@ -68,6 +70,10 @@ HYBRID_PIPELINE = {
         }
     ]
 }
+
+
+def _clock() -> int:
+    return time.time_ns() // 1000
 
 
 def section_of(topic_id: str) -> str:
@@ -122,8 +128,10 @@ async def _documents(item_ids: list[uuid.UUID]) -> list[dict]:
     ]
 
 
-async def create_index(name: str | None = None) -> None:
-    name = name or get_settings().items_index
+async def create_index() -> None:
+    name = get_settings().items_index
+    if name in _created:
+        return
     try:
         await client().indices.create(index=name, body={"settings": SETTINGS, "mappings": MAPPINGS})
     except RequestError as error:
@@ -132,13 +140,22 @@ async def create_index(name: str | None = None) -> None:
     await client().transport.perform_request(
         "PUT", f"/_search/pipeline/{PIPELINE}", body=HYBRID_PIPELINE
     )
+    _created.add(name)
 
 
 async def reindex(item_id: uuid.UUID) -> None:
-    """Write the Item's current state to the index; safe to repeat."""
+    """Write the Item's current state to the index; safe to repeat, and a job that read Postgres
+    earlier never overwrites one that read it later (SQS delivers in any order)."""
+    read_at = _clock()
     (document,) = await _documents([item_id])
     await create_index()
-    await client().index(index=get_settings().items_index, id=str(item_id), body=document)
+    with suppress(ConflictError):
+        await client().index(
+            index=get_settings().items_index,
+            id=str(item_id),
+            body=document,
+            params={"version": read_at, "version_type": "external"},
+        )
 
 
 async def rebuild() -> int:
@@ -146,14 +163,27 @@ async def rebuild() -> int:
     name = get_settings().items_index
     with suppress(NotFoundError):
         await client().indices.delete(index=name)
+    _created.discard(name)
     await create_index()
     async with sessions()() as session:
         ids = list(await session.scalars(select(ItemRow.id).order_by(ItemRow.created_at)))
     for start in range(0, len(ids), BATCH):
+        read_at = _clock()
         documents = await _documents(ids[start : start + BATCH])
+        # A reindex job that ran meanwhile has a later version and wins.
         await async_bulk(
             client(),
-            ({"_index": name, "_id": d["item_id"], "_source": d} for d in documents),
+            (
+                {
+                    "_index": name,
+                    "_id": d["item_id"],
+                    "_source": d,
+                    "_version": read_at,
+                    "_version_type": "external",
+                }
+                for d in documents
+            ),
+            raise_on_error=False,
         )
     await client().indices.refresh(index=name)
     return len(ids)

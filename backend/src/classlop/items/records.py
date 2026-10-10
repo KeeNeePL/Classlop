@@ -33,23 +33,7 @@ async def _reindex(*item_ids: uuid.UUID) -> None:
 
 
 def _version(row: VersionRow) -> ItemVersion:
-    return ItemVersion(
-        id=row.id,
-        item_id=row.item_id,
-        number=row.number,
-        created_at=row.created_at,
-        item_format=row.item_format,  # type: ignore[arg-type]
-        text=row.text,
-        points=row.points,
-        difficulty=row.difficulty,  # type: ignore[arg-type]
-        curriculum_topics=row.curriculum_topics,
-        general_requirements=row.general_requirements,
-        options=row.options,
-        correct_options=row.correct_options,
-        answer=row.answer,
-        rubric=row.rubric,
-        model_solution=row.model_solution,
-    )
+    return ItemVersion.model_validate(row, from_attributes=True)
 
 
 def _item(row: ItemRow, version: VersionRow) -> Item:
@@ -114,7 +98,6 @@ async def create_item(
     source_page: int | None = None,
     exemplar_ids: list[str] | None = None,
     flag_reason: str | None = None,
-    teacher_tags: list[TagField] | None = None,
 ) -> uuid.UUID:
     """A new Item with its first version; `flag_reason` makes it a Flagged item."""
     async with sessions().begin() as session:
@@ -129,7 +112,7 @@ async def create_item(
         )
         session.add(row)
         await session.flush()
-        await _add_version(session, row.id, content, teacher_tags or [])
+        await _add_version(session, row.id, content, [])
     await _reindex(row.id)
     return row.id
 
@@ -141,6 +124,8 @@ async def get_items(item_ids: list[uuid.UUID]) -> list[Item]:
             r.id: r for r in await session.scalars(select(ItemRow).where(ItemRow.id.in_(item_ids)))
         }
         versions = await _latest(session, item_ids)
+    if missing := set(item_ids) - rows.keys():
+        raise LookupError(f"no Item {sorted(missing)}")
     return [_item(rows[i], versions[i]) for i in item_ids]
 
 
@@ -151,6 +136,8 @@ async def get_versions(version_ids: list[uuid.UUID]) -> list[ItemVersion]:
             r.id: r
             for r in await session.scalars(select(VersionRow).where(VersionRow.id.in_(version_ids)))
         }
+    if missing := set(version_ids) - rows.keys():
+        raise LookupError(f"no version {sorted(missing)}")
     return [_version(rows[i]) for i in version_ids]
 
 
@@ -212,6 +199,8 @@ async def edit_item(
 ) -> None:
     """The Teacher edits an Item: a new version, re-tagged if the text changed; it dismisses a
     flag."""
+    if unknown := changes.keys() - ItemEdit.__annotations__.keys():
+        raise TypeError(f"edit_item cannot change {sorted(unknown)}")
     await _rewrite(item_id, changes, tagger, retag=False, clear_flag=True)
 
 
@@ -220,13 +209,12 @@ async def retag(item_id: uuid.UUID, *, tagger: Tagger | None = None) -> None:
     await _rewrite(item_id, {}, tagger, retag=True, clear_flag=False)
 
 
-async def new_version(
-    item_id: uuid.UUID, content: ItemContent, *, teacher_tags: list[TagField] | None = None
-) -> None:
-    """A regeneration: the version the AI wrote in place of the current one."""
+async def new_version(item_id: uuid.UUID, content: ItemContent) -> None:
+    """A regeneration: the version the AI wrote in place of the current one. The tags the
+    Teacher set stay marked, so a later re-tag still leaves them."""
     async with sessions().begin() as session:
-        await _latest_row(session, item_id)
-        await _add_version(session, item_id, content, teacher_tags or [])
+        current = await _latest_row(session, item_id)
+        await _add_version(session, item_id, content, current.teacher_tags)
     await _reindex(item_id)
 
 
@@ -258,7 +246,11 @@ async def give(
     """Pin the current version of each Item to the Assignment and record the usage; giving the
     same Assignment again changes nothing. Returns the version ids in the order asked."""
     async with sessions().begin() as session:
+        if not item_ids:
+            return []
         latest = await _latest(session, item_ids)
+        if missing := set(item_ids) - latest.keys():
+            raise LookupError(f"no Item {sorted(missing)}")
         await session.execute(
             insert(UsageRow)
             .values(
@@ -291,13 +283,4 @@ async def usage(item_id: uuid.UUID) -> list[Usage]:
         rows = await session.scalars(
             select(UsageRow).where(UsageRow.item_id == item_id).order_by(UsageRow.given_at)
         )
-        return [
-            Usage(
-                item_id=r.item_id,
-                version_id=r.version_id,
-                assignment_id=r.assignment_id,
-                class_id=r.class_id,
-                given_at=r.given_at,
-            )
-            for r in rows
-        ]
+        return [Usage.model_validate(r, from_attributes=True) for r in rows]

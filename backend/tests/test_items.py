@@ -6,10 +6,12 @@ import os
 import re
 import uuid
 import zlib
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from opensearchpy import NotFoundError
 from sqlalchemy import update
 
 from classlop import items
@@ -25,7 +27,6 @@ TOPIC = CurriculumTopic(id="lo2024:II.5", name="Równania kwadratowe")
 
 @pytest.fixture(scope="module", autouse=True)
 async def stack():
-
     try:
         await asyncio.to_thread(migrate)
         await asyncio.to_thread(queue.url)
@@ -34,6 +35,9 @@ async def stack():
         if os.environ.get("CI"):
             raise
         pytest.skip("compose stand-ins are not running: docker compose up -d")
+    yield
+    with suppress(NotFoundError):
+        await search.client().indices.delete(index=get_settings().items_index)
 
 
 def closed(text="Wartość wyrażenia $2^3 - 6$ jest równa:", **kw) -> ItemContent:
@@ -454,3 +458,64 @@ async def test_rebuild_index_refills_a_lost_index_from_postgres(fake_embeddings,
         assert page.items[0].id == item_id
     finally:
         await search.client().indices.delete(index=get_settings().items_index)
+
+
+async def test_a_regeneration_keeps_the_tags_the_teacher_set_marked(fake_embeddings):
+    tagger = FakeTagger()
+    item_id = await items.create_item(closed(), origin="chat")
+    await items.edit_item(item_id, difficulty="medium", tagger=tagger)
+
+    await items.new_version(item_id, closed(text="Nowa treść $5 + 5$", difficulty="medium"))
+    await items.retag(item_id, tagger=tagger)
+
+    (item,) = await items.get_items([item_id])
+    assert (item.version.number, item.version.difficulty) == (4, "medium")
+
+
+async def test_unknown_ids_and_unknown_edits_are_refused():
+    unknown = uuid.uuid4()
+    item_id = await items.create_item(closed(), origin="chat")
+
+    for call in (
+        items.get_items([unknown]),
+        items.get_versions([unknown]),
+        items.give([item_id, unknown], uuid.uuid4(), uuid.uuid4(), datetime.now(UTC)),
+        items.retire_item(unknown),
+    ):
+        with pytest.raises(LookupError):
+            await call
+    with pytest.raises(TypeError):
+        await items.edit_item(item_id, pointz=3)  # type: ignore[call-arg]
+    assert await items.give([], uuid.uuid4(), uuid.uuid4(), datetime.now(UTC)) == []
+    assert await items.usage(item_id) == []
+
+
+async def test_an_edit_that_loses_a_race_is_refused_not_merged():
+    item_id = await items.create_item(closed(text="Trudne zadanie"), origin="chat")
+
+    class Racing(FakeTagger):
+        async def tag(self, text: str) -> items.Tags:
+            await items.edit_item(item_id, points=7)  # lands while this edit is tagging
+            return await super().tag(text)
+
+    with pytest.raises(RuntimeError, match="changed"):
+        await items.edit_item(item_id, text="Inny tekst", tagger=Racing())
+
+    (item,) = await items.get_items([item_id])
+    assert (item.version.number, item.version.text) == (2, "Trudne zadanie")
+
+
+async def test_a_reindex_that_read_postgres_earlier_does_not_overwrite_a_later_one(
+    fake_embeddings, monkeypatch
+):
+    item_id = await items.create_item(closed(), origin="chat")
+    await indexed()
+    await items.edit_item(item_id, points=4)
+
+    monkeypatch.setattr(index, "_clock", lambda: 1)  # a job whose read came first
+    await index.reindex(item_id)
+    assert (await indexed_document(item_id))["points"] == 1
+
+    monkeypatch.undo()
+    await index.reindex(item_id)
+    assert (await indexed_document(item_id))["points"] == 4
