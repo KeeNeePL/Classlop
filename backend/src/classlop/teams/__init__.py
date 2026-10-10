@@ -81,6 +81,9 @@ __all__ = [
     "list_calendar_questions",
     "override_attendance",
     "poll_handins",
+    "post_reminder",
+    "reschedule_reminder",
+    "set_reminder",
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
@@ -296,6 +299,21 @@ async def list_deleted_teams() -> list[Class]:
 async def restore_team(class_id: str) -> Class:
     """Restore the Class's deleted team in Teams and make the Class active again."""
     return await backend().restore_team(class_id)
+
+
+async def set_reminder(assignment_id: str, on: bool) -> Assignment:
+    """Switch an Assignment's Reminder on or off."""
+    return await backend().set_reminder(assignment_id, on)
+
+
+async def reschedule_reminder(assignment_id: str) -> None:
+    """Move the Reminder to a day before the Assignment's (changed) due time, or remove it."""
+    await backend().reschedule_reminder(assignment_id)
+
+
+async def post_reminder(assignment_id: str) -> bool:
+    """Post the Reminder in General now; the Reminder's schedule calls this."""
+    return await backend().post_reminder(assignment_id)
 
 
 async def poll_handins() -> int:

@@ -42,6 +42,7 @@ class FakeGiving:
         async def get_class(self, class_id: str) -> Class: ...
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def sync_roster(self, class_id: str) -> None: ...
+        async def reschedule_reminder(self, assignment_id: str) -> None: ...
 
     def _init_giving(self) -> None:
         self._assignments: dict[str, Assignment] = {}
@@ -175,9 +176,11 @@ class FakeGiving:
             "teams.give_assignment",
             {"assignment_id": assignment_id},
         )
-        return self._save(
+        scheduled = self._save(
             assignment_id, state="scheduled", given_at=now, item_versions=versions, publish_at=when
         )
+        await self.reschedule_reminder(assignment_id)
+        return scheduled
 
     async def _publish(self, assignment_id: str) -> Assignment:
         given = self._assignments[assignment_id]
@@ -213,6 +216,7 @@ class FakeGiving:
                 {"assignment_id": assignment_id},
                 delay=assignments.RETRY_DELAY,
             )
+        await self.reschedule_reminder(assignment_id)
         return self._assignments[assignment_id]
 
     async def deliver_assignment(self, assignment_id: str) -> int:
