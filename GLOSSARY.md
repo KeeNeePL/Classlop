@@ -197,5 +197,5 @@ The teacher's view of one class: its progress, its assignments and the students 
 _Avoid_: Teacher overview, dashboard
 
 **Student report**:
-The teacher's view of one student over a chosen period, also downloadable for parent meetings.
+The teacher's view of one student over a chosen period.
 _Avoid_: Report card, świadectwo, student detail
