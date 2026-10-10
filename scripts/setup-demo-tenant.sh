@@ -293,7 +293,8 @@ step "In Classlop dev: API permissions > Add a permission > Microsoft Graph > De
 step "Add: User.Read, OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, Calendars.ReadWrite,"
 step "Files.ReadWrite.All (hand-in folders: create, share, read hand-ins by drive delta, lock)"
 step "and, for the teams area: Group.ReadWrite.All, TeamMember.ReadWrite.All, Channel.ReadBasic.All,"
-step "Team.Create, User.ReadBasic.All, Chat.Create, ChatMessage.Send, ChannelMessage.Send"
+step "Team.Create, User.ReadBasic.All, Chat.Create, ChatMessage.Send, ChannelMessage.Send,"
+step "ChannelMessage.ReadWrite (correct a post's due time, delete a post)"
 step "(Group.ReadWrite.All also deletes and restores a team; restoring needs the Teacher to be"
 step "a Groups Administrator, otherwise restore it in Teams.)"
 if [[ "$M365_TENANT_KIND" == edu ]]; then

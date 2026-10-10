@@ -66,3 +66,5 @@ class SubmissionRecord(Base):
     pending: Mapped[bool] = mapped_column(Boolean, default=False)
     # The folder's sharing permission is read-only.
     locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Why the Teacher excused it, for the Teacher only.
+    excused_reason: Mapped[str | None] = mapped_column(Text)

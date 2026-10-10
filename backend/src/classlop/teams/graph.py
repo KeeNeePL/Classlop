@@ -22,6 +22,7 @@ GRAPH_SCOPES = [
     "Chat.Create",
     "ChatMessage.Send",
     "ChannelMessage.Send",
+    "ChannelMessage.ReadWrite",
 ]
 
 BASE = "https://graph.microsoft.com/v1.0"

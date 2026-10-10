@@ -11,6 +11,7 @@ from ulid import ULID
 from classlop.shared.db import sessions
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
+from classlop.teams.changing import Changing
 from classlop.teams.giving import Giving
 from classlop.teams.graph import BASE, GraphClient, GraphError
 from classlop.teams.handins import HandIns
@@ -113,7 +114,7 @@ def _attendees(upns: list[str]) -> list[dict]:
     return [{"emailAddress": {"address": u}, "type": "required"} for u in upns]
 
 
-class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding):
+class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing):
     """The real area: Postgres records kept in step with the team through Graph."""
 
     def __init__(
@@ -681,6 +682,7 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding):
                     row.former_since = self._clock()
         if sorted(invited) != sorted(await self._invitees(class_id)):
             await self._invite_all(class_id)
+        await self._catch_up(class_id)
 
     async def search_users(self, query: str) -> list[Candidate]:
         users = await self._graph.get_all(

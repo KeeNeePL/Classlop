@@ -177,7 +177,7 @@ class Submission(BaseModel):
     `handed_in_at` is the server time of the hand-in's last upload, `late` marks a Late
     submission (handed in after the due time) and `files` are the hand-in's copies in storage.
     A hand-in settles after 3 quiet minutes; until then the folder's files are not yet the
-    Submission's."""
+    Submission's. `excused_reason` is the Teacher's private note on an Excused Submission."""
 
     id: str
     assignment_id: str
@@ -191,6 +191,7 @@ class Submission(BaseModel):
     handed_in_at: datetime | None = None
     late: bool = False
     files: list[str] = []
+    excused_reason: str | None = None
 
 
 class Teams(Protocol):
@@ -411,4 +412,36 @@ class Teams(Protocol):
         who have not handed in are Missing, and every folder's sharing permission becomes read.
         Files uploaded after the close time are ignored. Returns how many Submissions went
         Missing or were settled by the close."""
+        ...
+
+    async def change_times(
+        self, assignment_id: str, due_at: datetime | None = None, close_at: datetime | None = None
+    ) -> Assignment:
+        """Move the due and/or close time of a Scheduled or Open Assignment (None keeps one). A
+        new due time corrects the post in General and replies "Zmiana terminu: ..." in its thread,
+        so Students are notified; a Scheduled Assignment has no post yet and posts the new time.
+        The Reminder and the due-time return follow the due time. Raises ValueError for any other
+        state or a close before the due time."""
+        ...
+
+    async def delete_assignment(self, assignment_id: str) -> None:
+        """Delete an Assignment nothing has been handed in to: the post in General, the hand-in
+        folders, its schedules and its records go, and each Student it reached gets "Praca «...»
+        została anulowana". Its Items stay Given. Raises ValueError once any Student has handed in
+        (including files not yet settled) and LookupError for an unknown Assignment."""
+        ...
+
+    async def add_recipients(self, assignment_id: str, student_ids: list[str]) -> list[Submission]:
+        """Give the Students (current Students of the Class) a Scheduled or Open Assignment too:
+        each gets a folder and a «Nowa praca» message, a Scheduled one's when it is posted.
+        Students who have it already are skipped; returns the new Submissions. A whole-Class
+        Assignment also reaches every Student who joins the Class, at the roster sync. Raises
+        ValueError for another Class's Student, a Former student or an Assignment not Given or
+        already Closed."""
+        ...
+
+    async def excuse_submission(self, submission_id: str, reason: str | None = None) -> Submission:
+        """Mark the Submission Excused, at any time and whatever its state: it drops out of all
+        results and takes no more files. The optional `reason` is the Teacher's private note and
+        is never sent to the Student."""
         ...

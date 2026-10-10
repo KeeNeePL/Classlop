@@ -36,6 +36,8 @@ class FilesRoutes:
         self.drive: dict[str, dict] = {ROOT: {"id": ROOT, "name": "", "parent": None, "url": ""}}
         self._channel_folders: dict[tuple[str, str], str] = {}
         self._posts: dict[str, list[Post]] = {}
+        self._attachments: dict[str, list[dict]] = {}  # by post id
+        self._replies: dict[str, list[str]] = {}  # by post id
         self._chats: dict[str, str] = {}  # the Student's user id -> the 1:1 chat with the Teacher
         self._chat_log: dict[str, list[str]] = {}
         self._chat_attached: dict[str, list[tuple[str, bytes, bool]]] = {}
@@ -59,6 +61,14 @@ class FilesRoutes:
 
     def channel_posts(self, team_id: str) -> list[Post]:
         return self._posts.get(team_id, [])
+
+    def delete_post(self, team_id: str, post_id: str) -> None:
+        """A post deleted in Teams."""
+        self._posts[team_id] = [p for p in self._posts[team_id] if p.id != post_id]
+
+    def replies_to(self, post_id: str) -> list[str]:
+        """The HTML of the replies in the thread of a channel post."""
+        return self._replies.get(post_id, [])
 
     def shared_with(self, user_id: str) -> list[Share]:
         """The folders the Teacher shared with the user, with their role."""
@@ -140,6 +150,14 @@ class FilesRoutes:
             return httpx.Response(200, json=self._item(child)) if child else _gone()
         if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages", path):
             return self._post(m[1], request)
+        if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)", path):
+            return self._message(m[1], m[3], request)
+        if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)/replies", path):
+            return self._reply(m[1], m[3], json.loads(request.content))
+        if m := re.fullmatch(
+            r"/users/[^/]+/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)/softDelete", path
+        ):
+            return self._soft_delete(m[1], m[3])
         if m := re.fullmatch(r"/me/drive/root:/(.+)", path):
             found = self._by_path(m[1])
             return httpx.Response(200, json=self._item(found)) if found else _gone()
@@ -228,15 +246,62 @@ class FilesRoutes:
         if team_id in self._rejected:
             return httpx.Response(403, json={"error": {"code": "Forbidden"}})
         body = json.loads(request.content)
-        files = {
+        post = Post(str(uuid.uuid4()), body["body"]["content"], self._attached(body))
+        self._attachments[post.id] = body.get("attachments", [])
+        self._posts.setdefault(team_id, []).append(post)
+        return httpx.Response(201, json={"id": post.id})
+
+    def _attached(self, body: dict) -> dict[str, bytes]:
+        return {
             a["name"]: next(
                 i["content"] for i in self.drive.values() if i["url"] == a["contentUrl"]
             )
             for a in body.get("attachments", [])
         }
-        post = Post(str(uuid.uuid4()), body["body"]["content"], files)
-        self._posts.setdefault(team_id, []).append(post)
-        return httpx.Response(201, json={"id": post.id})
+
+    def _find_post(self, team_id: str, post_id: str) -> int | None:
+        posts = self._posts.get(team_id, [])
+        return next((n for n, p in enumerate(posts) if p.id == post_id), None)
+
+    def _message(self, team_id: str, post_id: str, request: httpx.Request) -> httpx.Response:
+        n = self._find_post(team_id, post_id)
+        if n is None:
+            return _gone()
+        post = self._posts[team_id][n]
+        if request.method != "PATCH":
+            return httpx.Response(
+                200,
+                json={
+                    "id": post_id,
+                    "body": {"contentType": "html", "content": post.html},
+                    "attachments": self._attachments.get(post_id, []),
+                },
+            )
+        if team_id in self._rejected:
+            return httpx.Response(403, json={"error": {"code": "Forbidden"}})
+        body = json.loads(request.content)
+        if "attachments" in body:
+            self._attachments[post_id] = body["attachments"]
+        self._posts[team_id][n] = Post(
+            post_id, body["body"]["content"], self._attached(body) or post.files
+        )
+        return httpx.Response(204)
+
+    def _reply(self, team_id: str, post_id: str, body: dict) -> httpx.Response:
+        if self._find_post(team_id, post_id) is None:
+            return _gone()
+        if team_id in self._rejected:
+            return httpx.Response(403, json={"error": {"code": "Forbidden"}})
+        self._replies.setdefault(post_id, []).append(body["body"]["content"])
+        return httpx.Response(201, json={"id": str(uuid.uuid4())})
+
+    def _soft_delete(self, team_id: str, post_id: str) -> httpx.Response:
+        n = self._find_post(team_id, post_id)
+        if n is None:
+            return _gone()
+        del self._posts[team_id][n]
+        self._replies.pop(post_id, None)
+        return httpx.Response(204)
 
     def _new_folder(self, parent: str, body: dict) -> httpx.Response:
         if parent not in self.drive:
