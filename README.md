@@ -48,7 +48,7 @@ npx --yes aws-cdk@2.1145.0 deploy Classlop
 
 The deploy prints `Url` (the dashboard on `*.cloudfront.net`) and `CallbackUrl`. The stack runs at about 4 USD a day; the account's own 25 USD monthly AWS Budget is the cost alarm, so the stack adds none.
 
-**Fill the app secret** `classlop/app` once, in the Secrets Manager console (Retrieve secret value, Edit, key/value): `M365_CLIENT_SECRET`, `LLM_API_KEY`, `LANGSMITH_API_KEY`, `TYPESAFE_API_KEY`, `LLM_BASE_URL`, `M365_TENANT_ID`, `M365_CLIENT_ID`. `SESSION_KEY` is generated; leave it. Later deploys never overwrite these values. The tasks read the secret when they start, so restart both services after an edit:
+**Fill the app secret** `classlop/app` once, in the Secrets Manager console (Retrieve secret value, Edit, key/value): `M365_CLIENT_SECRET`, `LLM_API_KEY`, `LANGSMITH_API_KEY`, `TYPESAFE_API_KEY`, `LLM_BASE_URL`, `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_TEACHER_OID`. `SESSION_KEY` is generated; leave it. Later deploys never overwrite these values. The tasks read the secret when they start, so restart both services after an edit:
 
 ```sh
 aws ecs update-service --cluster <ClusterName> --service <service> --force-new-deployment
