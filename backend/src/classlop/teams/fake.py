@@ -17,9 +17,13 @@ from classlop.teams.service import (
     WARSAW,
     attendance_due,
     calendar_window,
+    next_weekday,
     now,
 )
 from classlop.teams.types import (
+    LESSON,
+    PENDING,
+    VERDICTS,
     AlreadyLinked,
     Attendance,
     AttendanceState,
@@ -120,6 +124,7 @@ class FakeTeams:
             "channel": channel,
             "until": weekly_until,
             "cancelled": set(),
+            "deleted": set(),
             "moved": {},
         }
         return meeting_id
@@ -142,6 +147,10 @@ class FakeTeams:
         else:
             self._occurrences.setdefault(event_id, {})["cancelled"] = True
 
+    def delete(self, event_id: str) -> None:
+        master, _, day = event_id.partition("@")
+        self._meetings[master]["deleted"].add(day)
+
     def _meeting_days(self, meeting_id: str) -> list[tuple[str, str, datetime, datetime]]:
         """(occurrence id, day, start, end) of a meeting; a single one has an empty day."""
         m = self._meetings[meeting_id]
@@ -160,7 +169,9 @@ class FakeTeams:
         first, last = calendar_window(self._clock().astimezone(WARSAW).date())
         for meeting_id, m in self._meetings.items():
             for occurrence_id, day, start, end in self._meeting_days(meeting_id):
-                if first <= start < last:
+                if day in m["deleted"]:
+                    self._seen.pop(occurrence_id, None)
+                elif first <= start < last:
                     self._seen[occurrence_id] = {
                         "series": meeting_id,
                         "start": start,
@@ -172,7 +183,7 @@ class FakeTeams:
 
     def _place(self, meeting_id: str) -> dict:
         m = self._meetings[meeting_id]
-        placed = {"subject": m["subject"], "state": "pending", "class_id": None, "candidates": []}
+        placed = {"subject": m["subject"], "state": PENDING, "class_id": None, "candidates": []}
         rosters = {
             c: {s.upn.lower() for s in students.values() if not s.former_since}
             for c, students in self._students.items()
@@ -185,7 +196,7 @@ class FakeTeams:
         exact = [c for c, r in rosters.items() if r and r == m["attendees"]]
         for found in (in_channel, exact):
             if len(found) == 1:
-                return {**placed, "state": "lesson", "class_id": found[0]}
+                return {**placed, "state": LESSON, "class_id": found[0]}
         placed["candidates"] = (
             in_channel or exact or [c for c, r in rosters.items() if r & m["attendees"]]
         )
@@ -200,18 +211,19 @@ class FakeTeams:
                 candidates=placed["candidates"],
             )
             for series, placed in self._placed.items()
-            if placed["state"] == "pending"
+            if placed["state"] == PENDING
+            and any(r["series"] == series for r in self._seen.values())
         ]
         return sorted(questions, key=lambda q: q.start)
 
     async def answer_calendar_question(self, question_id: str, answer: str) -> None:
         placed = self._placed.get(question_id)
-        if placed is None or placed["state"] != "pending":
+        if placed is None or placed["state"] != PENDING:
             raise ValueError(f"no open question {question_id}")
-        if answer in ("keep", "hide"):
-            placed["state"] = "kept" if answer == "keep" else "hidden"
+        if answer in VERDICTS:
+            placed["state"] = VERDICTS[answer]
         elif answer in placed["candidates"]:
-            placed.update(state="lesson", class_id=answer)
+            placed.update(state=LESSON, class_id=answer)
         else:
             raise ValueError(f"{answer!r} is not an answer to {question_id}")
 
@@ -301,7 +313,7 @@ class FakeTeams:
         )
 
     def _start_series(self, class_id: str, slot: Slot, from_day: date) -> None:
-        first = from_day + timedelta(days=(slot.weekday - from_day.weekday()) % 7)
+        first = next_weekday(from_day, slot.weekday)
         event_id = self._event(class_id, self._classes[class_id].name)
         self._series[class_id].append([event_id, slot, first, None])
 
@@ -380,7 +392,7 @@ class FakeTeams:
                     )
                 day += timedelta(days=1)
         for series, placed in self._placed.items():
-            if placed["state"] == "lesson" and placed["class_id"] == class_id:
+            if placed["state"] == LESSON and placed["class_id"] == class_id:
                 for occurrence_id, row in self._seen.items():
                     if row["series"] == series:
                         lessons.append(
@@ -405,6 +417,8 @@ class FakeTeams:
 
     async def refresh_attendance(self, class_id: str, lesson_id: str) -> Attendance:
         lesson = next(x for x in await self.list_lessons(class_id) if x.id == lesson_id)
+        if lesson.cancelled:
+            return await self.get_attendance(class_id, lesson_id)
         found = [
             s
             for join_url, sessions in self._records

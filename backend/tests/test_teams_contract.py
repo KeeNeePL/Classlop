@@ -95,7 +95,7 @@ class Tenant:
         self.team_is_private = graph.team_is_private
         self.event_of, self.attend = graph.event_of, graph.attend
         self.add_channel, self.add_meeting = graph.add_channel, graph.add_meeting
-        self.reschedule, self.cancel = graph.reschedule, graph.cancel
+        self.reschedule, self.cancel, self.delete = graph.reschedule, graph.cancel, graph.delete
 
     def lapse_sign_in(self) -> None:
         self.lapsed = True
@@ -169,10 +169,10 @@ async def test_members_who_are_not_owners_become_students(tenant):
 async def test_an_owner_is_never_a_student(tenant):
     team = tenant.add_team("2A matematyka")
     tenant.add_member(team, "Marta Lis", owner=True)
-    pupil = tenant.add_member(team, "Jan Kowalski")
+    student = tenant.add_member(team, "Jan Kowalski")
     linked = await tenant.link_team(team)
 
-    tenant.make_owner(team, pupil)
+    tenant.make_owner(team, student)
     await tenant.sync_roster(linked.id)
 
     assert [
@@ -209,13 +209,13 @@ async def test_a_member_who_leaves_becomes_a_former_student_and_keeps_their_reco
 
 async def test_a_former_student_who_rejoins_is_a_student_again(tenant, clock):
     team = tenant.add_team("2A matematyka")
-    pupil = tenant.add_member(team, "Jan Kowalski")
+    student = tenant.add_member(team, "Jan Kowalski")
     linked = await tenant.link_team(team)
     original = (await tenant.list_students(linked.id))[0].id
-    tenant.remove_member(team, pupil)
+    tenant.remove_member(team, student)
     await tenant.sync_roster(linked.id)
 
-    tenant.add_member(team, "Jan Kowalski", user_id=pupil)
+    tenant.add_member(team, "Jan Kowalski", user_id=student)
     await tenant.sync_roster(linked.id)
 
     [student] = await tenant.list_students(linked.id)
@@ -531,6 +531,29 @@ async def test_a_cancellation_in_teams_keeps_the_lesson_marked_cancelled(tenant)
 
     [lesson] = await tenant.list_lessons(a.id)
     assert (lesson.id, lesson.start, lesson.cancelled) == (meeting, _on(12), True)
+
+
+async def test_a_meeting_deleted_in_teams_drops_out_instead_of_showing_cancelled(tenant):
+    _, a, _ = await _two_classes(tenant)
+    meeting = tenant.add_meeting("Powtorka", _on(12), _on(12, 11), attendees=[EWA, JAN])
+    await tenant.sync_calendar()
+
+    tenant.delete(meeting)
+    await tenant.sync_calendar()
+
+    assert await tenant.list_lessons(a.id) == []
+
+
+async def test_a_pending_question_disappears_when_its_meeting_is_deleted(tenant):
+    await _two_classes(tenant)
+    meeting = tenant.add_meeting("Kolo naukowe", _on(12), _on(12, 11), attendees=[JAN, ADAM])
+    await tenant.sync_calendar()
+    assert len(await tenant.list_calendar_questions()) == 1
+
+    tenant.delete(meeting)
+    await tenant.sync_calendar()
+
+    assert await tenant.list_calendar_questions() == []
 
 
 async def test_teams_wins_on_the_time_and_cancellation_of_timetable_lessons(tenant):
@@ -864,6 +887,15 @@ async def test_a_cancelled_lesson_has_no_attendance_fetched(tenant, clock):
 
     assert await tenant.fetch_due_attendance() == 0
     assert (await tenant.get_attendance(linked.id, first.id)).fetched_at is None
+
+
+async def test_a_cancelled_lesson_is_not_refreshed_by_hand_either(tenant, clock):
+    linked, ids, _, lesson = await _held(tenant, ("Jan Kowalski",))
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(1), _at(40))])
+    await tenant.cancel_lessons(linked.id, lesson.start.date(), lesson.start.date())
+    clock.now = lesson.end + timedelta(hours=1)
+
+    assert (await tenant.refresh_attendance(linked.id, lesson.id)).fetched_at is None
 
 
 async def test_the_attendance_fetch_is_a_job_that_runs_every_five_minutes(

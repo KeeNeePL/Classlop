@@ -5,15 +5,24 @@ from pydantic import BaseModel
 
 
 class NotOwner(Exception):
-    """The Teacher does not own that team."""
+    pass
 
 
 class AlreadyLinked(Exception):
-    """The team is already a Class."""
+    pass
 
 
 class TimetableExists(Exception):
-    """The Class already has a Timetable."""
+    pass
+
+
+SeriesState = Literal["lesson", "pending", "kept", "hidden"]
+LESSON: SeriesState = "lesson"
+PENDING: SeriesState = "pending"
+KEPT: SeriesState = "kept"
+HIDDEN: SeriesState = "hidden"
+# A pending question without a Class is answered keep or hide; each leaves one state.
+VERDICTS: dict[str, SeriesState] = {"keep": KEPT, "hide": HIDDEN}
 
 
 class Team(BaseModel):
@@ -22,8 +31,6 @@ class Team(BaseModel):
 
 
 class Candidate(BaseModel):
-    """A tenant user the Teacher may pick as a Student."""
-
     user_id: str
     display_name: str
     upn: str

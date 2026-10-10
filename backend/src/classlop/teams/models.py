@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from classlop.shared.db import Base
+from classlop.teams.types import SeriesState
 
 
 class ClassRecord(Base):
@@ -36,7 +37,6 @@ class StudentRecord(Base):
     class_id: Mapped[str] = mapped_column(
         ForeignKey("teams.class.id", ondelete="CASCADE"), index=True
     )
-    # The Entra user id.
     user_id: Mapped[str] = mapped_column(Text)
     display_name: Mapped[str] = mapped_column(Text)
     upn: Mapped[str] = mapped_column(Text)
@@ -44,8 +44,6 @@ class StudentRecord(Base):
 
 
 class SlotRecord(Base):
-    """A Timetable slot: the series event in the Teacher's calendar."""
-
     __tablename__ = "timetable_slot"
     __table_args__ = {"schema": "teams"}
 
@@ -69,7 +67,6 @@ class LessonRecord(Base):
     __tablename__ = "lesson"
     __table_args__ = {"schema": "teams"}
 
-    # The calendar event id.
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     class_id: Mapped[str] = mapped_column(
         ForeignKey("teams.class.id", ondelete="CASCADE"), index=True
@@ -85,10 +82,9 @@ class CalendarSeriesRecord(Base):
     __tablename__ = "calendar_series"
     __table_args__ = {"schema": "teams"}
 
-    # The series master's id, or the event's own.
     id: Mapped[str] = mapped_column(Text, primary_key=True)
     subject: Mapped[str] = mapped_column(Text)
-    state: Mapped[str] = mapped_column(Text)  # lesson, pending, kept or hidden
+    state: Mapped[SeriesState] = mapped_column(Text)
     class_id: Mapped[str | None] = mapped_column(
         ForeignKey("teams.class.id", ondelete="CASCADE"), index=True
     )
