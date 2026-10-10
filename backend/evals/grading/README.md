@@ -15,7 +15,7 @@ Invented Items and handwritten Submissions written by the team, never student wo
 **`expected.json`**:
 - `notes`: what the Submission tests.
 - `held`: whether it should be Held.
-- `spot_check`: the flag reasons, empty when not flagged (`nieczytelne` for a Held Submission, `rysunek` for a drawing).
-- `items`: per Item `number`, `reading` (`readable`, `unsure`, `unreadable` or `blank`), `points` and the verbatim `transcription` in LaTeX. A drawing, a crossed-out part or an unreadable part is described in square brackets. A closed Item's transcription is just the chosen label, and a blank Item's is empty.
+- `spot_check`: the flag reasons, empty when not flagged: `nieczytelne` (an unreadable Item), `niepewny odczyt` (an unsure Item), `wątpliwa ocena` (an Item in doubt), `rysunek` (a drawing). The first three also hold the Submission.
+- `items`: per Item `number`, `reading` (`readable`, `unsure`, `unreadable` or `blank`), `doubt` (`true` when the work fits no Rubric level cleanly; omitted when false), `points` and the verbatim `transcription` in LaTeX. A drawing, a crossed-out part or an unreadable part is described in square brackets. A closed Item's transcription is just the chosen label, also when the Student wrote an option's value instead (it counts as that label when it matches exactly one option), and a blank Item's is empty.
 
 Strip location data from photos before committing them.
