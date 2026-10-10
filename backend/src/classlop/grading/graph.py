@@ -1,5 +1,6 @@
 import asyncio
 import operator
+import re
 import uuid
 from collections.abc import Callable
 from datetime import datetime
@@ -243,7 +244,6 @@ async def assess(state: State) -> dict:
         )
         for position, (n, item) in enumerate(state["items"])
     ]
-    held = _reasons(graded, HELD_REASONS)
     return {
         "graded": GradedSubmission(
             submission_id=job.submission_id,
@@ -251,8 +251,6 @@ async def assess(state: State) -> dict:
             assignment_id=job.assignment_id,
             due_at=job.due_at,
             status="graded",
-            held_reasons=held,
-            spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
             items=graded,
         )
     }
@@ -261,20 +259,49 @@ async def assess(state: State) -> dict:
 async def write_feedback(state: State) -> dict:
     graded = state["graded"]
     graded.summary = await summarise(graded.items)
-    graded.comment = text_comment(graded.summary, graded.items)
-    held = None
-    if untypeset := sorted(state.get("untypeset", [])):
-        held = {"reason": TYPESET_FAILED, "items": untypeset}
-    else:
+    await rebuild_feedback(graded, state.get("untypeset", []))
+    return {"graded": graded}
+
+
+async def rebuild_feedback(submission: GradedSubmission, untypeset: list[int]) -> None:
+    """Held and Spot-check reasons, the text comment and the PDF, from the Items as they stand;
+    no PDF while any Item's Feedback will not typeset."""
+    items = submission.items
+    held = _reasons(items, HELD_REASONS)
+    if untypeset:
+        held.append({"reason": TYPESET_FAILED, "items": sorted(untypeset)})
+    submission.comment = text_comment(submission.summary, items)
+    submission.pdf_key = None
+    if not untypeset:
         try:
-            graded.pdf_key = await store_pdf(graded.submission_id, graded.items)
+            submission.pdf_key = await store_pdf(submission.submission_id, items)
         except TypesetError:
             # Each Feedback typeset alone, so no single Item is to blame.
-            held = {"reason": TYPESET_FAILED, "items": []}
-    if held:
-        graded.held_reasons = [*graded.held_reasons, held]
-        graded.spot_check_reasons = [*graded.spot_check_reasons, held]
-    return {"graded": graded}
+            held.append({"reason": TYPESET_FAILED, "items": []})
+    submission.held_reasons = held
+    submission.spot_check_reasons = held + _reasons(items, FLAG_REASONS)
+
+
+async def grade_fixed_item(item: GradedItem, transcription: str) -> None:
+    """Grade one Item again from the Teacher's fixed Transcription; the AI's stays beside it."""
+    (version,) = await items_area.get_versions([item.item_id])
+    closed, written = version.item_format == "closed", bool(transcription.strip())
+    fixed = ItemTranscription(
+        number=item.number,
+        transcription=transcription,
+        reading="readable" if written else "blank",
+        drawing=item.drawing,
+        # The Teacher may write "b", "B." or "(B)" for the label.
+        chosen_option=re.sub(r"[^A-Za-z]", "", transcription).upper() if closed else None,
+    )
+    scored = None
+    if not closed and written:
+        task = ScoreTask(number=item.number, item=version, transcription=transcription)
+        scored = (await score_item(task))["scores"][item.number]
+    graded = _grade_item(item.position, item.number, version, fixed, scored, None)
+    for field in ("ai_points", "reading", "doubt", "feedback", "mistake", "verification_note"):
+        setattr(item, field, getattr(graded, field))
+    item.fixed_transcription = transcription
 
 
 async def persist(state: State) -> dict:

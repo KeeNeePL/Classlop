@@ -1118,6 +1118,7 @@ async def test_an_override_after_the_due_time_becomes_the_effective_points(bank,
         due_at=days_from_now(-1),
     )
     before = await grading.result(*key)
+    fake_llm.summarises("A summary that an Override never asks for.")
 
     await grading.override(*key, item.id, 2)
 
@@ -1242,3 +1243,113 @@ async def test_an_item_overridden_to_full_points_leaves_its_common_mistake(bank,
     await gather(assignment_id)
 
     assert await grading.common_mistakes(assignment_id) == []
+
+
+async def test_a_transcription_fix_grades_the_item_again_and_drops_its_override(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    fake_llm.transcribes(read(1, reading="unsure", transcription="x_1 = -7"))
+    fake_llm.scores(
+        {
+            item.text: [
+                score(1, feedback="W kroku 2 pojawia się błąd.", mistake="błąd w x_1"),
+                score(2),
+            ]
+        }
+    )
+    key = await hand_in(
+        bank,
+        [item],
+        assignment_id=assignment_id,
+        handed_in_at=days_from_now(-2),
+        due_at=days_from_now(-1),
+    )
+    await grading.override(*key, item.id, 0)
+    before = await grading.result(*key)
+    fake_llm.summarises("Rozwiązanie zadania 1 jest poprawne.")
+
+    await grading.fix_transcription(*key, item.id, "x_1 = -1, x_2 = 5")
+
+    result = await grading.result(*key)
+    assert before is not None and result is not None
+    assert [
+        (
+            i.ai_transcription,
+            i.fixed_transcription,
+            i.reading,
+            i.ai_points,
+            i.override,
+            i.points,
+        )
+        for i in result.items
+    ] == [("x_1 = -7", "x_1 = -1, x_2 = 5", "readable", 2, None, 2)]
+    assert [(i.feedback, i.mistake) for i in result.items] == [("poprawnie", None)]
+    assert "x_1 = -1, x_2 = 5" in fake_llm.prompt("grading.score")
+    assert (result.held, result.held_reasons) == (False, [])
+    assert result.comment == (
+        f"Rozwiązanie zadania 1 jest poprawne.\n\nZadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
+    )
+    assert result.pdf_key not in (None, before.pdf_key)
+    assert len(await graded_events(key[0])) == 3
+    assert len(await mistake_jobs(assignment_id)) == 2
+
+
+async def test_a_feedback_edit_writes_a_new_summary_and_pdf(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    edited = r"Po obliczeniu $\Delta$ wyznacz oba pierwiastki."
+    fake_llm.transcribes(read(1, transcription=r"\Delta = 36"))
+    fake_llm.scores({item.text: score(1, feedback="Brakuje pierwiastków.")})
+    key = await hand_in(
+        bank,
+        [item],
+        assignment_id=assignment_id,
+        handed_in_at=days_from_now(-2),
+        due_at=days_from_now(-1),
+    )
+    before = await grading.result(*key)
+    fake_llm.summarises("Zadanie 1 wymaga dokończenia.")
+
+    await grading.edit_feedback(*key, item.id, edited)
+
+    result = await grading.result(*key)
+    assert before is not None and result is not None
+    assert [(i.feedback, i.edited_feedback) for i in result.items] == [
+        ("Brakuje pierwiastków.", edited)
+    ]
+    assert edited in fake_llm.prompt("grading.summary")
+    assert result.comment == (
+        "Zadanie 1 wymaga dokończenia.\n\nZadanie 1: 1/2 pkt\n\n"
+        f"Do powtórki:\n- Równania kwadratowe\n\n{AI_LINE}"
+    )
+    assert result.pdf_key not in (None, before.pdf_key)
+    text = await feedback_pdf(result)
+    assert "Po obliczeniu" in text and "Brakuje pierwiastków" not in text
+    assert text.endswith(AI_LINE)
+    assert len(await graded_events(key[0])) == 2
+    assert len(await mistake_jobs(assignment_id)) == 1
+
+
+async def test_a_feedback_edit_that_typesets_releases_a_typesetting_hold(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback=MALFORMED)})
+    key = await hand_in(bank, [item], handed_in_at=days_from_now(-2), due_at=days_from_now(-1))
+
+    with pytest.raises(ValueError):
+        await grading.edit_feedback(*key, item.id, MALFORMED)
+    await grading.edit_feedback(*key, item.id, "Brakuje drugiego pierwiastka.")
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert (result.held, result.held_reasons, result.pdf_key is not None) == (False, [], True)
+
+
+async def test_fixes_and_edits_open_at_the_due_time(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback="Brakuje drugiego pierwiastka.")})
+    key = await hand_in(bank, [item], due_at=days_from_now(1))
+
+    with pytest.raises(grading.TooEarly):
+        await grading.fix_transcription(*key, item.id, "x = 5, x = -1")
+    with pytest.raises(grading.TooEarly):
+        await grading.edit_feedback(*key, item.id, "Inny tekst.")

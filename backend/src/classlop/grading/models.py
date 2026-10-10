@@ -68,7 +68,11 @@ class GradedItem(Base):
     drawing: Mapped[bool]
     doubt: Mapped[bool]
     ai_transcription: Mapped[str] = mapped_column(Text)
+    # The Teacher's fix of a misread Transcription; the Item's AI fields were graded from it.
+    fixed_transcription: Mapped[str | None] = mapped_column(Text)
     feedback: Mapped[str] = mapped_column(Text)
+    # The Teacher's wording, shown instead of the AI's Feedback.
+    edited_feedback: Mapped[str | None] = mapped_column(Text)
     # A short name for the mistake, gathered into Common mistakes.
     mistake: Mapped[str | None] = mapped_column(Text)
     # What the verification read disputed in the Transcription, or that it skipped the Item.
