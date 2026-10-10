@@ -19,6 +19,52 @@ os.environ["JOBS_DLQ"] = f"test-jobs-dlq-{_run}"
 os.environ["JOBS_VISIBILITY_TIMEOUT"] = "5"
 os.environ["JOBS_RETRY_DELAY"] = "1"
 
+
+def _server_url():
+    from sqlalchemy.engine import make_url
+
+    url = (
+        os.environ.get("DATABASE_URL")
+        or "postgresql+psycopg://classlop:classlop@localhost:5432/classlop"
+    )
+    return make_url(url)
+
+
+def _private_database() -> str | None:
+    # A database of its own per run: another branch's migrations or a parallel run never meet ours.
+    import psycopg
+
+    url = _server_url()
+    name = f"{url.database}_test_{_run}"
+    try:
+        with psycopg.connect(
+            url.set(drivername="postgresql", database="postgres").render_as_string(False),
+            autocommit=True,
+            connect_timeout=3,
+        ) as conn:
+            conn.execute(f'CREATE DATABASE "{name}"')
+    except psycopg.Error:
+        return None  # No Postgres: the tests that need it skip themselves.
+    os.environ["DATABASE_URL"] = url.set(database=name).render_as_string(False)
+    return name
+
+
+_database = _private_database()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _database is None:
+        return
+    import psycopg
+
+    url = _server_url()
+    with psycopg.connect(
+        url.set(drivername="postgresql", database="postgres").render_as_string(False),
+        autocommit=True,
+    ) as conn:
+        conn.execute(f'DROP DATABASE IF EXISTS "{_database}" WITH (FORCE)')
+
+
 if sys.platform == "win32":
     # psycopg's async mode cannot run on the default Proactor loop.
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
