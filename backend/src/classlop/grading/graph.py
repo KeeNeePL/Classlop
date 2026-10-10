@@ -1,20 +1,37 @@
 import asyncio
+import operator
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
 from langgraph.graph import START, StateGraph
+from langgraph.types import Send
 from pydantic import BaseModel
 
 from classlop import items as items_area
-from classlop.grading.models import GradedItem, GradedSubmission
+from classlop.grading.models import GradedItem, GradedSubmission, Reading
+from classlop.grading.scoring import Score, score
 from classlop.grading.transcription import ItemTranscription, prepare, transcribe
 from classlop.items import ItemVersion
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
 
 AI_LINE = "Ocena i komentarz przygotowane przez AI; nauczyciel sprawdza je wyrywkowo."
-HELD_REASONS = {"unreadable": "nieczytelne", "unsure": "niepewny odczyt"}
+# Nothing to judge, or nothing that may be judged: such Items score 0 with no scoring call.
+UNSCORED = ("blank", "unreadable")
+CORRECT, BLANK = "poprawnie", "brak rozwiązania"
+NOT_READ, WRONG = "nie udało się odczytać rozwiązania", "błędna odpowiedź"
+# Fixed Feedback carries no maths, so the text comment shows it; scored Feedback may carry maths.
+FIXED_FEEDBACK = (CORRECT, BLANK, NOT_READ, WRONG)
+
+Rule = tuple[str, Callable[[GradedItem], bool]]
+HELD_REASONS: list[Rule] = [
+    ("nieczytelne", lambda i: i.reading == "unreadable"),
+    ("niepewny odczyt", lambda i: i.reading == "unsure"),
+    ("wątpliwa ocena", lambda i: i.doubt),
+]
+FLAG_REASONS: list[Rule] = [("rysunek", lambda i: i.drawing)]
 
 
 class AssignedItem(BaseModel):
@@ -39,7 +56,14 @@ class State(Input):
     items: list[tuple[int, ItemVersion]]
     pages: list[bytes]
     transcriptions: dict[int, ItemTranscription]
+    scores: Annotated[dict[int, Score], operator.or_]
     graded: GradedSubmission
+
+
+class ScoreTask(TypedDict):
+    number: int
+    item: ItemVersion
+    transcription: str
 
 
 async def load(state: State) -> dict:
@@ -56,53 +80,104 @@ async def transcribe_pages(state: State) -> dict:
     return {"transcriptions": await transcribe(state["items"], state["pages"])}
 
 
-def _grade_item(position: int, number: int, item: ItemVersion, t: ItemTranscription | None):
+def _reading(item: ItemVersion, transcription: ItemTranscription | None) -> Reading:
     # An Item the model left out of its reply is unsure, not blank.
-    reading = t.reading if t else "unsure"
-    chosen = t.chosen_option if t else None
-    if reading == "readable" and chosen not in item.options:
-        reading = "unsure"
-    right = reading not in ("blank", "unreadable") and [chosen] == item.correct_options
+    if transcription is None:
+        return "unsure"
+    closed_unchosen = (
+        item.item_format == "closed" and transcription.chosen_option not in item.options
+    )
+    if transcription.reading == "readable" and closed_unchosen:
+        return "unsure"
+    return transcription.reading
+
+
+def to_scoring(state: State) -> list[Send] | str:
+    """One parallel scoring call per open Item with work to judge."""
+    transcriptions = state["transcriptions"]
+    tasks = [
+        Send("score_item", ScoreTask(number=n, item=item, transcription=t.transcription))
+        for n, item in state["items"]
+        if item.item_format == "open"
+        and (t := transcriptions.get(n))
+        and _reading(item, t) not in UNSCORED
+    ]
+    return tasks or "assess"
+
+
+async def score_item(state: ScoreTask) -> dict:
+    return {"scores": {state["number"]: await score(state["item"], state["transcription"])}}
+
+
+def _grade_item(
+    position: int,
+    number: int,
+    item: ItemVersion,
+    transcription: ItemTranscription | None,
+    scored: Score | None,
+) -> GradedItem:
+    reading = _reading(item, transcription)
+    if item.item_format == "closed":
+        chosen = transcription.chosen_option if transcription else None
+        right = reading not in UNSCORED and [chosen] == item.correct_options
+        points = item.points if right else 0
+    else:
+        points = min(max(scored.points, 0), item.points) if scored else 0
+    if reading == "blank":
+        feedback = BLANK
+    elif reading == "unreadable" or transcription is None:
+        feedback = NOT_READ
+    elif points == item.points:
+        feedback = CORRECT
+    else:
+        feedback = scored.feedback if scored else WRONG
     return GradedItem(
         item_id=item.id,
         position=position,
         number=number,
         max_points=item.points,
-        ai_points=item.points if right else 0,
+        ai_points=points,
         reading=reading,
-        drawing=t.drawing if t else False,
-        ai_transcription=t.transcription if t and reading != "blank" else "",
+        drawing=transcription.drawing if transcription else False,
+        # Points out of range, or points lost without Feedback: the model went wrong.
+        doubt=scored is not None
+        and (scored.doubt or scored.points != points or not feedback.strip()),
+        ai_transcription=transcription.transcription
+        if transcription and reading != "blank"
+        else "",
+        feedback=feedback,
+        mistake=scored.mistake if scored and points < item.points else None,
     )
 
 
-def _remark(item: GradedItem) -> str:
-    if item.reading == "blank":
-        return "brak rozwiązania"
-    if item.reading == "unreadable":
-        return "nie udało się odczytać rozwiązania"
-    return "poprawnie" if item.ai_points == item.max_points else "błędna odpowiedź"
+def _line(item: GradedItem) -> str:
+    line = f"Zadanie {item.number}: {item.ai_points}/{item.max_points} pkt"
+    return f"{line} – {item.feedback}" if item.feedback in FIXED_FEEDBACK else line
+
+
+def _reasons(items: list[GradedItem], rules: list[Rule]) -> list[dict]:
+    return [
+        {"reason": reason, "items": numbers}
+        for reason, applies in rules
+        if (numbers := [i.number for i in items if applies(i)])
+    ]
 
 
 async def assess(state: State) -> dict:
-    job, transcriptions = state["job"], state["transcriptions"]
+    job, transcriptions, scores = state["job"], state["transcriptions"], state.get("scores", {})
     graded = [
-        _grade_item(position, number, item, transcriptions.get(number))
-        for position, (number, item) in enumerate(state["items"])
+        _grade_item(position, n, item, transcriptions.get(n), scores.get(n))
+        for position, (n, item) in enumerate(state["items"])
     ]
-    held = [
-        {"reason": reason, "items": [i.number for i in graded if i.reading == reading]}
-        for reading, reason in HELD_REASONS.items()
-        if any(i.reading == reading for i in graded)
-    ]
-    lines = [f"Zadanie {i.number}: {i.ai_points}/{i.max_points} pkt – {_remark(i)}" for i in graded]
+    held = _reasons(graded, HELD_REASONS)
     return {
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
             status="graded",
             held_reasons=held,
-            spot_check_reasons=held,
-            comment="\n".join(lines) + f"\n\n{AI_LINE}",
+            spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
+            comment="\n".join(_line(i) for i in graded) + f"\n\n{AI_LINE}",
             items=graded,
         )
     }
@@ -121,7 +196,11 @@ async def persist(state: State) -> dict:
 
 grade_graph = (
     StateGraph(State, input_schema=Input)
-    .add_sequence([load, transcribe_pages, assess, persist])
+    .add_sequence([load, transcribe_pages])
+    .add_node(score_item)
+    .add_sequence([assess, persist])
     .add_edge(START, "load")
+    .add_conditional_edges("transcribe_pages", to_scoring, ["score_item", "assess"])
+    .add_edge("score_item", "assess")
     .compile()
 )

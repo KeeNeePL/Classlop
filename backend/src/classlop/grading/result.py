@@ -23,7 +23,10 @@ class ItemResult(BaseModel):
     max_points: int
     reading: Reading
     drawing: bool
+    doubt: bool
     ai_transcription: str
+    feedback: str
+    mistake: str | None
 
     @computed_field
     @property

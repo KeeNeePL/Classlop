@@ -75,11 +75,12 @@ async def transcribe(
         }
         for p in pages
     ]
-    model = llm.chat_model("grading.transcribe").bind(response_format=Transcript)
-    reply = await model.ainvoke(
+    transcript = await llm.ask(
+        "grading.transcribe",
+        Transcript,
         [
             SystemMessage(PROMPT),
             HumanMessage([{"type": "text", "text": "Items:\n" + shown}, *images]),
-        ]
+        ],
     )
-    return {r.number: r for r in Transcript.model_validate_json(reply.text).items}
+    return {t.number: t for t in transcript.items}

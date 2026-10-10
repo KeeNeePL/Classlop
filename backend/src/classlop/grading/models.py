@@ -54,4 +54,8 @@ class GradedItem(Base):
     ai_points: Mapped[int] = mapped_column(Integer)
     reading: Mapped[str] = mapped_column(Text)
     drawing: Mapped[bool]
+    doubt: Mapped[bool]
     ai_transcription: Mapped[str] = mapped_column(Text)
+    feedback: Mapped[str] = mapped_column(Text)
+    # A short name for the mistake, gathered into Common mistakes.
+    mistake: Mapped[str | None] = mapped_column(Text)
