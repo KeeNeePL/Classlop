@@ -1,0 +1,30 @@
+{"id": "fx-01", "text": "Rozwiąż nierówność $3x - 5 < 10$.", "topics": ["lo2024:III.3"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-02", "text": "Rozwiąż nierówność $\\frac{2x-1}{3} \\ge \\frac{x+4}{2}$ i podaj najmniejszą liczbę całkowitą spełniającą ją.", "topics": ["lo2024:III.3"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-03", "text": "Rozwiąż równanie $x^2 - 9 = 0$.", "topics": ["lo2024:III.4"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-04", "text": "Rozwiąż równanie $x^2 - 5x + 6 = 0$.", "topics": ["lo2024:III.4"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-05", "text": "Rozwiąż nierówność $2x^2 - 3x - 5 \\le 0$.", "topics": ["lo2024:III.4"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-06", "text": "Wyznacz wszystkie wartości parametru $m$, dla których równanie $x^2 - mx + m + 3 = 0$ ma dwa różne pierwiastki ujemne.", "topics": ["lo2024:III.4"], "requirement": "IV", "difficulty": "hard"}
+{"id": "fx-07", "text": "Rozwiąż równanie $x^3 - 4x = 0$.", "topics": ["lo2024:III.5"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-08", "text": "Wyjaśnij, dlaczego równania $x + 2 = 5$ oraz $2x + 4 = 10$ są równoważne.", "topics": ["lo2024:III.1"], "requirement": "II", "difficulty": "medium"}
+{"id": "fx-09", "text": "Ile rozwiązań ma równanie $2(x+1) = 2x + 3$? Uzasadnij odpowiedź.", "topics": ["lo2024:III.2"], "requirement": "II", "difficulty": "easy"}
+{"id": "fx-10", "text": "Prostokątna działka ma obwód $40$ m i pole co najmniej $75$ m$^2$. Wyznacz możliwe długości krótszego boku.", "topics": ["lo2024:III.4"], "requirement": "III", "difficulty": "medium"}
+{"id": "fx-11", "text": "Dla funkcji $f(x) = 3x - 7$ oblicz $f(4)$.", "topics": ["lo2024:V.2"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-12", "text": "Dla funkcji $f(x) = x^2 + 2x$ oblicz $f(-3)$.", "topics": ["lo2024:V.2"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-13", "text": "Z wykresu funkcji $f$ odczytaj jej miejsca zerowe i zbiór wartości.", "topics": ["lo2024:V.4"], "requirement": "II", "difficulty": "easy"}
+{"id": "fx-14", "text": "Na rysunku przedstawiono wykres funkcji $f$ określonej w przedziale $\\langle -4, 5 \\rangle$. Podaj przedziały, w których funkcja jest malejąca.", "topics": ["lo2024:V.4"], "requirement": "II", "difficulty": "medium"}
+{"id": "fx-15", "text": "Funkcja liniowa $f(x) = (m-2)x + 1$ jest rosnąca. Wyznacz możliwe wartości $m$.", "topics": ["lo2024:V.5"], "requirement": "II", "difficulty": "easy"}
+{"id": "fx-16", "text": "Wyznacz wzór funkcji liniowej, której wykres przechodzi przez punkty $A=(0,1)$ i $B=(2,5)$.", "topics": ["lo2024:V.6"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-17", "text": "Wykres funkcji liniowej jest równoległy do prostej $y = -2x + 3$ i przechodzi przez punkt $(1, 4)$. Wyznacz jej wzór.", "topics": ["lo2024:V.6"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-18", "text": "Opisz słownie funkcję przyporządkowującą każdej liczbie naturalnej resztę z jej dzielenia przez $3$ i podaj jej zbiór wartości.", "topics": ["lo2024:V.1"], "requirement": "III", "difficulty": "medium"}
+{"id": "fx-19", "text": "Funkcja $f$ dana jest wzorem $f(x) = \\frac{ax+1}{x-2}$ i $f(3) = 7$. Oblicz $a$ i rozwiąż równanie $f(x) = 0$.", "topics": ["lo2024:V.2"], "requirement": "III", "difficulty": "hard"}
+{"id": "fx-20", "text": "W tabeli podano temperaturę o różnych godzinach doby. Oblicz, o ile stopni średnio wzrosła temperatura między godziną $6$ a $12$.", "topics": ["lo2024:V.3"], "requirement": "II", "difficulty": "medium"}
+{"id": "fx-21", "text": "Ciąg $(a_n)$ jest określony wzorem $a_n = 2n - 3$. Oblicz $a_5$.", "topics": ["lo2024:VI.1"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-22", "text": "Ciąg określono rekurencyjnie: $a_1 = 2$, $a_{n+1} = 3a_n - 1$. Oblicz $a_3$.", "topics": ["lo2024:VI.2"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-23", "text": "Wykaż, że ciąg $a_n = 4n + 1$ jest arytmetyczny.", "topics": ["lo2024:VI.4"], "requirement": "II", "difficulty": "medium"}
+{"id": "fx-24", "text": "Pierwszy wyraz ciągu arytmetycznego wynosi $3$, a różnica $2$. Oblicz $a_{10}$.", "topics": ["lo2024:VI.5"], "requirement": "I", "difficulty": "easy"}
+{"id": "fx-25", "text": "Oblicz sumę dwudziestu początkowych wyrazów ciągu arytmetycznego, w którym $a_1 = 5$ i $a_{20} = 62$.", "topics": ["lo2024:VI.5"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-26", "text": "W ciągu geometrycznym $a_1 = 2$ i $a_4 = 54$. Oblicz iloraz tego ciągu.", "topics": ["lo2024:VI.6"], "requirement": "I", "difficulty": "medium"}
+{"id": "fx-27", "text": "Liczby $x$, $6$, $y$ tworzą ciąg arytmetyczny, a liczby $x$, $4$, $y - 3$ ciąg geometryczny. Wyznacz $x$ i $y$.", "topics": ["lo2024:VI.6"], "requirement": "III", "difficulty": "hard"}
+{"id": "fx-28", "text": "Zbadaj monotoniczność ciągu $a_n = \\frac{n}{n+1}$.", "topics": ["lo2024:VI.3"], "requirement": "II", "difficulty": "medium"}
+{"id": "fx-29", "text": "Sala ma $12$ miejsc w pierwszym rzędzie, a każdy następny rząd ma o $2$ miejsca więcej. Ile miejsc jest w sali o $15$ rzędach?", "topics": ["lo2024:VI.5"], "requirement": "III", "difficulty": "medium"}
+{"id": "fx-30", "text": "Wartość samochodu spada co roku o $15\\%$. Po ilu latach jego wartość będzie mniejsza niż połowa początkowej?", "topics": ["lo2024:VI.6"], "requirement": "III", "difficulty": "medium"}
