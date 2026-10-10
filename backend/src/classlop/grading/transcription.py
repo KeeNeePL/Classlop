@@ -1,10 +1,10 @@
-import base64
 import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from classlop.grading.models import Reading
+from classlop.grading.pages import image_parts
 from classlop.items import ItemVersion
 from classlop.shared import llm
 
@@ -42,7 +42,7 @@ class Transcript(BaseModel):
     items: list[ItemTranscription]
 
 
-def _shown(number: int, item: ItemVersion) -> dict:
+def item_for_model(number: int, item: ItemVersion) -> dict:
     # The key (correct_options) never reaches the model.
     shown = {"number": number, "format": item.item_format, "text": item.text}
     if item.item_format == "closed":
@@ -54,20 +54,13 @@ async def transcribe(
     items: list[tuple[int, ItemVersion]], pages: list[bytes]
 ) -> dict[int, ItemTranscription]:
     """One call over all pages; the Transcription per Item number."""
-    shown = json.dumps([_shown(n, i) for n, i in items], ensure_ascii=False, indent=1)
-    images = [
-        {
-            "type": "image_url",
-            "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(p).decode()},
-        }
-        for p in pages
-    ]
+    shown = json.dumps([item_for_model(n, i) for n, i in items], ensure_ascii=False, indent=1)
     transcript = await llm.ask(
         "grading.transcribe",
         Transcript,
         [
             SystemMessage(PROMPT),
-            HumanMessage([{"type": "text", "text": "Items:\n" + shown}, *images]),
+            HumanMessage([{"type": "text", "text": "Items:\n" + shown}, *image_parts(pages)]),
         ],
     )
     return {t.number: t for t in transcript.items}

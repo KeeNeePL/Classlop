@@ -1,3 +1,4 @@
+import base64
 import io
 
 import pillow_heif
@@ -47,3 +48,14 @@ def prepare(page: Image.Image) -> bytes:
     out = io.BytesIO()
     page.convert("RGB").save(out, "JPEG", quality=90)
     return out.getvalue()
+
+
+def image_parts(pages: list[bytes]) -> list[dict]:
+    """Prepared pages as image parts of a chat message."""
+    return [
+        {
+            "type": "image_url",
+            "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(p).decode()},
+        }
+        for p in pages
+    ]
