@@ -53,15 +53,18 @@ __all__ = [
     "TimetableExists",
     "UnmatchedAttendee",
     "add_lesson",
+    "add_recipients",
     "add_student",
     "add_timetable",
     "answer_calendar_question",
     "backend",
     "cancel_lessons",
     "change_slot",
+    "change_times",
     "close_due_assignments",
     "create_class",
     "delete_class",
+    "excuse_submission",
     "deliver_assignment",
     "list_deleted_teams",
     "restore_team",
@@ -307,3 +310,21 @@ async def poll_handins() -> int:
 async def close_due_assignments() -> int:
     """Close Open Assignments whose close time has come."""
     return await backend().close_due_assignments()
+
+
+async def add_recipients(assignment_id: str, student_ids: list[str]) -> list[Submission]:
+    """Give more Students a Scheduled or Open Assignment: a folder and a «Nowa praca» message."""
+    return await backend().add_recipients(assignment_id, student_ids)
+
+
+async def excuse_submission(submission_id: str, reason: str | None = None) -> Submission:
+    """Mark a Submission Excused at any time, with an optional private reason."""
+    return await backend().excuse_submission(submission_id, reason)
+
+
+async def change_times(
+    assignment_id: str, due_at: datetime | None = None, close_at: datetime | None = None
+) -> Assignment:
+    """Move a Given Assignment's due and/or close time; Students are told of a new due time in
+    the post's thread."""
+    return await backend().change_times(assignment_id, due_at, close_at)
