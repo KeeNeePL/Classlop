@@ -291,7 +291,7 @@ pause
 stage "Grant Graph permissions"
 step "In Classlop dev: API permissions > Add a permission > Microsoft Graph > Delegated permissions."
 step "Add: User.Read, OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, Calendars.ReadWrite,"
-step "Files.ReadWrite.All (hand-in folders: create, share, upload)"
+step "Files.ReadWrite.All (hand-in folders: create, share, read hand-ins by drive delta, lock)"
 step "and, for the teams area: Group.ReadWrite.All, TeamMember.ReadWrite.All, Channel.ReadBasic.All,"
 step "Team.Create, User.ReadBasic.All, Chat.Create, ChatMessage.Send, ChannelMessage.Send"
 if [[ "$M365_TENANT_KIND" == edu ]]; then

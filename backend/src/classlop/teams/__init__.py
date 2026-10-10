@@ -55,6 +55,7 @@ __all__ = [
     "backend",
     "cancel_lessons",
     "change_slot",
+    "close_due_assignments",
     "create_class",
     "deliver_assignment",
     "fetch_due_attendance",
@@ -72,6 +73,7 @@ __all__ = [
     "link_team",
     "list_calendar_questions",
     "override_attendance",
+    "poll_handins",
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
@@ -271,3 +273,14 @@ async def publish_scheduled(assignment_id: str, last_try: bool = False) -> Assig
 async def list_failed_gives() -> list[Assignment]:
     """Drafts that failed to be given, for the home screen."""
     return await backend().list_failed_gives()
+
+
+async def poll_handins() -> int:
+    """Turn what Students uploaded into Submissions and close what is due; the job calls this
+    every 2 minutes."""
+    return await backend().poll_handins()
+
+
+async def close_due_assignments() -> int:
+    """Close Open Assignments whose close time has come."""
+    return await backend().close_due_assignments()

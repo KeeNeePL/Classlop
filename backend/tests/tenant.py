@@ -1,10 +1,19 @@
 """What every `teams` test file shares: the clock and the tenant a test seeds and drives."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fake_graph import FakeGraph
 
+from classlop import teams
+
 TEACHER = "teacher-oid"
+WARSAW = ZoneInfo("Europe/Warsaw")
+PDF = b"%PDF-1.7 funkcje liniowe"
+DUE = datetime(2026, 9, 15, 20, 0, tzinfo=WARSAW)
+CLOSE = datetime(2026, 9, 17, 20, 0, tzinfo=WARSAW)
+ITEMS = [uuid.UUID(int=1), uuid.UUID(int=2)]
 
 
 class Clock:
@@ -37,3 +46,18 @@ class Tenant:
             if hasattr(target, name):
                 return getattr(target, name)
         raise AttributeError(name)
+
+
+def spec(**changes) -> teams.AssignmentSpec:
+    """An Assignment on two Items, due on the 15th and closing on the 17th."""
+    fields = dict(
+        title="Funkcje liniowe", type="homework", due_at=DUE, close_at=CLOSE, item_ids=ITEMS
+    )
+    return teams.AssignmentSpec(**{**fields, **changes})
+
+
+async def make_class(tenant, *names: str):
+    """A Class linked to a new team with these Students; returns it and their user ids by name."""
+    team = tenant.add_team("2A matematyka")
+    users = {name: tenant.add_member(team, name) for name in names}
+    return await tenant.link_team(team), users

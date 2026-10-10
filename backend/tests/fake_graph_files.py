@@ -5,13 +5,18 @@ and FakeTeams has the same by name."""
 import json
 import re
 import uuid
+from collections.abc import Callable
+from datetime import datetime
 from urllib.parse import unquote
 
 import httpx
 
 from classlop.teams.fake_giving import Post, Share
+from classlop.teams.service import zulu
 
 ROOT = "root"
+# Where a file's content is served from, as Graph redirects a download to a URL of its own.
+DOWNLOADS = "download.example.org"
 
 
 def _gone() -> httpx.Response:
@@ -23,7 +28,10 @@ class FilesRoutes:
 
     teacher_id: str
 
-    def _init_files(self) -> None:
+    def _init_files(self, clock: Callable[[], datetime]) -> None:
+        self._clock = clock
+        # The ids of drive items created, changed or deleted, in order: what the drive delta says.
+        self._drive_log: list[str] = []
         # Drive items by id: the Teacher's OneDrive under ROOT and each channel's files folder.
         self.drive: dict[str, dict] = {ROOT: {"id": ROOT, "name": "", "parent": None, "url": ""}}
         self._channel_folders: dict[tuple[str, str], str] = {}
@@ -67,9 +75,46 @@ class FilesRoutes:
     def invitation_emails(self) -> int:
         return self._emails
 
+    def upload(self, user_id: str, name: str, content: bytes, folder: str | None = None) -> None:
+        """A Student adds a file to the folder the Teacher shared with them (the one at `folder`,
+        a path from `shared_with`, else the latest), as of the server's time. A file of the same
+        name is replaced. Raises PermissionError once the folder is read-only."""
+        target = self._shared_folder(user_id, folder)
+        if target["shares"][user_id][1] != "write":
+            raise PermissionError(f"{self._path(target['id'])} is read-only")
+        now = zulu(self._clock())
+        same = next(
+            (i for i in self.drive.values() if i["parent"] == target["id"] and i["name"] == name),
+            None,
+        )
+        if same:
+            same.update(content=content, modified=now)
+            self._drive_log.append(same["id"])
+        else:
+            self._child(target["id"], name, content=content, created=now, modified=now, by=user_id)
+
+    def delete_file(self, user_id: str, name: str, folder: str | None = None) -> None:
+        """A Student deletes a file from their folder."""
+        target = self._shared_folder(user_id, folder)
+        gone = next(
+            i for i in self.drive.values() if i["parent"] == target["id"] and i["name"] == name
+        )
+        del self.drive[gone["id"]]
+        self._drive_log.append(gone["id"])
+
+    def _shared_folder(self, user_id: str, folder: str | None) -> dict:
+        found = [
+            i
+            for i in self.drive.values()
+            if user_id in i.get("shares", {}) and folder in (None, self._path(i["id"]))
+        ]
+        return found[-1]
+
     # The routes.
     def _files(self, request: httpx.Request) -> httpx.Response | None:
         path, method = unquote(request.url.path).removeprefix("/v1.0"), request.method
+        if request.url.host == DOWNLOADS:
+            return self._download(path.removeprefix("/"), request)
         if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/filesFolder", path):
             return self._files_folder(m[1], m[2])
         if m := re.fullmatch(r"/drives/([^/]+)/items/([^/]+):/(.+):/content", path):
@@ -83,6 +128,14 @@ class FilesRoutes:
             return self._new_folder(m[1] or ROOT, json.loads(request.content))
         if (m := re.fullmatch(r"/me/drive/items/([^/]+)/invite", path)) and method == "POST":
             return self._invite(m[1], json.loads(request.content))
+        if (m := re.fullmatch(r"/me/drive/items/([^/]+)/permissions/([^/]+)", path)) and (
+            method == "PATCH"
+        ):
+            return self._set_role(m[1], m[2], json.loads(request.content))
+        if path == "/me/drive/root/delta":
+            return self._drive_delta(request)
+        if (m := re.fullmatch(r"/me/drive/items/([^/]+)/content", path)) and method == "GET":
+            return self._redirect_to_download(m[1])
         if path == "/chats" and method == "POST":
             return self._open_chat(json.loads(request.content))
         if m := re.fullmatch(r"/chats/([^/]+)/messages", path):
@@ -116,6 +169,7 @@ class FilesRoutes:
             **fields,
         }
         self.drive[item_id] = item
+        self._drive_log.append(item_id)
         return item
 
     def _free_name(self, parent: str, name: str, stem_ext: bool = False) -> str:
@@ -140,8 +194,14 @@ class FilesRoutes:
     def _put_file(self, folder_id: str, name: str, request: httpx.Request) -> httpx.Response:
         if folder_id not in self.drive:
             return _gone()
+        now = zulu(self._clock())
         file = self._child(
-            folder_id, self._free_name(folder_id, name, stem_ext=True), content=request.content
+            folder_id,
+            self._free_name(folder_id, name, stem_ext=True),
+            content=request.content,
+            created=now,
+            modified=now,
+            by=self.teacher_id,
         )
         return httpx.Response(201, json={**self._item(file), "eTag": f'"{{{uuid.uuid4()}}},1"'})
 
@@ -168,6 +228,54 @@ class FilesRoutes:
         elif any(i["parent"] == parent and i["name"] == name for i in self.drive.values()):
             return httpx.Response(409, json={"error": {"code": "nameAlreadyExists"}})
         return httpx.Response(201, json=self._item(self._child(parent, name, shares={})))
+
+    def _set_role(self, item_id: str, permission: str, body: dict) -> httpx.Response:
+        shares = self.drive.get(item_id, {}).get("shares", {})
+        who = next((u for u, (p, _) in shares.items() if p == permission), None)
+        if who is None:
+            return _gone()
+        shares[who] = (permission, body["roles"][0])
+        return httpx.Response(200, json={"id": permission, "roles": body["roles"]})
+
+    def _redirect_to_download(self, item_id: str) -> httpx.Response:
+        if "content" not in self.drive.get(item_id, {}):
+            return _gone()
+        return httpx.Response(302, headers={"Location": f"https://{DOWNLOADS}/{item_id}"})
+
+    def _download(self, item_id: str, request: httpx.Request) -> httpx.Response:
+        # The URL is pre-authenticated: a token sent to it would be a leak.
+        if "authorization" in request.headers or "content" not in self.drive.get(item_id, {}):
+            return httpx.Response(401)
+        return httpx.Response(200, content=self.drive[item_id]["content"])
+
+    def _drive_delta(self, request: httpx.Request) -> httpx.Response:
+        """What changed in the Teacher's drive since `token` (everything without one)."""
+        rows = []
+        for item_id in dict.fromkeys(self._drive_log[int(request.url.params.get("token", 0)) :]):
+            item = self.drive.get(item_id)
+            if item is None:
+                rows.append({"id": item_id, "deleted": {"state": "deleted"}})
+                continue
+            row = {
+                "id": item_id,
+                "name": item["name"],
+                "parentReference": {"id": item["parent"], "driveId": "drive-teacher"},
+            }
+            if "content" in item:
+                row |= {
+                    "file": {},
+                    "createdDateTime": item["created"],
+                    "lastModifiedDateTime": item["modified"],
+                    "createdBy": {"user": {"id": item["by"]}},
+                }
+            else:
+                row["folder"] = {}
+            rows.append(row)
+        body = json.loads(self._page(request, rows).content)
+        if "@odata.nextLink" not in body:
+            link = request.url.copy_remove_param("skip")
+            body["@odata.deltaLink"] = str(link.copy_set_param("token", len(self._drive_log)))
+        return httpx.Response(200, json=body)
 
     def _invite(self, item_id: str, body: dict) -> httpx.Response:
         item = self.drive.get(item_id)

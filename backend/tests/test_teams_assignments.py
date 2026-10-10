@@ -2,51 +2,20 @@
 against FakeTeams. Items are pinned by a recording stand-in for `items.give`."""
 
 import uuid
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
-from tenant import ignore
+from tenant import CLOSE, DUE, ITEMS, PDF, ignore
+from tenant import make_class as _class
+from tenant import spec as _spec
 
-from classlop import items, teams
+from classlop import teams
 from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
 from classlop.shared.models import Job, Schedule
 from classlop.shared.queue import MAX_RECEIVES
 from classlop.teams import handlers, ids
-
-WARSAW = ZoneInfo("Europe/Warsaw")
-PDF = b"%PDF-1.7 funkcje liniowe"
-DUE = datetime(2026, 9, 15, 20, 0, tzinfo=WARSAW)
-CLOSE = datetime(2026, 9, 17, 20, 0, tzinfo=WARSAW)
-ITEMS = [uuid.UUID(int=1), uuid.UUID(int=2)]
-
-
-@pytest.fixture
-def gave(monkeypatch) -> list[tuple]:
-    """Every call to `items.give`, which pins each Item to a version of its own."""
-    calls: list[tuple] = []
-
-    async def give(item_ids, assignment_id, class_id, given_at):
-        calls.append((item_ids, assignment_id, class_id, given_at))
-        return [uuid.UUID(int=i.int + 100) for i in item_ids]
-
-    monkeypatch.setattr(items, "give", give)
-    return calls
-
-
-def _spec(**changes) -> teams.AssignmentSpec:
-    fields = dict(
-        title="Funkcje liniowe", type="homework", due_at=DUE, close_at=CLOSE, item_ids=ITEMS
-    )
-    return teams.AssignmentSpec(**{**fields, **changes})
-
-
-async def _class(tenant, *names: str):
-    team = tenant.add_team("2A matematyka")
-    users = {name: tenant.add_member(team, name) for name in names}
-    return await tenant.link_team(team), users
 
 
 async def test_giving_an_assignment_posts_it_in_general_with_the_items_pdf_and_the_due_time(

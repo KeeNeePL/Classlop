@@ -4,6 +4,7 @@ endpoints `teams` uses; tests seed it through the methods and never see its rout
 import json
 import re
 import uuid
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -29,7 +30,7 @@ def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -
 
 
 class FakeGraph(FilesRoutes):
-    def __init__(self, teacher_id: str):
+    def __init__(self, teacher_id: str, clock: Callable[[], datetime] = lambda: datetime.now(UTC)):
         self.teacher_id = teacher_id
         self.users: dict[str, tuple[str, str]] = {}
         self.teams: dict[str, dict] = {}
@@ -39,7 +40,7 @@ class FakeGraph(FilesRoutes):
         self.changes: list[str] = []
         self.deleted: set[str] = set()
         self.call_records: list[dict] = []
-        self._init_files()
+        self._init_files(clock)
         self.transport = httpx.MockTransport(self._handle)
 
     def add_user(self, name: str) -> str:

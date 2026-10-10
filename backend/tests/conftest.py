@@ -25,6 +25,7 @@ if sys.platform == "win32":
 from fake_graph import FakeGraph  # noqa: E402
 from tenant import TEACHER, Clock, Tenant, ignore  # noqa: E402
 
+from classlop import items  # noqa: E402
 from classlop.shared import queue  # noqa: E402
 from classlop.shared.db import sessions  # noqa: E402
 from classlop.shared.jobs import SignInRequired  # noqa: E402
@@ -33,6 +34,7 @@ from classlop.shared.models import Schedule  # noqa: E402
 from classlop.shared.settings import get_settings  # noqa: E402
 from classlop.teams.fake import FakeTeams  # noqa: E402
 from classlop.teams.graph import GraphClient  # noqa: E402
+from classlop.teams.handin_records import HandinCursor  # noqa: E402
 from classlop.teams.models import (  # noqa: E402
     CalendarCursor,
     CalendarSeriesRecord,
@@ -59,7 +61,13 @@ async def teacher(monkeypatch, stack):
     monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
     async with sessions().begin() as session:
         # Assignments and their Submissions go with their Class.
-        for table in (ClassRecord, SettingRecord, CalendarSeriesRecord, CalendarCursor):
+        for table in (
+            ClassRecord,
+            SettingRecord,
+            CalendarSeriesRecord,
+            CalendarCursor,
+            HandinCursor,
+        ):
             await session.execute(delete(table))
         await session.execute(delete(Schedule).where(Schedule.name.like("teams.give:%")))
 
@@ -74,7 +82,7 @@ def tenant(request, clock, teacher):
     """The area under test, which is also where the test seeds its invented tenant."""
     if request.param == "fake":
         return FakeTeams(clock=clock)
-    graph = FakeGraph(TEACHER)
+    graph = FakeGraph(TEACHER, clock)
     tenant = Tenant(graph)
 
     async def token() -> str:
@@ -85,3 +93,16 @@ def tenant(request, clock, teacher):
     client = GraphClient(token=token, transport=graph.transport, sleep=ignore)
     tenant.area = GraphTeams(client, clock=clock, records=client)
     return tenant
+
+
+@pytest.fixture
+def gave(monkeypatch) -> list[tuple]:
+    """Every call to `items.give`, which pins each Item to a version of its own."""
+    calls: list[tuple] = []
+
+    async def give(item_ids, assignment_id, class_id, given_at):
+        calls.append((item_ids, assignment_id, class_id, given_at))
+        return [uuid.UUID(int=i.int + 100) for i in item_ids]
+
+    monkeypatch.setattr(items, "give", give)
+    return calls

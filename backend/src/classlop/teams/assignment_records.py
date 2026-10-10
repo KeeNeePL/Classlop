@@ -55,3 +55,14 @@ class SubmissionRecord(Base):
     permission_id: Mapped[str | None] = mapped_column(Text)
     chat_id: Mapped[str | None] = mapped_column(Text)
     notice_id: Mapped[str | None] = mapped_column(Text)
+    # The hand-in, settled after 3 quiet minutes: its time, whether it is a Late submission, the
+    # signature of its file set and its copies in storage.
+    handed_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    late: Mapped[bool] = mapped_column(Boolean, default=False)
+    signature: Mapped[str | None] = mapped_column(Text)
+    files: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    # The last change seen in the folder, and whether it has yet to settle.
+    changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pending: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The folder's sharing permission is read-only.
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
