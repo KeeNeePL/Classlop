@@ -1,0 +1,41 @@
+<div class="chart">
+  @for (lane of lanes; track lane.type) {
+    <div class="lane">
+      <span class="name">{{ lane.label }}</span>
+      <div class="track" role="list" [attr.aria-label]="lane.label">
+        @for (a of marks(lane.type); track a.id) {
+          <div class="mark" role="listitem" [style.left.%]="at(a.given_at)">
+            <button type="button" [class]="status(a)" [attr.aria-label]="label(a)"></button>
+            <div class="card" role="tooltip">
+              <b>{{ a.title }}</b>
+              <div>zadana {{ given(a) }}, termin {{ due(a) }}</div>
+              <div class="state">{{ statusLabel(a) }}</div>
+              <div>oddane {{ a.handed_in }}/{{ a.total }}</div>
+              @if (a.average != null) {
+                <div>średnia {{ a.average }}%</div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+  <div class="lane axis">
+    <span></span>
+    <div class="track">
+      @for (t of ticks(); track $index) {
+        <span class="tick" [style.left.%]="t.left">{{ t.label }}</span>
+      }
+      <span class="today" [style.left.%]="today()">dziś</span>
+    </div>
+  </div>
+  <div
+    class="today-line"
+    [style.left]="'calc(120px + (100% - 120px) * ' + today() / 100 + ')'"
+  ></div>
+</div>
+<ul class="legend" aria-label="Legenda">
+  @for (s of statuses; track s[0]) {
+    <li><i [class]="s[0]"></i>{{ s[1] }}</li>
+  }
+</ul>

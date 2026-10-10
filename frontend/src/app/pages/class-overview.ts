@@ -5,25 +5,13 @@ import { map } from 'rxjs';
 import { Api } from '../api/api';
 import { overviewApiClassesClassIdOverviewGet } from '../api/functions';
 import { AssignmentRow } from '../api/models';
-import { shortDate, warsaw } from '../time';
+import { AssignmentLanes } from './assignment-lanes';
 import { Badge } from '../ui/badge';
 import { Hint } from '../ui/hint';
 import { Invented } from '../ui/invented';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
-
-const TYPE: Record<AssignmentRow['type'], string> = {
-  homework: 'Praca domowa',
-  quiz: 'Kartkówka',
-  exam: 'Sprawdzian',
-};
-const STATE: Record<AssignmentRow['state'], string> = {
-  draft: 'Szkic',
-  scheduled: 'Zaplanowana',
-  open: 'Zbieranie prac',
-  closed: 'Zamknięta',
-};
 
 const KIND: Record<AssignmentRow['type'], string> = {
   quiz: 'Kartkówki',
@@ -39,9 +27,9 @@ const HINTS = {
     'liczą się prace nieoddane, zwolnione ani wstrzymane do sprawdzenia. „brak danych” znaczy, ' +
     'że nic z tego nie zostało jeszcze ocenione.',
   assignments:
-    'Prace od najnowszej. Data to dzień, w którym praca została zadana. Pod spodem jej stan, ' +
-    'termin, liczba oddanych prac i średni wynik klasy: punkty zdobyte podzielone przez możliwe, ' +
-    'z prac ocenionych.',
+    'Kiedy zadano każdą pracę: oś pozioma to czas, pasy to typ pracy. Znaczek pokazuje ' +
+    'stan pracy (legenda pod wykresem), czerwona linia to dziś. Najedź na znaczek, żeby ' +
+    'zobaczyć termin, liczbę oddanych prac i średni wynik klasy.',
   attention:
     'Uczeń trafia tu, gdy nie oddał 2 z ostatnich 5 prac, ma wynik poniżej 30% albo 3 ' +
     'nieobecności w ostatnich 10 lekcjach. Lista pokazuje najwyżej pięć osób, od tych, ' +
@@ -54,7 +42,7 @@ const HINTS = {
 
 /** The Class page's Przegląd tab. */
 @Component({
-  imports: [Badge, Hint, Invented, MathText, Panel, Percent, RouterLink],
+  imports: [AssignmentLanes, Badge, Hint, Invented, MathText, Panel, Percent, RouterLink],
   templateUrl: './class-overview.html',
   styleUrl: './class-overview.css',
 })
@@ -90,10 +78,5 @@ export class ClassOverview {
     }));
   });
 
-  protected readonly type = (a: AssignmentRow) => TYPE[a.type];
-  protected readonly state = (a: AssignmentRow) => STATE[a.state];
-  protected readonly given = (a: AssignmentRow) => shortDate(a.given_at);
-  protected readonly due = (a: AssignmentRow) => warsaw(a.due);
-  protected readonly tone = (a: AssignmentRow) => (a.type === 'exam' ? 'warn' : '');
   protected readonly link = (student: string) => ['/klasy', this.id(), 'uczniowie', student];
 }

@@ -59,25 +59,7 @@
 
   <cl-panel>
     <h2>Prace<cl-hint [text]="hints.assignments" /></h2>
-    <ol class="timeline" aria-label="Prace">
-      @for (a of o.assignments; track a.id) {
-        <li [class]="a.state">
-          <div class="when">
-            <time>{{ given(a) }}</time>
-            <cl-badge [tone]="tone(a)">{{ type(a) }}</cl-badge>
-          </div>
-          <b class="title">{{ a.title }}</b>
-          <div class="status">
-            <span class="state">{{ state(a) }}</span>
-            <span>termin {{ due(a) }}</span>
-            <span>oddane {{ a.handed_in }}/{{ a.total }}</span>
-            @if (a.average != null) {
-              <span>średnia {{ a.average }}%</span>
-            }
-          </div>
-        </li>
-      }
-    </ol>
+    <cl-assignment-lanes [assignments]="o.assignments" />
   </cl-panel>
 
   <cl-panel>

@@ -1,0 +1,151 @@
+.chart {
+  position: relative;
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.track {
+  position: relative;
+  height: 44px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.axis .track {
+  height: 28px;
+  border-bottom: 0;
+}
+
+.tick,
+.today {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.today {
+  top: 6px;
+  color: var(--red);
+  font-weight: 600;
+  background: var(--card);
+  padding: 0 4px;
+}
+
+.today-line {
+  position: absolute;
+  top: 0;
+  bottom: 28px;
+  border-left: 1.5px dashed var(--red);
+  pointer-events: none;
+}
+
+.mark {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* the status marks, shared with the legend; :where keeps the status classes winning */
+:where(button, .legend i) {
+  display: block;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  background: var(--card);
+}
+
+button {
+  cursor: pointer;
+}
+
+.graded {
+  background: #1d6b3c;
+  border-color: #1d6b3c;
+}
+
+.open {
+  border-color: var(--pen);
+  background: radial-gradient(var(--pen) 0 35%, var(--card) 40%);
+}
+
+.closed {
+  background: var(--muted);
+  border-color: var(--muted);
+}
+
+.scheduled {
+  border-style: dashed;
+  border-color: var(--muted);
+}
+
+button:hover,
+button:focus-visible {
+  transform: scale(1.25);
+}
+
+.card {
+  display: none;
+  position: absolute;
+  z-index: 10;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card b {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.card .state {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.mark:hover .card,
+.mark:focus-within .card {
+  display: block;
+}
+
+.legend {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 12px 0 0 120px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  width: 14px;
+  height: 14px;
+}

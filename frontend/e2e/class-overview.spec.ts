@@ -24,18 +24,15 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();
 
-  const works = page.getByRole('list', { name: 'Prace' }).getByRole('listitem');
-  await expect(works.locator('.title')).toHaveText([
-    'Funkcje',
-    'Nierówności',
-    'Równania',
-    'Wzory skróconego mnożenia',
-    'Zbiory liczbowe',
-  ]);
-  await expect(works.first()).toContainText('Praca domowa');
-  await expect(works.first()).toContainText('Zbieranie prac');
-  await expect(works.nth(1)).toContainText('Kartkówka');
-  await expect(works.nth(1)).toContainText('Zamknięta');
+  for (const lane of ['Sprawdzian', 'Kartkówka', 'Praca domowa']) {
+    await expect(page.getByRole('list', { name: lane })).toBeVisible();
+  }
+  const funkcje = page.getByRole('button', { name: /^Funkcje, zadana .*, Zbieranie prac$/ });
+  await expect(page.getByRole('button', { name: /^Równania, zadana .*, Ocenione$/ })).toBeVisible();
+  await funkcje.hover();
+  await expect(page.getByRole('tooltip').filter({ hasText: 'Funkcje' })).toContainText(
+    'oddane 5/8',
+  );
 
   const attention = page.getByRole('list', { name: 'Wymagają uwagi' }).getByRole('listitem');
   await expect(attention.first()).toContainText('Wynik');
