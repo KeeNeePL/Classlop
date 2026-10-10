@@ -16,6 +16,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "pypdfium2>=5.14.0",
     "sqlalchemy[asyncio]>=2.1.4",
+    "typst>=0.15.0",
     "uvicorn[standard]>=0.54.0",
 ]
 

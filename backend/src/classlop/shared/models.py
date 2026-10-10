@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from classlop.shared.db import Base
+from classlop.shared.queue import MAX_RECEIVES
 
 STATUSES = ("queued", "running", "succeeded", "failed", "waiting_for_sign_in")
 
@@ -30,6 +31,11 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def final_attempt(self) -> bool:
+        """The last try before SQS moves the message to the dead-letter queue."""
+        return self.attempts >= MAX_RECEIVES
 
 
 class Schedule(Base):

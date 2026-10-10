@@ -130,6 +130,22 @@ async def test_a_handler_that_keeps_failing_ends_failed_in_the_dlq():
     await until(in_dlq, timeout=30)
 
 
+async def test_a_handler_knows_when_it_is_on_its_final_attempt():
+    kind, seen = new_kind(), []
+
+    @jobs.handler(kind)
+    async def broken(job, progress):
+        seen.append(job.final_attempt)
+        raise RuntimeError("boom")
+
+    async def failed():
+        return (await job_of(job_id)).status == "failed"
+
+    job_id = await jobs.enqueue(kind)
+    await until(failed)
+    assert seen == [False, False, True]
+
+
 async def test_sign_in_required_parks_the_job_until_resumed():
     kind, signed_in = new_kind(), False
 
