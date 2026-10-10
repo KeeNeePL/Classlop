@@ -8,6 +8,10 @@ def main(argv: list[str] | None = None) -> None:
     commands.add_parser("web", help="serve the API and the dashboard on :8000")
     commands.add_parser("migrate", help="apply every area's migrations")
     commands.add_parser("rebuild-index", help="rebuild the items search index from Postgres")
+    load = commands.add_parser(
+        "load-knowledge-base", help="upload an Exemplar bundle to S3 and queue its load"
+    )
+    load.add_argument("bundle", help="a JSONL bundle file")
     commands.add_parser("worker", help="run background jobs from the queue")
     commands.add_parser("scheduler", help="dev only: fire due schedules onto the queue")
     commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
@@ -38,6 +42,13 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.items.index import rebuild
 
         print(f"indexed {asyncio.run(rebuild())} items")
+    elif args.command == "load-knowledge-base":
+        import asyncio
+        from pathlib import Path
+
+        from classlop.items.exemplars import upload
+
+        print(f"queued the load of {asyncio.run(upload(Path(args.bundle)))}")
     elif args.command == "worker":
         import asyncio
 

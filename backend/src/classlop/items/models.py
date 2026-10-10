@@ -79,3 +79,27 @@ class UsageRow(Base):
     assignment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     class_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
     given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ExemplarRow(Base):
+    """A Knowledge base Exemplar; the bundle's id makes a load idempotent."""
+
+    __tablename__ = "exemplar"
+    __table_args__ = (
+        CheckConstraint(f"difficulty IN {get_args(Difficulty)}", name="exemplar_difficulty"),
+        {"schema": "items"},
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text)
+    solution: Mapped[str | None] = mapped_column(Text)
+    difficulty: Mapped[str] = mapped_column(Text)
+    curriculum_topics: Mapped[list] = mapped_column(JSONB)
+    general_requirements: Mapped[list] = mapped_column(JSONB)
+    # The source's own tags (ZPE level, difficulty, podstawa ids), kept for comparison.
+    source_tags: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # Kept so the index can be rebuilt without embedding again.
+    embedding: Mapped[list] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
