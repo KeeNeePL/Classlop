@@ -4,6 +4,12 @@ from classlop.items.curriculum import (
     curriculum,
     general_requirements,
 )
+from classlop.items.generation import (
+    GenerationOrigin,
+    GenerationSpec,
+    Line,
+    request_generation,
+)
 from classlop.items.index import count_items, search_items
 from classlop.items.records import (
     ItemEdit,
@@ -38,10 +44,13 @@ __all__ = [
     "CurriculumTopic",
     "Filters",
     "GeneralRequirementText",
+    "GenerationOrigin",
+    "GenerationSpec",
     "Item",
     "ItemContent",
     "ItemEdit",
     "ItemVersion",
+    "Line",
     "RubricLevel",
     "SearchPage",
     "SectionCount",
@@ -58,6 +67,7 @@ __all__ = [
     "get_versions",
     "give",
     "new_version",
+    "request_generation",
     "restore_item",
     "retag",
     "retire_item",

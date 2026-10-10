@@ -13,7 +13,7 @@ from sqlalchemy import select
 from classlop.items import embedding
 from classlop.items.models import ItemRow, UsageRow
 from classlop.items.records import get_items
-from classlop.items.types import Filters, Item, SearchPage, SectionCount
+from classlop.items.types import Filters, ItemContent, SearchPage, SectionCount
 from classlop.shared.db import sessions
 from classlop.shared.search import client
 from classlop.shared.settings import get_settings
@@ -81,9 +81,8 @@ def section_of(topic_id: str) -> str:
     return topic_id.rsplit(".", 1)[0]
 
 
-def searchable_text(item: Item) -> str:
+def searchable_text(v: ItemContent) -> str:
     """The text, options and Curriculum topic wording with the LaTeX markup stripped."""
-    v = item.version
     parts = [v.text, *v.options.values(), *(t.name for t in v.curriculum_topics)]
     return re.sub(r"[\s$\\{}^_]+", " ", " ".join(parts)).strip()
 
@@ -104,7 +103,7 @@ async def _class_ids(item_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[str]]:
 async def _documents(item_ids: list[uuid.UUID]) -> list[dict]:
     items = await get_items(item_ids)
     used = await _class_ids(item_ids)
-    texts = [searchable_text(i) for i in items]
+    texts = [searchable_text(i.version) for i in items]
     vectors = await embedding.embed(texts)
     return [
         {
