@@ -33,7 +33,7 @@ NAMES = [
     "Hubert Z.",
 ]
 TYPES: list[AssignmentType] = ["homework", "quiz", "exam", "quiz", "homework"]
-TITLES = ["Zbiory liczbowe", "Wzory skróconego mnożenia", "Równania", "Nierówności", "Funkcje"]
+TITLES = ["Zbiory liczbowe", "Wzory skróconego mnożenia", "Równania", "Układy równań", "Funkcje"]
 
 
 class OverviewResponse(ClassOverview):
@@ -41,11 +41,11 @@ class OverviewResponse(ClassOverview):
 
 
 def invented(class_id: str, name: str, now: datetime) -> ClassData:
-    """Hardcoded stand-in until the areas' per-Class reads land. Only the first sections of the
-    Curriculum are covered, so the rest show "brak danych"."""
+    """Hardcoded stand-in until the areas' per-Class reads land. Assignment n covers Curriculum
+    section n and touches section n + 1, so five sections are assessed (more than Progress shows
+    folded) and the rest show "brak danych"."""
     rng = random.Random(class_id)
     sections = curriculum()
-    pool = [t.id for s in sections[:3] for t in s.topics[:2]]
     # The first Student is weak, the second misses the last Assignments, the third skips Lessons.
     ability = [0.2, 0.6, 0.7, 0.9, 0.5, 0.8, 0.65, 0.75]
     students = tuple(
@@ -54,7 +54,8 @@ def invented(class_id: str, name: str, now: datetime) -> ClassData:
     )
     assignments = []
     for n, title in enumerate(TITLES):
-        items = [tuple(rng.sample(pool, rng.choice([1, 1, 2]))) for _ in range(3)]
+        own, next_ = sections[n].topics, sections[n + 1].topics
+        items = [(own[0].id,), (own[1].id, next_[0].id), (next_[1].id,)]
         open_ = n == len(TITLES) - 1
         submissions = []
         for s, a in zip(students, ability, strict=True):

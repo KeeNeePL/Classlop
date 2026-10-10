@@ -97,10 +97,6 @@ svg {
   --status: #1d6b3c;
 }
 
-.closed {
-  --status: #c27c0e;
-}
-
 button:hover,
 button:focus-visible {
   transform: scale(1.25);
@@ -110,28 +106,44 @@ button:focus-visible {
   display: none;
   position: absolute;
   z-index: 10;
-  top: 34px;
+  top: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
   width: 240px;
-  padding: 10px 12px;
-  background: var(--card);
-  border: 1px solid var(--ink);
-  border-radius: 4px;
-  box-shadow: 3px 3px 0 var(--line);
+  padding: 10px 14px;
+  background: var(--ink);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(22 35 63 / 0.25);
   font-size: 13px;
-  color: var(--muted);
+  line-height: 1.55;
+  color: rgb(255 255 255 / 0.75);
 }
 
-.card b {
+/* the arrow, pointing at the icon */
+.card::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: calc(50% - 5px);
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+
+.card b,
+.card .state {
   display: block;
-  color: var(--ink);
-  margin-bottom: 2px;
+  color: var(--card);
 }
 
 .card .state {
-  color: var(--ink);
   font-weight: 600;
+}
+
+.mark:hover,
+.mark:focus-within {
+  z-index: 10;
 }
 
 .mark:hover .card,

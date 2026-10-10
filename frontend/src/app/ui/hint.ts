@@ -17,39 +17,51 @@ let next = 0;
       margin-left: 8px;
     }
     button {
+      display: grid;
+      place-items: center;
       width: 18px;
       height: 18px;
       padding: 0;
-      border: 1.5px solid var(--muted);
+      border: 0;
       border-radius: 50%;
-      background: var(--card);
+      background: var(--grid);
       color: var(--muted);
-      font: italic 700 12px/1 var(--display);
+      font: 700 12px/1 var(--display);
       cursor: help;
     }
     button:hover,
     button:focus-visible {
-      border-color: var(--pen);
-      color: var(--pen);
+      background: var(--pen);
+      color: var(--card);
     }
     span {
       display: none;
       position: absolute;
       z-index: 10;
-      top: 26px;
-      left: -8px;
-      width: 320px;
-      padding: 10px 12px;
-      background: var(--card);
-      border: 1px solid var(--ink);
-      border-radius: 4px;
-      box-shadow: 3px 3px 0 var(--line);
-      color: var(--ink);
+      top: calc(100% + 10px);
+      left: -12px;
+      width: 300px;
+      padding: 10px 14px;
+      background: var(--ink);
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgb(22 35 63 / 0.25);
+      color: var(--card);
       font:
-        400 13px/1.45 'Public Sans Variable',
+        400 13px/1.55 'Public Sans Variable',
         system-ui,
         sans-serif;
       letter-spacing: normal;
+    }
+    /* the arrow, pointing at the "i" */
+    span::before {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: 17px;
+      width: 10px;
+      height: 10px;
+      background: var(--ink);
+      transform: rotate(45deg);
     }
     :host(:hover) span,
     :host(:focus-within) span {

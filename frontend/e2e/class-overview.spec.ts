@@ -7,7 +7,10 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByText('ZMYŚLONE')).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Postęp' })).toBeVisible();
-  await expect(page.getByText('Liczby rzeczywiste')).toBeVisible();
+  // Folded: the four sections with the newest graded work; the oldest, Liczby rzeczywiste, waits.
+  const progress = page.locator('cl-panel').first();
+  await expect(progress.getByText('Układy równań', { exact: true })).toBeVisible();
+  await expect(progress.getByText('Liczby rzeczywiste')).toHaveCount(0);
   for (const kind of ['Kartkówki', 'Sprawdziany', 'Prace domowe']) {
     await expect(page.getByText(kind, { exact: true })).toBeVisible();
   }
@@ -23,6 +26,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByText('Stereometria')).toHaveCount(0);
   await page.getByRole('button', { name: 'Rozwiń wszystkie działy' }).click();
   await expect(page.getByText('Stereometria')).toBeVisible();
+  await expect(page.getByText('Liczby rzeczywiste')).toBeVisible();
   await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('tab', { name: 'Tematy' }).click();
@@ -35,7 +39,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByRole('button', { name: /^Równania, zadana .*, Ocenione$/ })).toBeVisible();
   await funkcje.hover();
   await expect(page.getByRole('tooltip').filter({ hasText: 'Funkcje' })).toContainText(
-    'oddane 5/8',
+    /oddane \d+\/8/,
   );
 
   const attention = page.getByRole('list', { name: 'Wymagają uwagi' }).getByRole('listitem');

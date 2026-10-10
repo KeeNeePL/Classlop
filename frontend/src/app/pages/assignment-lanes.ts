@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { AssignmentRow } from '../api/models';
 import { shortDate, warsaw } from '../time';
 
-type Status = 'scheduled' | 'open' | 'graded' | 'closed';
+type Status = 'scheduled' | 'open' | 'graded';
 
 const LANES: { type: AssignmentRow['type']; label: string }[] = [
   { type: 'exam', label: 'Sprawdzian' },
@@ -14,7 +14,6 @@ export const STATUS: Record<Status, string> = {
   scheduled: 'Zaplanowana',
   open: 'Zbieranie prac',
   graded: 'Ocenione',
-  closed: 'Zamknięta, bez ocen',
 };
 
 const DAY = 86_400_000;
@@ -57,14 +56,9 @@ export class AssignmentLanes {
   protected readonly marks = (type: AssignmentRow['type']) =>
     this.assignments().filter((a) => a.type === type);
 
+  /** AI grades every Submission as it comes in, so a closed Assignment counts as graded. */
   protected readonly status = (a: AssignmentRow): Status =>
-    a.state === 'closed'
-      ? a.average == null
-        ? 'closed'
-        : 'graded'
-      : a.state === 'open'
-        ? 'open'
-        : 'scheduled';
+    a.state === 'closed' ? 'graded' : a.state === 'open' ? 'open' : 'scheduled';
 
   protected readonly statusLabel = (a: AssignmentRow) => STATUS[this.status(a)];
   protected readonly given = (a: AssignmentRow) => shortDate(a.given_at);
