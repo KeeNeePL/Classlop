@@ -10,6 +10,7 @@ from langgraph.types import Send
 from pydantic import BaseModel
 
 from classlop import items as items_area
+from classlop.grading.common_mistakes import chosen_option_mistake, request_if_computed
 from classlop.grading.models import GradedItem, GradedSubmission, Reading
 from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
@@ -48,6 +49,7 @@ class GradeJob(BaseModel):
     handed_in_at: datetime
     items: list[AssignedItem]
     files: list[str]
+    assignment_id: uuid.UUID
 
 
 class Input(TypedDict):
@@ -92,6 +94,7 @@ async def hold(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held,
@@ -169,8 +172,11 @@ def _grade_item(
         chosen = transcription.chosen_option if transcription else None
         right = reading not in UNSCORED and [chosen] == item.correct_options
         points = item.points if right else 0
+        wrong_choice = reading not in UNSCORED and not right and chosen in item.options
+        mistake = chosen_option_mistake(chosen) if wrong_choice and chosen else None
     else:
         points = min(max(scored.points, 0), item.points) if scored else 0
+        mistake = scored.mistake if scored and points < item.points else None
     if reading == "blank":
         feedback = BLANK
     elif reading == "unreadable" or not (transcription and transcription.transcription.strip()):
@@ -194,7 +200,7 @@ def _grade_item(
         if transcription and reading != "blank"
         else "",
         feedback=feedback,
-        mistake=scored.mistake if scored and points < item.points else None,
+        mistake=mistake,
         verification_note=dispute,
     )
 
@@ -225,6 +231,7 @@ async def assess(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
@@ -238,6 +245,7 @@ async def persist(state: State) -> dict:
     async with sessions().begin() as session:
         session.add(state["graded"])
     await announce(state["job"])
+    await request_if_computed(state["job"].assignment_id)
     return {}
 
 

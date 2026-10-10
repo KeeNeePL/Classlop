@@ -130,6 +130,22 @@ async def test_a_handler_that_keeps_failing_ends_failed_in_the_dlq():
     await until(in_dlq, timeout=30)
 
 
+async def test_a_delayed_job_waits_before_it_runs():
+    kind = new_kind()
+
+    @jobs.handler(kind)
+    async def quick(job, progress):
+        return {"ok": True}
+
+    async def succeeded():
+        return (await job_of(job_id)).status == "succeeded"
+
+    job_id = await jobs.enqueue(kind, delay=3)
+    await asyncio.sleep(1.5)
+    assert (await job_of(job_id)).attempts == 0
+    await until(succeeded)
+
+
 async def test_a_handler_knows_when_it_is_on_its_final_attempt():
     kind, seen = new_kind(), []
 

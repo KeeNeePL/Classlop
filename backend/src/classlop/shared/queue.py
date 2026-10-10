@@ -47,8 +47,10 @@ def dlq_url() -> str:
     return _client().get_queue_url(QueueName=get_settings().jobs_dlq)["QueueUrl"]
 
 
-async def send(body: dict) -> None:
-    await asyncio.to_thread(_client().send_message, QueueUrl=url(), MessageBody=json.dumps(body))
+async def send(body: dict, delay: int = 0) -> None:
+    await asyncio.to_thread(
+        _client().send_message, QueueUrl=url(), MessageBody=json.dumps(body), DelaySeconds=delay
+    )
 
 
 async def receive(wait_seconds: int = 2) -> list[dict]:

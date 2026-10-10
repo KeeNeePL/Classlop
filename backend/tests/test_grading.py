@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import os
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -56,6 +57,18 @@ class Recording(GenericFakeChatModel):
         return ChatResult(generations=[ChatGeneration(message=AIMessage(reply))])
 
 
+class Clusterer(Recording):
+    """Groups the numbered mistakes of the prompt that read exactly alike."""
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        groups: dict[str, list[int]] = {}
+        for number, text in re.findall(r"^(\d+)\. (.+)$", text_of(messages), re.MULTILINE):
+            groups.setdefault(text, []).append(int(number))
+        clusters = [{"description": t, "members": m} for t, m in groups.items()]
+        reply = AIMessage(json.dumps({"clusters": clusters}))
+        return ChatResult(generations=[ChatGeneration(message=reply)])
+
+
 class FakeLLM:
     """Scripted replies per config key at `shared.llm`; records what each model was sent."""
 
@@ -81,6 +94,9 @@ class FakeLLM:
         """The scoring reply for each open Item, by its text."""
         replies = {text: json.dumps(score) for text, score in by_text.items()}
         self.models["grading.score"] = Recording(messages=iter([]), by_text=replies)
+
+    def clusters_alike(self) -> None:
+        self.models["grading.common_mistakes"] = Clusterer(messages=iter([]))
 
     def prompt(self, key="grading.transcribe") -> str:
         return "\n".join(text_of(messages) for messages in self.models[key].seen)
@@ -195,11 +211,16 @@ def pdf(pages: int, size=(595, 842)) -> bytes:
 
 
 async def hand_in(
-    bank, assignment: list[ItemVersion], files: list[bytes] | None = None, deliveries: int = 1
+    bank,
+    assignment: list[ItemVersion],
+    files: list[bytes] | None = None,
+    deliveries: int = 1,
+    assignment_id: uuid.UUID | None = None,
+    submission_id: uuid.UUID | None = None,
 ):
     """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it; returns the
     hand-in's key."""
-    submission_id, handed_in_at = uuid.uuid4(), datetime.now(UTC)
+    submission_id, handed_in_at = submission_id or uuid.uuid4(), datetime.now(UTC)
     keys = []
     for n, file in enumerate(files or [photo()], 1):
         # Named and typed as the Student's phone sent it; grading goes by content.
@@ -213,6 +234,7 @@ async def hand_in(
         "handed_in_at": handed_in_at.isoformat(),
         "items": [{"id": str(i.id), "number": n} for n, i in enumerate(assignment, 1)],
         "files": keys,
+        "assignment_id": str(assignment_id or uuid.uuid4()),
     }
 
     async def progress(value):
@@ -449,7 +471,7 @@ async def test_a_mixed_submission_scores_only_open_items_with_the_model(bank, fa
     assert result is not None
     assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
     assert [(i.ai_points, i.feedback, i.mistake) for i in result.items] == [
-        (0, "błędna odpowiedź", None),
+        (0, "błędna odpowiedź", "zaznaczona odpowiedź C"),
         (2, "poprawnie", None),
         (0, "brak rozwiązania", None),
     ]
@@ -699,3 +721,131 @@ async def test_work_missed_on_a_blank_item_is_held_without_scoring_nothing(bank,
         ("unsure", 0, "nie udało się odczytać rozwiązania", "pod Z. 1 jest rozwiązanie")
     ]
     assert result.held
+
+
+async def hand_in_mistake(bank, fake_llm, item, assignment_id, mistake, **kwargs):
+    """A Submission of one open Item that lost a point to `mistake`."""
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback="W kroku 2 pojawia się błąd.", mistake=mistake)})
+    return await hand_in(bank, [item], assignment_id=assignment_id, **kwargs)
+
+
+async def mistake_jobs(assignment_id) -> list[Job]:
+    async with sessions()() as session:
+        found = await session.scalars(
+            select(Job).where(Job.kind == "grading.common_mistakes").order_by(Job.created_at)
+        )
+        return [j for j in found if j.payload["assignment_id"] == str(assignment_id)]
+
+
+async def gather(assignment_id, requested_at: str | None = None) -> None:
+    """Run the job `teams` enqueues at the due time, or the one a recompute request enqueued."""
+    payload = {"assignment_id": str(assignment_id)}
+    if requested_at:
+        payload["requested_at"] = requested_at
+
+    async def progress(value):
+        pass
+
+    job = Job(id=uuid.uuid4(), kind="grading.common_mistakes", payload=payload, attempts=1)
+    await grading.gather_common_mistakes(job, progress)
+
+
+async def test_only_mistakes_made_in_three_submissions_are_common(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    sign = [
+        (await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak"))[0]
+        for _ in range(3)
+    ]
+    for _ in range(2):
+        await hand_in_mistake(bank, fake_llm, item, assignment_id, "zły wzór")
+    fake_llm.clusters_alike()
+
+    await gather(assignment_id)
+
+    (per_item,) = await grading.common_mistakes(assignment_id)
+    assert per_item.item_id == item.id
+    assert [(m.description, m.count, set(m.submission_ids)) for m in per_item.mistakes] == [
+        ("błędny znak", 3, set(sign))
+    ]
+
+
+async def test_at_most_three_common_mistakes_per_item_most_frequent_first(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    for mistake, times in [("a", 3), ("b", 5), ("c", 4), ("d", 3)]:
+        for _ in range(times):
+            await hand_in_mistake(bank, fake_llm, item, assignment_id, mistake)
+    fake_llm.clusters_alike()
+
+    await gather(assignment_id)
+
+    (per_item,) = await grading.common_mistakes(assignment_id)
+    assert [(m.description, m.count) for m in per_item.mistakes][:2] == [("b", 5), ("c", 4)]
+    assert [m.count for m in per_item.mistakes] == [5, 4, 3]
+
+
+async def test_only_the_latest_hand_in_of_a_submission_counts(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    first = [
+        (await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak"))[0]
+        for _ in range(3)
+    ]
+    # The third Student hands in again and no longer makes the mistake.
+    await hand_in_mistake(bank, fake_llm, item, assignment_id, "zły wzór", submission_id=first[2])
+    fake_llm.clusters_alike()
+
+    await gather(assignment_id)
+
+    assert await grading.common_mistakes(assignment_id) == []
+
+
+async def test_a_recompute_runs_only_if_no_newer_request_came(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), open_item()
+    for _ in range(3):
+        await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak")
+    fake_llm.clusters_alike()
+    fake_llm.keys.clear()
+
+    await grading.request_common_mistakes(assignment_id)
+    await grading.request_common_mistakes(assignment_id)
+    older, newer = await mistake_jobs(assignment_id)
+
+    await gather(assignment_id, older.payload["requested_at"])
+    assert (fake_llm.keys, await grading.common_mistakes(assignment_id)) == ([], [])
+
+    await gather(assignment_id, newer.payload["requested_at"])
+    assert fake_llm.keys == ["grading.common_mistakes"]
+    assert len(await grading.common_mistakes(assignment_id)) == 1
+
+
+async def test_grading_after_the_first_run_requests_a_recompute(bank, fake_llm):
+    # A Late submission, or an on-time one graded after the due-time run.
+    assignment_id, item = uuid.uuid4(), open_item()
+
+    await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak")
+    assert await mistake_jobs(assignment_id) == []
+
+    fake_llm.clusters_alike()
+    await gather(assignment_id)
+    await hand_in_mistake(bank, fake_llm, item, assignment_id, "błędny znak")
+    (job,) = await mistake_jobs(assignment_id)
+    assert "requested_at" in job.payload
+
+
+async def test_a_wrong_option_chosen_by_three_submissions_is_common(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), closed(correct="B")
+    chose_c = []
+    for chosen in ["C", "C", "D", "C", "D", "B"]:
+        fake_llm.transcribes(read(1, chosen=chosen, transcription=chosen))
+        submission_id, _ = await hand_in(bank, [item], assignment_id=assignment_id)
+        if chosen == "C":
+            chose_c.append(submission_id)
+    fake_llm.keys.clear()
+
+    await gather(assignment_id)
+
+    assert fake_llm.keys == []
+    (per_item,) = await grading.common_mistakes(assignment_id)
+    assert [(m.description, m.count, set(m.submission_ids)) for m in per_item.mistakes] == [
+        ("Uczniowie często zaznaczają odpowiedź C", 3, set(chose_c))
+    ]
