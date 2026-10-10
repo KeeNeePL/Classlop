@@ -4,11 +4,11 @@
 /* A maths exercise book: squared paper, the red margin line, blue pen, the teacher's red pen. */
 :root {
   --paper: #fafbfd;
-  --grid: #dce4f0;
+  --grid: #edf1f7;
   --card: #fff;
   --ink: #16233f;
   --muted: #5b6882;
-  --line: #cbd5e5;
+  --line: #d5dce8;
   --pen: #2f55d4;
   --red: #d93a2f;
   --red-soft: #fdecea;
@@ -55,7 +55,7 @@ h2 {
 }
 
 h1 {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 700;
   margin: 0;
 }
@@ -74,7 +74,7 @@ h2 {
   display: inline-block;
   font: inherit;
   font-weight: 600;
-  border: 1.5px solid var(--ink);
+  border: 1px solid var(--line);
   background: var(--card);
   color: var(--ink);
   border-radius: 4px;

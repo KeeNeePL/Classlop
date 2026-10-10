@@ -4,7 +4,7 @@ nav {
   height: 100vh;
   background: var(--paper);
   /* the margin line of an exercise book */
-  border-right: 2px solid var(--red);
+  border-right: 1px solid rgb(217 58 47 / 0.5);
   padding: 20px 14px 16px 18px;
   display: flex;
   flex-direction: column;
@@ -32,7 +32,7 @@ a.on .name {
 
 .logo {
   font-family: var(--display);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.03em;
   padding: 0 8px 14px;
@@ -59,7 +59,7 @@ a.on .name {
   height: 24px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--red);
+  border: 1px solid var(--red);
   border-radius: 50%;
   color: var(--red);
   font-size: 12px;

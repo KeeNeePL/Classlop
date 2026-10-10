@@ -33,7 +33,7 @@ ol {
 .ico {
   width: 40px;
   height: 40px;
-  border: 1.5px solid var(--ink);
+  border: 1px solid var(--line);
   border-radius: 4px;
   display: grid;
   place-items: center;
@@ -51,8 +51,7 @@ ol {
 
 /* the teacher's red pen: what needs attention is marked in the margin */
 .problem {
-  border-left: 4px solid var(--red);
-  background: linear-gradient(90deg, var(--red-soft), var(--card) 40%);
+  border-left: 3px solid var(--red);
 }
 
 .problem .ico {
@@ -63,13 +62,13 @@ ol {
 }
 
 .live {
-  border-color: var(--ink);
+  border-color: var(--line);
 }
 
 .live .ico {
   position: relative;
-  background: var(--ink);
-  color: var(--card);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .live .ico::after {

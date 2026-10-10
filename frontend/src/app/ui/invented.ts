@@ -15,8 +15,6 @@ import { Component } from '@angular/core';
       font-size: 11px;
       letter-spacing: 0.08em;
       padding: 3px 9px;
-      transform: rotate(-2deg);
-      box-shadow: 0 1px 0 rgb(22 35 63 / 0.25);
     }
   `,
 })
