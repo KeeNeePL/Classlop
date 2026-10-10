@@ -1,9 +1,6 @@
 <nav>
   <a class="logo" routerLink="/">Classlop</a>
   @if (home(); as h) {
-    @if (h.sidebar_invented) {
-      <div class="invented"><cl-invented /></div>
-    }
     <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">
       <span class="name">Do zrobienia</span> <span class="count">{{ h.entries.length || '' }}</span>
     </a>

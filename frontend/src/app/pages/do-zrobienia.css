@@ -2,12 +2,6 @@ header {
   margin-bottom: 20px;
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
 header p {
   margin: 6px 0 0;
 }

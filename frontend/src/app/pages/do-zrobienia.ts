@@ -3,7 +3,6 @@ import { RouterLink } from '@angular/router';
 import { Entry } from '../api/models';
 import { HomeStore } from '../shell/home-store';
 import { today, warsaw } from '../time';
-import { Invented } from '../ui/invented';
 
 const MARK: Record<Entry['kind'], { icon: string; tone: string }> = {
   live_lesson: { icon: 'LEK', tone: 'live' },
@@ -16,7 +15,7 @@ const MARK: Record<Entry['kind'], { icon: string; tone: string }> = {
 };
 
 @Component({
-  imports: [RouterLink, Invented],
+  imports: [RouterLink],
   templateUrl: './do-zrobienia.html',
   styleUrl: './do-zrobienia.css',
 })

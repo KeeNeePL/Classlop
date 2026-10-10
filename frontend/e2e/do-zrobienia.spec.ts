@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('Do zrobienia opens with the sidebar and its queue, badged as invented', async ({ page }) => {
+test('Do zrobienia opens with the sidebar and its queue', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Do zrobienia' })).toBeVisible();
@@ -16,7 +16,6 @@ test('Do zrobienia opens with the sidebar and its queue, badged as invented', as
     'Lekcja: klasa 3B',
     'Termin: Wzory skróconego mnożenia (1A)',
   ]);
-  await expect(page.getByText('ZMYŚLONE').first()).toBeVisible();
 
   const sidebar = page.getByRole('navigation');
   await expect(sidebar.getByRole('link', { name: /^Do zrobienia\s*8$/ })).toBeVisible();

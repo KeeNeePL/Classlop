@@ -1,11 +1,10 @@
 import { Component, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { Invented } from '../ui/invented';
 import { HomeStore } from './home-store';
 
 @Component({
   selector: 'cl-sidebar',
-  imports: [RouterLink, RouterLinkActive, Invented],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
 })
