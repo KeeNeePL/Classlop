@@ -6,7 +6,7 @@ from classlop.shared.settings import Settings, get_settings
 
 
 def chat_model(job: str) -> ChatOpenAI:
-    """The chat model for a job key such as "grading.transcription"."""
+    """The chat model for a job key such as "grading.transcribe"."""
     s = get_settings()
     return ChatOpenAI(
         model=s.llm_models.get(job, s.llm_chat_model),
