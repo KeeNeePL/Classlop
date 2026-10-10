@@ -70,6 +70,7 @@ async def teacher(monkeypatch, stack):
         ):
             await session.execute(delete(table))
         await session.execute(delete(Schedule).where(Schedule.name.like("teams.give:%")))
+        await session.execute(delete(Schedule).where(Schedule.name.like("teams.due:%")))
 
 
 @pytest.fixture

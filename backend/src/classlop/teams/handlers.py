@@ -1,4 +1,6 @@
 import logging
+import uuid
+from datetime import datetime
 
 import httpx
 
@@ -7,7 +9,7 @@ from classlop.shared.auth import graph_token
 from classlop.shared.jobs import Progress, SignInRequired, handler
 from classlop.shared.models import Job
 from classlop.shared.schedule import declare_every
-from classlop.teams import GRAPH_SCOPES
+from classlop.teams import GRAPH_SCOPES, ids
 
 log = logging.getLogger(__name__)
 
@@ -83,3 +85,25 @@ async def give_assignment(job: Job, progress: Progress) -> None:
 async def poll_handins(job: Job, progress: Progress) -> dict:
     """Students' uploads into Submissions, and the close of Assignments past their close time."""
     return {"changed": await teams.poll_handins()}
+
+
+@handler("teams.submission_graded")
+async def submission_graded(job: Job, progress: Progress) -> None:
+    """Grading's word that a hand-in's result was written or changed."""
+    try:
+        await teams.submission_graded(
+            ids.from_uuid(uuid.UUID(job.payload["submission_id"])),
+            datetime.fromisoformat(job.payload["handed_in_at"]),
+        )
+    except LookupError:  # its Class was deleted
+        return
+
+
+@handler("teams.assignment_due")
+async def assignment_due(job: Job, progress: Progress) -> dict:
+    """At an Assignment's due time: return what is graded and ask grading for its Common
+    mistakes. Fails while any Submission could not be returned, so the job is tried again."""
+    try:
+        return {"returned": await teams.return_graded(job.payload["assignment_id"])}
+    except LookupError:  # its Class was deleted
+        return {"returned": 0}

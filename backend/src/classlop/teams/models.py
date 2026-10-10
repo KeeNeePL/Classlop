@@ -183,4 +183,4 @@ class SettingRecord(Base):
     value: Mapped[str] = mapped_column(Text)
 
 
-from classlop.teams import assignment_records, handin_records  # noqa: E402, F401
+from classlop.teams import assignment_records, feedback_records, handin_records  # noqa: E402, F401

@@ -39,6 +39,7 @@ class Giving:
         async def get_class(self, class_id: str) -> Class: ...
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def sync_roster(self, class_id: str) -> None: ...
+        async def _schedule_due(self, assignment_id: str) -> None: ...
 
     @writable
     async def give_assignment(
@@ -139,6 +140,7 @@ class Giving:
         await self._save_assignment(
             assignment_id, state="scheduled", given_at=now, item_versions=versions, publish_at=when
         )
+        await self._schedule_due(assignment_id)
         return await self.get_assignment(assignment_id)
 
     async def get_assignment(self, assignment_id: str) -> Assignment:
@@ -178,6 +180,7 @@ class Giving:
                 row.given_at or self._clock(),
             )
             await self._save_assignment(row.id, item_versions=versions)
+        await self._schedule_due(row.id)
         if await self._deliver(row.id):
             await jobs.enqueue(
                 "teams.deliver_assignment",

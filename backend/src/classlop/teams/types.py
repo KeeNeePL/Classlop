@@ -370,6 +370,24 @@ class Teams(Protocol):
         due to close. Returns how many Submissions changed state."""
         ...
 
+    async def submission_graded(self, submission_id: str, handed_in_at: datetime) -> None:
+        """Grading says the result of this hand-in was written or changed (its
+        `teams.submission_graded` job). An event for a hand-in that is no longer the Submission's
+        is ignored. Otherwise the result decides: a Graded Submission waits for the due time, a
+        Late submission is returned as soon as it is graded, a Held result waits for the
+        Teacher's approval, and a changed result after return is sent again as a new message. A
+        failed grading is never returned. Raises LookupError for a Submission that is gone."""
+        ...
+
+    async def return_graded(self, assignment_id: str) -> int:
+        """At the due time: return every Graded Submission that is not Held, and ask grading for
+        the Assignment's Common mistakes. Returns how many were returned; raises RuntimeError
+        after trying them all if any could not be, so the job runs again. Returning sends the
+        Feedback text and PDF in the Student's 1:1 chat (the PDF is in the Teacher's OneDrive,
+        shared to the Student read-only), marks the Submission Returned and makes its folder
+        read-only. A correction later is a new message, never an edit."""
+        ...
+
     async def close_due_assignments(self) -> int:
         """Close each Open Assignment whose close time has come: what is settled stays, Students
         who have not handed in are Missing, and every folder's sharing permission becomes read.
