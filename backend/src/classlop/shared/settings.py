@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,6 +44,8 @@ class Settings(BaseSettings):
     m365_client_secret: SecretStr | None = None
     # The one account admitted to sign in.
     m365_teacher_oid: str = ""
+    # "fake" serves the teams interface from FakeTeams, with no tenant.
+    teams_backend: Literal["graph", "fake"] = "graph"
     # Where the browser reaches Classlop; sign-in returns to its /auth/callback.
     public_url: str = "http://localhost:8000"
     # Signs the session cookie; unset, a random key per process signs everyone out on restart.

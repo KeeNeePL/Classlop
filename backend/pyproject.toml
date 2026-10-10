@@ -18,6 +18,7 @@ dependencies = [
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.15.0",
     "pypdfium2>=5.14.0",
+    "python-ulid>=4.0.1",
     "sqlalchemy[asyncio]>=2.1.4",
     "typst>=0.15.0",
     "uvicorn[standard]>=0.54.0",
@@ -36,6 +37,7 @@ dev = [
     "pyright>=1.1.414",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
     "ruff>=0.16.10",
 ]
 
