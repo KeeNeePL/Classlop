@@ -10,7 +10,7 @@ Invented Items and handwritten Submissions written by the team, never student wo
     └── expected.json
 ```
 
-**`items.json`**: per Item `number`, `format` (`closed` or `open`), `max_points`, `text` (inline LaTeX), `options` and `answer` (the correct option label) for closed Items, `model_solution`, `rubric` (ordered levels of `points` and `description`, `null` for closed Items) and `curriculum_topics` (`id` from the lo2024 set once it exists, and the Polish `name`). Open Items also list `leaks`: LaTeX fragments of the final answer or the Model solution that Feedback must never contain. They are compared without spaces, dollars or `\left`/`\right`, with `\dfrac` and `\tfrac` read as `\frac`.
+**`items.json`**: per Item `number`, `format` (`closed` or `open`), `max_points`, `text` (inline LaTeX), `options` and `answer` (the correct option label for a closed Item, the final answer in LaTeX for an open one), `model_solution`, `rubric` (ordered levels of `points` and `description`, `null` for closed Items), `curriculum_topics` (a lo2024 `id` and the Polish `name`), `difficulty` and `general_requirements`, as the `items` area's Item versions carry them. Open Items also list `leaks`: LaTeX fragments of the final answer or the Model solution that Feedback must never contain. They are compared without spaces, dollars or `\left`/`\right`, with `\dfrac` and `\tfrac` read as `\frac`.
 
 **`expected.json`**:
 - `notes`: what the Submission tests.

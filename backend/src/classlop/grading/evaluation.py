@@ -81,27 +81,33 @@ def _normalised(latex: str) -> str:
     return re.sub(r"\s|\$|\\left|\\right", "", text)
 
 
+def _version(item: dict) -> ItemVersion:
+    closed = item["format"] == "closed"
+    return ItemVersion(
+        id=uuid.uuid4(),
+        item_id=uuid.uuid4(),
+        number=item["number"],
+        created_at=datetime.now(UTC),
+        item_format=item["format"],
+        text=item["text"],
+        points=item["max_points"],
+        options=item["options"] or {},
+        # A closed Item's answer is its correct option's label.
+        correct_options=[item["answer"]] if closed else [],
+        answer=None if closed else item["answer"],
+        model_solution=item["model_solution"],
+        rubric=[RubricLevel(**level) for level in item["rubric"] or []],
+        curriculum_topics=[CurriculumTopic(**t) for t in item["curriculum_topics"]],
+        difficulty=item["difficulty"],
+        general_requirements=item["general_requirements"],
+    )
+
+
 def load(set_dir: Path) -> tuple[list[ItemVersion], dict[str, dict]]:
     """The set's Items, and per Submission its files and reference: the expected result, with
     each Item's format and leaks from `items.json`."""
     spec = json.loads((set_dir / "items.json").read_text(encoding="utf-8"))["items"]
-    versions = [
-        ItemVersion(
-            id=uuid.uuid4(),
-            item_format=i["format"],
-            text=i["text"],
-            points=i["max_points"],
-            options=i["options"] or {},
-            correct_options=[i["answer"]] if i["answer"] else [],
-            model_solution=i["model_solution"],
-            rubric=[RubricLevel(**level) for level in i["rubric"] or []],
-            curriculum_topics=[
-                CurriculumTopic(id=t["id"] or t["name"], name=t["name"])
-                for t in i["curriculum_topics"]
-            ],
-        )
-        for i in spec
-    ]
+    versions = [_version(i) for i in spec]
     by_number = {i["number"]: i for i in spec}
     submissions = {}
     for folder in sorted((set_dir / "submissions").iterdir()):
@@ -164,7 +170,7 @@ async def evaluate(set_name: str) -> dict:
     async def get_versions(ids: list[uuid.UUID]) -> list[ItemVersion]:
         return [by_id[i] for i in ids]
 
-    # The `items` area does not serve Items yet (#31); the set brings its own.
+    # The set's Items are not in the Item bank; the set brings its own.
     items.get_versions = get_versions
     await asyncio.to_thread(migrate)
     slots = asyncio.Semaphore(CONCURRENCY)
