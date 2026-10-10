@@ -1,65 +1,68 @@
 # Smoke test: fallback Teams path on the demo tenant
 
-Issue #44. Run 2026-10-09 against the Business Basic demo tenant with the invented Teacher and a Student, signed in through the device-code flow (delegated tokens, app «Classlop dev»). Folder and file names below are throwaway.
+Issue #44. Run 2026-10-09 and 2026-10-10 against the Business Basic demo tenant with the invented Teacher and one Student. Every finding below is a response observed on the tenant unless it says otherwise; Graph error messages are quoted where they are the source.
 
-## Setup findings
+## Summary
 
-- User consent is disabled in the tenant: every delegated scope needed an admin grant, including user-consentable ones. The app registration needs `Files.ReadWrite.All` on top of what `scripts/setup-demo-tenant.sh` grants (`Files.Read.All`), or `invite`, uploads and permission changes fail.
-- `GET /me/drive/sharedWithMe` returns 401 for the Student. Address the shared folder by `driveId` and item id instead.
+| Question | Result |
+|---|---|
+| 1. Attendance per occurrence | Recurring calendar events untested (no mailboxes). Attendance works through call records instead, which needs app-only access. |
+| 2. Submissions seen by delta | Holds. |
+| Revoking uploads with `PATCH` to `read` | Holds. |
+| 3. Uploading from Teams | Does not hold: the link leaves Teams. The fallback applies: Students upload in the browser. |
 
-## 2. Hand-ins seen by delta: holds
+## 1. Attendance per occurrence
 
-A Student upload into a folder shared with `invite` (role `write`, `sendInvitation: false`) appeared in `GET /me/drive/root/delta` on the Teacher's drive, using a `token=latest` baseline taken before the invite.
+### Recurring calendar events: not run
 
-- `createdBy.user` carries the Student's `email`, `id` and `displayName`. `createdBy.application` is «Microsoft Graph»: the upload went through the API, so a Student using the OneDrive app or Teams may show a different application.
-- `createdDateTime` is set by the server and matched the Student's upload time to the second.
-- The invite appeared in delta as the folder item; the upload appeared a few seconds later.
+Neither the Teacher nor the Student has a working mailbox: `GET /me/calendar` returns an empty 401, and Outlook on the web fails with `CannotResolveExternalDirectoryOrganizationIdException`, although `EXCHANGE_S_STANDARD` shows `Success` in the licence details and the admin center says the mailbox is being prepared. `POST /me/events` needs a mailbox, so the shared-`joinUrl` and per-occurrence report questions remain open.
 
-No fallback to polling the folder's children is needed.
+### Standalone meetings
+
+`POST /me/onlineMeetings` works without a mailbox and returns a `joinWebUrl`. `GET /me/onlineMeetings?$filter=JoinWebUrl eq '...'` finds the meeting; filtering on `subject` fails with «Only 'JoinWebUrl' and 'joinMeetingId' (nested under 'joinMeetingIdSettings') are supported».
+
+`GET /me/onlineMeetings/{id}/attendanceReports` returns 404 `SDS_ErrorInvalidUser` on both `/me` and `/users/{id}`, for meetings that ended minutes and hours earlier. The cause is not established; the missing mailbox is the leading suspect.
+
+### Call records: hold
+
+`GET /communications/callRecords` with the application permission `CallRecords.Read.All` (client-credentials token, so the app needs a secret) works without a mailbox.
+
+- Filter the list with `startDateTime ge ...` and match a Lesson by the record's `joinWebUrl`.
+- `participants_v2` names each signed-in participant (`identity.user` with `id`, `displayName`, `userPrincipalName`); `sessions` give each participant's join and leave times. The Student's `id` matches `createdBy.user.id` from their Submission in the delta below.
+- A Student who leaves and rejoins while others stay has several `sessions` in one record; merge them per Student.
+- A meeting that empties and later fills again produces a second record with the same `joinWebUrl` (seen once, when the Teacher rejoined seven minutes after everyone had left). Attendance for a Lesson is therefore all records with its `joinWebUrl`, merged.
+- A record appeared 27 minutes after the meeting ended (measured once, polling every 30 s), so Attendance is not available straight after a Lesson.
+- A Student who joined from the raw link in a browser with no Teams session was asked for a name and shows up as `identity.guest` («Guest user», no UPN): an Unmatched attendee. The same Student joining from the link posted in the Class channel, signed in to Teams on the web, shows up as `identity.user`. Students must join from inside Teams, signed in.
+
+App-only access departs from the design so far, where Classlop signs in as the Teacher with delegated permissions only; it needs its own decision.
+
+### Posting the Lesson link to the Class
+
+A meeting made with `POST /me/onlineMeetings` is not tied to the Class's team. With delegated `ChannelMessage.Send` and `Channel.ReadBasic.All`, `GET /teams/{id}/primaryChannel` and `POST /teams/{id}/channels/{id}/messages` posted the join link to the Class channel. A channel meeting proper was not tried; it is made as a group calendar event, which presumably meets the same mailbox problem.
+
+## 2. Submissions seen by delta: holds
+
+A Student upload into a folder shared with `invite` (role `write`, `sendInvitation: false`) appears in `GET /me/drive/root/delta` on the Teacher's drive, read from a `token=latest` baseline taken before the invite.
+
+- `createdBy.user` carries the Student's `email`, `id` and `displayName`.
+- `createdDateTime` is set by the server and matched the upload time to the second.
+- `createdBy.application` is «Microsoft Graph» for an API upload and «SharePoint Online Client Extensibility» for a browser upload.
+
+No fallback to polling each folder's children is needed.
 
 ## Revoking uploads: holds
 
-`PATCH /me/drive/items/{id}/permissions/{permissionId}` with `{"roles": ["read"]}` returned 200. A Student upload attempted about ten seconds later returned 403 `accessDenied`.
+`PATCH /me/drive/items/{id}/permissions/{permissionId}` with `{"roles": ["read"]}` returned 200, and a Student upload about ten seconds later returned 403 `accessDenied`.
 
-## 1. Attendance per occurrence: recurring events not yet run
+## 3. Uploading from Teams: does not hold, fallback applies
 
-Call records answer the per-occurrence question for standalone meetings (see below); the recurring calendar event variant remains untested.
+The Teacher sent the folder's `webUrl` in a 1:1 Teams chat. In the Teams mobile app the link opened in an external browser, where the Student uploaded a photo and a PDF. On the desktop the Student opened the link in a browser and uploaded an image; opening it from the Teams desktop app was not tried. All three files reached the Teacher's delta as in section 2.
 
-Blocked. Neither the Teacher nor the Student has a working mailbox: `GET /me/calendar` returns an empty 401 and Outlook on the web fails with `CannotResolveExternalDirectoryOrganizationIdException`, although `EXCHANGE_S_STANDARD` shows `Success` in the licence details. `POST /me/events` needs a mailbox, so the recurring-event check cannot start.
+The folder never opens inside Teams, so the chat message that gives an Assignment should tell Students the link opens in their browser or the OneDrive app.
 
-To run once mailboxes work: create a short recurring event with `isOnlineMeeting` and `teamsForBusiness`, compare `joinUrl` across `instances`, look the meeting up with `/me/onlineMeetings?$filter=JoinWebUrl eq '...'`, then have people join two occurrences and read `attendanceReports`.
+## Tenant setup
 
-## 3. Uploading from Teams: holds, through the browser
-
-The Teacher sent the folder's `webUrl` in a 1:1 Teams chat. On the phone, tapping it in the Teams mobile app opened the folder in an external browser, where the Student uploaded a photo and a PDF. On the desktop the Student opened the link in a browser and uploaded an image; opening it from the Teams desktop app was not tried.
-
-- All three files appeared in the Teacher's delta with `createdBy.user` naming the Student and a server-side `createdDateTime`. `createdBy.application` is «SharePoint Online Client Extensibility» for browser uploads.
-- The folder does not open inside Teams, so the «Nowa praca» message should tell Students the link opens in the browser (or the OneDrive app).
-
-## Standalone meetings and attendance (2026-10-10)
-
-Because the mailboxes are not provisioned, a fallback was tried: `POST /me/onlineMeetings` (no calendar event).
-
-- Creating the meeting works without a mailbox (201, `joinWebUrl` returned), and `GET /me/onlineMeetings?$filter=JoinWebUrl eq '...'` finds it. `JoinWebUrl` and `joinMeetingId` are the only supported filter properties.
-- Teacher and Student both joined and left after about two minutes. The Student's browser asked for a name on joining despite being signed in there, i.e. the join was probably anonymous or as a guest; students must join from a signed-in Teams session for the report to name them.
-- `GET .../attendanceReports` returned 404 `SDS_ErrorInvalidUser`, both on `/me` and on `/users/{id}`. Cause not established; the missing Exchange mailbox is the leading suspect. Retry once mailboxes exist, or after a delay.
-
-## Attendance through call records: holds
-
-`GET /communications/callRecords` (application permission `CallRecords.Read.All`, client-credentials token) works without a mailbox.
-
-- Filter the list with `startDateTime ge ...` and match a Lesson by the record's `joinWebUrl`.
-- Each time a meeting is held there is a separate `groupCall` record, even for the same `joinWebUrl`: a session that emptied and was rejoined later produced a second record. Records map to held occurrences without splitting by time window.
-- `participants_v2` names each signed-in participant (`identity.user` with `id`, `displayName`, `userPrincipalName`); `sessions` give per-participant join and leave times. The Student's `id` matches `createdBy.user.id` from the hand-in delta.
-- A Student who joins from the raw link in a browser without a Teams session shows up as `identity.guest` («Guest user», no UPN) and cannot be matched to a Student. Students must join from inside Teams, signed in; posting the join link in the Class channel does this.
-- A record appears about 27 minutes after the meeting ends (measured once, polling every 30 s). Attendance for a Lesson is not available straight after it.
-- A Student who leaves and rejoins within one held meeting has several `sessions` in the same record; merge them per Student.
-- This needs an app secret and app-only permission on top of signing in as the Teacher; the design so far assumed delegated access only.
-
-## Signing in
-
-Security defaults in the tenant began blocking the device-code flow (`AADSTS530035`) and refreshing a device-code token once MFA was required. The authorization code flow with PKCE and a `http://localhost` redirect, which the app registration already lists, works with MFA.
-
-## Posting the Lesson link to the Class
-
-With delegated `ChannelMessage.Send` and `Channel.ReadBasic.All`, `GET /teams/{id}/primaryChannel` and `POST .../channels/{id}/messages` posted the join link to the Class channel. A meeting made with `POST /me/onlineMeetings` is not tied to the team otherwise; a channel meeting needs a group calendar event, which needs Exchange.
+- User consent is disabled: every delegated permission needed an admin grant, including user-consentable ones.
+- The app registration needs `Files.ReadWrite.All` beyond the `Files.Read.All` that `scripts/setup-demo-tenant.sh` grants, or `invite`, uploads and permission changes fail; plus `ChannelMessage.Send` and `Channel.ReadBasic.All` for channel posts, and the application permission `CallRecords.Read.All` with a client secret for call records.
+- `GET /me/drive/sharedWithMe` returns 401 for the Student; address the shared folder by `driveId` and item id.
+- Security defaults began rejecting the device-code flow with `AADSTS530035` («Access has been blocked by security defaults»), including refreshes of an earlier device-code token, once MFA was set up. The authorization code flow with PKCE and the registered `http://localhost` redirect works.
