@@ -71,6 +71,16 @@ h2 {
   padding-left: 16px;
 }
 
+.dash {
+  justify-self: end;
+  min-width: 76px;
+  text-align: right;
+}
+
+.none {
+  grid-column: span 3;
+}
+
 .more {
   margin-top: 12px;
   padding: 0;

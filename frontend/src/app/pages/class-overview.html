@@ -1,3 +1,18 @@
+<!-- "—": no graded work of that type here yet; "brak danych": none of any type -->
+<ng-template #cellsOf let-cells>
+  @if (empty(cells)) {
+    <span class="none muted">brak danych</span>
+  } @else {
+    @for (cell of cells; track $index) {
+      @if (cell.percent == null) {
+        <span class="dash muted">—</span>
+      } @else {
+        <cl-percent [value]="cell.percent" />
+      }
+    }
+  }
+</ng-template>
+
 @if (overview(); as o) {
   @if (o.invented) {
     <p><cl-invented /></p>
@@ -33,24 +48,18 @@
     </div>
     <div class="cols average">
       <span>Średnia</span>
-      @for (c of o.progress; track c.type) {
-        <cl-percent [value]="c.average" />
-      }
+      <ng-container *ngTemplateOutlet="cellsOf; context: { $implicit: averages() }" />
     </div>
     @for (row of rows(); track row.id) {
       <div class="cols" [class.heading]="tab() === 'topics'">
         <span>{{ row.name }}</span>
-        @for (cell of row.cells; track $index) {
-          <cl-percent [value]="cell.percent" />
-        }
+        <ng-container *ngTemplateOutlet="cellsOf; context: { $implicit: row.cells }" />
       </div>
       @if (tab() === 'topics') {
         @for (t of row.topics; track t.id) {
           <div class="cols topic">
             <cl-math [text]="t.name" />
-            @for (cell of t.cells; track $index) {
-              <cl-percent [value]="cell.percent" />
-            }
+            <ng-container *ngTemplateOutlet="cellsOf; context: { $implicit: t.cells }" />
           </div>
         }
       }

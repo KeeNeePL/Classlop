@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, resource, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -26,8 +27,9 @@ const HINTS = {
     'Procent punktów zdobytych z możliwych do zdobycia w ocenionych zadaniach, osobno dla ' +
     'kartkówek, sprawdzianów i prac domowych. „Średnia” to wynik całej kategorii. Zadanie ' +
     'przypisane do kilku tematów liczy się w całości w każdym z nich, a w dziale raz. Nie ' +
-    'liczą się prace nieoddane, zwolnione ani wstrzymane do sprawdzenia. „brak danych” znaczy, ' +
-    'że nic z tego nie zostało jeszcze ocenione. Na start widać 4 działy, z których ostatnio ' +
+    'liczą się prace nieoddane, zwolnione ani wstrzymane do sprawdzenia. „—” znaczy, że z ' +
+    'tego działu nie było jeszcze ocenionej pracy tego typu, a „brak danych”, że nie było ' +
+    'żadnej. Na start widać 4 działy, z których ostatnio ' +
     'oceniono prace; „Rozwiń” pokazuje wszystkie.',
   assignments:
     'Kiedy zadano każdą pracę: oś pozioma to czas. Ikonka to typ pracy (kartka z ptaszkiem: ' +
@@ -46,7 +48,17 @@ const HINTS = {
 
 /** The Class page's Przegląd tab. */
 @Component({
-  imports: [AssignmentLanes, Badge, Hint, Invented, MathText, Panel, Percent, RouterLink],
+  imports: [
+    AssignmentLanes,
+    Badge,
+    Hint,
+    Invented,
+    MathText,
+    NgTemplateOutlet,
+    Panel,
+    Percent,
+    RouterLink,
+  ],
   templateUrl: './class-overview.html',
   styleUrl: './class-overview.css',
 })
@@ -68,6 +80,11 @@ export class ClassOverview {
   protected readonly tab = signal<'sections' | 'topics'>('sections');
 
   protected readonly expanded = signal(false);
+  protected readonly averages = computed(
+    () => this.overview()?.progress.map((c) => ({ percent: c.average })) ?? [],
+  );
+  protected readonly empty = (cells: { percent?: number | null }[]) =>
+    cells.every((c) => c.percent == null);
 
   /** One row per Curriculum section, with a cell for each Assignment type, in the same order.
    * Folded, only the RECENT sections most recently assessed, newest first. */

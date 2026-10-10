@@ -28,6 +28,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByText('Stereometria')).toBeVisible();
   await expect(page.getByText('Liczby rzeczywiste')).toBeVisible();
   await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
+  await expect(progress.getByText('—', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();
