@@ -37,6 +37,8 @@ class GradedSubmission(Base):
     comment: Mapped[str] = mapped_column(Text)
     # The current Feedback PDF; none when there is nothing to typeset or it would not typeset.
     pdf_key: Mapped[str | None] = mapped_column(Text)
+    # The `grading.grade` payload, run again by Oceń ponownie.
+    grade_job: Mapped[dict | None] = mapped_column(JSONB)
 
     items: Mapped[list["GradedItem"]] = relationship(
         order_by="GradedItem.position", lazy="selectin", cascade="all, delete-orphan"

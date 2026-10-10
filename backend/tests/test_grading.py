@@ -236,18 +236,23 @@ def pdf(pages: int, size=(595, 842)) -> bytes:
     return out.getvalue()
 
 
+async def no_progress(value):
+    pass
+
+
 async def hand_in(
     bank,
     assignment: list[ItemVersion],
     files: list[bytes] | None = None,
     deliveries: int = 1,
+    attempt: int = 1,
     assignment_id: uuid.UUID | None = None,
     submission_id: uuid.UUID | None = None,
     handed_in_at: datetime | None = None,
     due_at: datetime | None = None,
 ):
-    """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it; returns the
-    hand-in's key."""
+    """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it from the given
+    attempt on; returns the hand-in's key."""
     submission_id, handed_in_at = submission_id or uuid.uuid4(), handed_in_at or datetime.now(UTC)
     keys = []
     for n, file in enumerate(files or [photo()], 1):
@@ -266,12 +271,9 @@ async def hand_in(
         "due_at": (due_at or handed_in_at + timedelta(days=1)).isoformat(),
     }
 
-    async def progress(value):
-        pass
-
-    for attempt in range(1, deliveries + 1):
-        job = Job(id=uuid.uuid4(), kind="grading.grade", payload=payload, attempts=attempt)
-        await grading.grade(job, progress)
+    for n in range(deliveries):
+        job = Job(id=uuid.uuid4(), kind="grading.grade", payload=payload, attempts=attempt + n)
+        await grading.grade(job, no_progress)
     return submission_id, handed_in_at
 
 
@@ -866,6 +868,87 @@ async def test_a_redelivered_job_makes_no_second_call_or_event(bank, fake_llm):
     assert await grading.result(submission_id, handed_in_at) is not None
 
 
+async def test_a_redelivery_after_a_failed_attempt_grades_once(bank, fake_llm):
+    item, submission_id, handed_in_at = closed(), uuid.uuid4(), datetime.now(UTC)
+    # No transcription model is scripted yet, so the first attempt fails as an outage would.
+    with pytest.raises(KeyError):
+        await hand_in(bank, [item], submission_id=submission_id, handed_in_at=handed_in_at)
+    assert await grading.result(submission_id, handed_in_at) is None
+
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    await hand_in(bank, [item], submission_id=submission_id, handed_in_at=handed_in_at, attempt=2)
+
+    result = await grading.result(submission_id, handed_in_at)
+    assert result is not None
+    assert (result.status, [i.points for i in result.items]) == ("graded", [1])
+    assert len(await graded_events(submission_id)) == 1
+
+
+async def test_an_earlier_version_finishing_late_leaves_the_newer_result(bank, fake_llm):
+    item, submission_id = closed(correct="B"), uuid.uuid4()
+    older, newer = datetime.now(UTC) - timedelta(hours=1), datetime.now(UTC)
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    await hand_in(bank, [item], submission_id=submission_id, handed_in_at=newer)
+
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    await hand_in(bank, [item], submission_id=submission_id, handed_in_at=older)
+
+    new, old = [await grading.result(submission_id, at) for at in (newer, older)]
+    assert new is not None and old is not None
+    assert [i.points for i in new.items] == [1]
+    assert [i.points for i in old.items] == [0]
+
+
+FAILED = [{"reason": "ocena nie powiodła się", "items": []}]
+
+
+async def test_grading_that_fails_on_its_last_attempt_is_held_as_failed(bank, fake_llm):
+    item, submission_id, handed_in_at = closed(), uuid.uuid4(), datetime.now(UTC)
+    for attempt in (1, 2):
+        with pytest.raises(KeyError):
+            await hand_in(
+                bank,
+                [item],
+                submission_id=submission_id,
+                handed_in_at=handed_in_at,
+                attempt=attempt,
+            )
+    assert await grading.result(submission_id, handed_in_at) is None
+    assert await graded_events(submission_id) == []
+
+    await hand_in(bank, [item], submission_id=submission_id, handed_in_at=handed_in_at, attempt=3)
+
+    result = await grading.result(submission_id, handed_in_at)
+    assert result is not None
+    assert (result.status, result.held, result.items, result.comment) == ("failed", True, [], "")
+    assert [r.model_dump() for r in result.held_reasons] == FAILED
+    assert len(await graded_events(submission_id)) == 1
+    with pytest.raises(ValueError):
+        await grading.approve(submission_id, handed_in_at)
+
+
+async def grade_jobs(submission_id) -> list[Job]:
+    async with sessions()() as session:
+        found = await session.scalars(select(Job).where(Job.kind == "grading.grade"))
+        return [j for j in found if j.payload["submission_id"] == str(submission_id)]
+
+
+async def test_ocen_ponownie_grades_a_failed_submission_again(bank, fake_llm):
+    key = await hand_in(bank, [closed()], attempt=3)
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    await grading.grade_again(*key)
+    (job,) = await grade_jobs(key[0])
+    await grading.grade(job, no_progress)
+
+    result = await grading.result(*key)
+    assert result is not None
+    assert (result.status, result.held, [i.points for i in result.items]) == ("graded", False, [1])
+    assert len(await graded_events(key[0])) == 2
+    with pytest.raises(ValueError):
+        await grading.grade_again(*key)
+
+
 async def test_a_dispute_never_turns_unreadable_work_into_a_guess(bank, fake_llm):
     fake_llm.transcribes(read(1, reading="unreadable", transcription="[nieczytelne]"))
     fake_llm.verifies(disputed(1, "widać x = 3"))
@@ -915,11 +998,8 @@ async def gather(assignment_id, requested_at: str | None = None) -> None:
     if requested_at:
         payload["requested_at"] = requested_at
 
-    async def progress(value):
-        pass
-
     job = Job(id=uuid.uuid4(), kind="grading.common_mistakes", payload=payload, attempts=1)
-    await grading.gather_common_mistakes(job, progress)
+    await grading.gather_common_mistakes(job, no_progress)
 
 
 async def test_only_mistakes_made_in_three_submissions_are_common(bank, fake_llm):

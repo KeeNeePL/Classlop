@@ -8,6 +8,8 @@ from typing import Annotated, TypedDict
 from langgraph.graph import START, StateGraph
 from langgraph.types import Send
 from pydantic import BaseModel
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 
 from classlop import items as items_area
 from classlop.grading.common_mistakes import chosen_option_mistake, request_if_computed
@@ -42,6 +44,7 @@ HELD_REASONS: list[Rule] = [
 ]
 FLAG_REASONS: list[Rule] = [("rysunek", lambda i: i.drawing)]
 TYPESET_FAILED = "błąd składu"
+GRADING_FAILED = "ocena nie powiodła się"
 
 
 class AssignedItem(BaseModel):
@@ -275,19 +278,63 @@ async def write_feedback(state: State) -> dict:
 
 
 async def persist(state: State) -> dict:
+    job, graded = state["job"], state["graded"]
+    graded.grade_job = job.model_dump(mode="json")
     async with sessions().begin() as session:
-        session.add(state["graded"])
-    job = state["job"]
-    await announce(job.submission_id, job.handed_in_at, first=True)
+        # Oceń ponownie: a successful run replaces the failed result.
+        await session.execute(
+            delete(GradedSubmission).where(
+                GradedSubmission.submission_id == job.submission_id,
+                GradedSubmission.handed_in_at == job.handed_in_at,
+                GradedSubmission.status == "failed",
+            )
+        )
+        session.add(graded)
+    await announce(job.submission_id, job.handed_in_at, status="graded")
     await request_if_computed(job.assignment_id)
     return {}
 
 
-async def announce(submission_id: uuid.UUID, handed_in_at: datetime, first: bool = False) -> None:
-    """Tell `teams` the result was written or changed. The first announcement is keyed, so a
-    redelivered grading job never tells twice; every later change is its own event."""
-    payload = {"submission_id": str(submission_id), "handed_in_at": handed_in_at.isoformat()}
-    key = f"teams.submission_graded:{submission_id}@{payload['handed_in_at']}" if first else None
+async def store_failure(job: GradeJob) -> None:
+    """The last attempt failed: the Teacher sees the Submission Held and can grade it again."""
+    held = [{"reason": GRADING_FAILED, "items": []}]
+    async with sessions().begin() as session:
+        # A result written before the failure stands, and is announced below if it was not yet.
+        await session.execute(
+            insert(GradedSubmission)
+            .values(
+                submission_id=job.submission_id,
+                handed_in_at=job.handed_in_at,
+                assignment_id=job.assignment_id,
+                due_at=job.due_at,
+                status="failed",
+                held_reasons=held,
+                spot_check_reasons=held,
+                comment="",
+                grade_job=job.model_dump(mode="json"),
+            )
+            .on_conflict_do_nothing()
+        )
+        status = await session.scalar(
+            select(GradedSubmission.status).where(
+                GradedSubmission.submission_id == job.submission_id,
+                GradedSubmission.handed_in_at == job.handed_in_at,
+            )
+        )
+    await announce(job.submission_id, job.handed_in_at, status=status)
+    # The newest hand-in now has no Items, so its earlier mistakes no longer count.
+    await request_if_computed(job.assignment_id)
+
+
+async def announce(
+    submission_id: uuid.UUID, handed_in_at: datetime, status: str | None = None
+) -> None:
+    """Tell `teams` the result was written or changed. Grading passes the status it wrote, which
+    keys the event, so a redelivered grading job never tells twice while a graded result
+    replacing a failed one is told; the Teacher's changes pass none and are each their own."""
+    at = handed_in_at.isoformat()
+    key = f"teams.submission_graded:{submission_id}@{at}:{status}" if status else None
+    payload = {"submission_id": str(submission_id), "handed_in_at": at}
     await jobs.enqueue("teams.submission_graded", payload, key=key)
 
 
