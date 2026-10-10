@@ -15,7 +15,7 @@ Invented Items and handwritten Submissions written by the team, never student wo
 **`expected.json`**:
 - `notes`: what the Submission tests.
 - `held`: whether it should be Held.
-- `spot_check`: the flag reason, or `null`.
-- `items`: per Item `number`, `reading` (`readable`, `unsure`, `unreadable` or `blank`), `points` and the verbatim `transcription` in LaTeX. A drawing is described in square brackets.
+- `spot_check`: the flag reasons, empty when not flagged (`nieczytelne` for a Held Submission, `rysunek` for a drawing).
+- `items`: per Item `number`, `reading` (`readable`, `unsure`, `unreadable` or `blank`), `points` and the verbatim `transcription` in LaTeX. A drawing, a crossed-out part or an unreadable part is described in square brackets. A closed Item's transcription is just the chosen label, and a blank Item's is empty.
 
 Strip location data from photos before committing them.

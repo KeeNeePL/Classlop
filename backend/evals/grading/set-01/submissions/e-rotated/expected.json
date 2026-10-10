@@ -1,0 +1,17 @@
+{
+  "notes": "The page is photographed rotated 90 degrees with no EXIF orientation, so it must be read as is. Zad. 3: the b in b^2 - 4ac looks like a 6 again, and the line wrongly ends in = 0, but both roots are right. Zad. 4 and 5 blank.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 0, "transcription": "A"},
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "x^2 - 4x - 5 = 0\nb^2 - 4ac = 0\n\\Delta = 16 + 20 = 36\n\\sqrt{\\Delta} = 6\nx_1 = -1\nx_2 = 5"
+    },
+    {"number": 4, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "notes": "Every Item correct. Zad. 3: the b in b^2 - 4ac looks like a 6; reading it as 6^2 is a misread. Zad. 5: a scribble next to the 8 is crossed out and must be ignored; the drawing flags the Submission for Spot-check without holding it.",
   "held": false,
-  "spot_check": "rysunek",
+  "spot_check": ["rysunek"],
   "items": [
     {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
     {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},

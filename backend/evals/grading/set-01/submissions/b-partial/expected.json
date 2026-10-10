@@ -1,7 +1,7 @@
 {
   "notes": "Both closed Items wrong. Zad. 3 stops after the discriminant, Zad. 4 after the transformation with no conclusion, Zad. 5 after the hypotenuse: one Rubric level each. No drawing.",
   "held": false,
-  "spot_check": null,
+  "spot_check": [],
   "items": [
     {"number": 1, "reading": "readable", "points": 0, "transcription": "D"},
     {"number": 2, "reading": "readable", "points": 0, "transcription": "C"},
