@@ -6,7 +6,7 @@ import { Component } from '@angular/core';
   styles: `
     :host {
       display: block;
-      background: var(--panel);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: 4px;
       padding: 14px 16px;
