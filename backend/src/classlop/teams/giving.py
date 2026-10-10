@@ -39,6 +39,7 @@ class Giving:
         async def get_class(self, class_id: str) -> Class: ...
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def sync_roster(self, class_id: str) -> None: ...
+        async def reschedule_reminder(self, assignment_id: str) -> None: ...
 
     @writable
     async def give_assignment(
@@ -139,11 +140,11 @@ class Giving:
         await self._save_assignment(
             assignment_id, state="scheduled", given_at=now, item_versions=versions, publish_at=when
         )
+        await self.reschedule_reminder(assignment_id)
         return await self.get_assignment(assignment_id)
 
     async def get_assignment(self, assignment_id: str) -> Assignment:
-        async with sessions()() as session:
-            return _assignment(await session.get_one(AssignmentRecord, assignment_id))
+        return _assignment(await self._row(assignment_id))
 
     async def list_assignments(self, class_id: str) -> list[Assignment]:
         async with sessions()() as session:
@@ -184,6 +185,7 @@ class Giving:
                 {"assignment_id": row.id},
                 delay=assignments.RETRY_DELAY,
             )
+        await self.reschedule_reminder(row.id)
         return await self.get_assignment(row.id)
 
     async def deliver_assignment(self, assignment_id: str) -> int:
