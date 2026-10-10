@@ -1,16 +1,12 @@
 import base64
-import io
 import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from PIL import Image, ImageOps
 from pydantic import BaseModel
 
 from classlop.grading.models import Reading
 from classlop.items import ItemVersion
 from classlop.shared import llm
-
-LONG_SIDE = 2000
 
 PROMPT = """You read photos of a Polish high-school student's handwritten maths work for the Items
 of one Assignment. There may be several pages. Work may be unnumbered or out of order: work without
@@ -44,15 +40,6 @@ class ItemTranscription(BaseModel):
 
 class Transcript(BaseModel):
     items: list[ItemTranscription]
-
-
-def prepare(photo: bytes) -> bytes:
-    """Upright from EXIF, at most LONG_SIDE px on the long side, as JPEG."""
-    image = ImageOps.exif_transpose(Image.open(io.BytesIO(photo)))
-    image.thumbnail((LONG_SIDE, LONG_SIDE))
-    out = io.BytesIO()
-    image.convert("RGB").save(out, "JPEG", quality=90)
-    return out.getvalue()
 
 
 def _shown(number: int, item: ItemVersion) -> dict:

@@ -9,6 +9,7 @@ import os
 import uuid
 from datetime import UTC, datetime
 
+import pillow_heif
 import pytest
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
@@ -23,6 +24,8 @@ from classlop.shared import llm, queue, storage
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
 from classlop.shared.models import Job
+
+pillow_heif.register_heif_opener()
 
 AI_LINE = "Ocena i komentarz przygotowane przez AI; nauczyciel sprawdza je wyrywkowo."
 
@@ -164,13 +167,28 @@ def photo(size=(1200, 1600), exif: Image.Exif | None = None) -> bytes:
     return out.getvalue()
 
 
-async def hand_in(bank, assignment: list[ItemVersion], pages: list[bytes] | None = None):
+def heic(size=(1200, 1600)) -> bytes:
+    out = io.BytesIO()
+    Image.new("RGB", size, "white").save(out, "HEIF")
+    return out.getvalue()
+
+
+def pdf(pages: int, size=(595, 842)) -> bytes:
+    """An A4 PDF of blank pages, at 72 dpi."""
+    out = io.BytesIO()
+    first, *rest = [Image.new("RGB", size, "white") for _ in range(pages)]
+    first.save(out, "PDF", save_all=True, append_images=rest, resolution=72)
+    return out.getvalue()
+
+
+async def hand_in(bank, assignment: list[ItemVersion], files: list[bytes] | None = None):
     """Run `grading.grade` as `teams` enqueues it; returns the hand-in's key."""
     submission_id, handed_in_at = uuid.uuid4(), datetime.now(UTC)
     keys = []
-    for n, page in enumerate(pages or [photo()], 1):
-        key = f"teams/hand-ins/{submission_id}/page-{n}.jpg"
-        await asyncio.to_thread(storage.put, key, page, "image/jpeg")
+    for n, file in enumerate(files or [photo()], 1):
+        # Named and typed as the Student's phone sent it; grading goes by content.
+        key = f"teams/hand-ins/{submission_id}/file-{n}"
+        await asyncio.to_thread(storage.put, key, file, "application/octet-stream")
         keys.append(key)
     for item in assignment:
         bank[item.id] = item
@@ -322,7 +340,7 @@ async def test_pages_reach_the_model_upright_and_downscaled(bank, fake_llm):
     sideways[0x0112] = 6  # EXIF Orientation: rotate 90 degrees clockwise to view.
     fake_llm.transcribes(read(1, chosen="B", transcription="B"))
 
-    await hand_in(bank, [closed()], pages=[photo((4000, 3000), sideways), photo((800, 600))])
+    await hand_in(bank, [closed()], files=[photo((4000, 3000), sideways), photo((800, 600))])
 
     assert [i.size for i in fake_llm.images()] == [(1500, 2000), (800, 600)]
 
@@ -481,3 +499,101 @@ async def test_an_item_missing_from_the_transcription_is_not_judged_wrong(bank, 
         0,
         "nie udało się odczytać rozwiązania",
     )
+
+
+async def test_pdf_pages_and_heic_photos_reach_the_model_as_page_images(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    await hand_in(bank, [closed()], files=[pdf(pages=2), heic((1200, 1600))])
+
+    # A4 rendered to 2000 px on the long side.
+    assert [i.size for i in fake_llm.images()] == [(1414, 2000), (1414, 2000), (1200, 1600)]
+
+
+async def test_files_that_are_neither_images_nor_pdfs_are_skipped(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    result = await grading.result(
+        *await hand_in(bank, [closed()], files=[b"notatki.txt", b"%PDF-1.7 broken", photo()])
+    )
+
+    assert result is not None
+    assert len(fake_llm.images()) == 1
+    assert not result.held
+
+
+async def test_more_than_six_pages_are_held_without_transcription(bank, fake_llm):
+    # Counted after the PDF is split: 5 + 2 pages.
+    result = await grading.result(
+        *await hand_in(bank, [closed(), open_item()], files=[pdf(pages=5), photo(), photo()])
+    )
+
+    assert result is not None
+    assert fake_llm.keys == []
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "za dużo stron", "items": []}
+    ]
+    assert result.spot_check
+    assert [(i.reading, i.ai_points) for i in result.items] == [("unreadable", 0)] * 2
+    assert len(await graded_events(result.submission_id)) == 1
+
+
+async def test_a_hand_in_with_no_usable_file_is_held_without_transcription(bank, fake_llm):
+    result = await grading.result(*await hand_in(bank, [closed()], files=[b"notatki.txt"]))
+
+    assert result is not None
+    assert fake_llm.keys == []
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "brak czytelnych plików", "items": []}
+    ]
+    assert result.comment == (
+        f"Zadanie 1: 0/1 pkt – nie udało się odczytać rozwiązania\n\n{AI_LINE}"
+    )
+
+
+async def test_work_that_fits_no_single_item_makes_that_item_unsure(bank, fake_llm):
+    first, second = open_item(text="Rozwiąż $x - 1 = 0$."), open_item(text="Rozwiąż $x + 2 = 0$.")
+    fake_llm.transcribes(
+        read(1, transcription="x = 1"),
+        # Unnumbered work that could belong to either Item.
+        read(2, reading="unsure", transcription="x = -2 [bez numeru zadania]"),
+    )
+    fake_llm.scores({first.text: score(2), second.text: score(2)})
+
+    result = await grading.result(*await hand_in(bank, [first, second]))
+
+    assert result is not None
+    assert [(i.reading, i.ai_points) for i in result.items] == [("readable", 2), ("unsure", 2)]
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "niepewny odczyt", "items": [2]}
+    ]
+    assert "work that fits no single Item" in fake_llm.prompt()
+
+
+async def test_work_under_a_number_outside_the_assignment_is_ignored(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(
+        read(1, transcription="x_1 = -1, x_2 = 5"),
+        read(7, transcription="2 + 2 = 4"),
+        read(8, chosen="A", transcription="A"),
+    )
+    fake_llm.scores({item.text: score(2)})
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert [(i.number, i.ai_points) for i in result.items] == [(1, 2)]
+    assert fake_llm.keys == ["grading.transcribe", "grading.score"]
+    assert result.comment == f"Zadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
+
+
+async def test_six_pages_are_still_transcribed(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    # PDF allows bytes before its header.
+    files = [b"junk from the phone\n" + pdf(pages=4), photo(), photo()]
+    result = await grading.result(*await hand_in(bank, [closed()], files=files))
+
+    assert result is not None
+    assert len(fake_llm.images()) == 6
+    assert not result.held

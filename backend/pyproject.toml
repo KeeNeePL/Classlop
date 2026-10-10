@@ -11,8 +11,10 @@ dependencies = [
     "langgraph>=1.2.14",
     "opensearch-py[async]>=3.2.0",
     "pillow>=12.3.0",
+    "pillow-heif>=1.8.0",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.15.0",
+    "pypdfium2>=5.14.0",
     "sqlalchemy[asyncio]>=2.1.4",
     "uvicorn[standard]>=0.54.0",
 ]
