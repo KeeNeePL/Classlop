@@ -2,24 +2,43 @@
 are served by the real area over Graph, or by FakeTeams when TEAMS_BACKEND=fake. `dashboard`
 passes GRAPH_SCOPES to sign-in, so the Teacher consents to what `teams` uses."""
 
+from datetime import date, datetime
+
 from classlop.shared.settings import get_settings
 from classlop.teams.graph import GRAPH_SCOPES, GraphClient
-from classlop.teams.types import AlreadyLinked, Candidate, Class, NotOwner, Student, Team, Teams
+from classlop.teams.types import (
+    AlreadyLinked,
+    Candidate,
+    Class,
+    Lesson,
+    NotOwner,
+    Slot,
+    Student,
+    Team,
+    Teams,
+    TimetableExists,
+)
 
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
     "Candidate",
     "Class",
+    "Lesson",
     "NotOwner",
+    "Slot",
     "Student",
     "Team",
     "Teams",
+    "TimetableExists",
+    "add_lesson",
     "add_student",
+    "add_timetable",
     "backend",
     "create_class",
     "get_class",
     "link_team",
+    "list_lessons",
     "list_classes",
     "list_owned_teams",
     "list_students",
@@ -96,3 +115,17 @@ async def remove_student(class_id: str, user_id: str) -> None:
 async def rename_class(class_id: str, name: str) -> Class:
     """Renames the Class and its team."""
     return await backend().rename_class(class_id, name)
+
+
+async def add_timetable(class_id: str, slots: list[Slot], school_year_end: date) -> None:
+    """Enter the Class's Timetable: each slot becomes a recurring Teams event."""
+    await backend().add_timetable(class_id, slots, school_year_end)
+
+
+async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
+    """Add a single Lesson; the Lesson topic is required."""
+    return await backend().add_lesson(class_id, start, end, topic)
+
+
+async def list_lessons(class_id: str) -> list[Lesson]:
+    return await backend().list_lessons(class_id)

@@ -4,12 +4,15 @@ endpoints `teams` uses; tests seed it through the methods and never see its rout
 import json
 import re
 import uuid
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 
 PAGE_SIZE = 2
 # A new team is not ready on the first poll, as in Graph.
 CREATION_POLLS = 2
+_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
 class FakeGraph:
@@ -18,6 +21,7 @@ class FakeGraph:
         self.users: dict[str, tuple[str, str]] = {}
         self.teams: dict[str, dict] = {}
         self._operations: dict[str, int] = {}
+        self.events: dict[str, dict] = {}
         self.transport = httpx.MockTransport(self._handle)
 
     def add_user(self, name: str) -> str:
@@ -64,6 +68,11 @@ class FakeGraph:
 
     def team_is_private(self, team_id: str) -> bool:
         return self.teams[team_id]["visibility"] == "private"
+
+    def event_of(self, event_id: str) -> tuple[str, set[str]]:
+        """The subject and invitee addresses of an event or of an occurrence of a series."""
+        event = self.events[event_id.split("@")[0]]
+        return event["subject"], {a["emailAddress"]["address"] for a in event["attendees"]}
 
     def _join(self, team_id: str, user_id: str, name: str, *, owner: bool) -> None:
         self.teams[team_id]["members"][user_id] = {
@@ -122,6 +131,18 @@ class FakeGraph:
             if (team := self.teams.get(match[1])) is None:
                 return _not_found()
             return httpx.Response(200, json={"id": team["channel"], "displayName": "General"})
+        if path == "/me/events" and request.method == "POST":
+            return self._create_event(json.loads(request.content))
+        if match := re.fullmatch(r"/me/events/([^/]+)", path):
+            if (event := self.events.get(match[1])) is None:
+                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+            if request.method == "PATCH":
+                event.update(json.loads(request.content))
+            return httpx.Response(200, json=self._shown(event))
+        if match := re.fullmatch(r"/me/events/([^/]+)/instances", path):
+            if (event := self.events.get(match[1])) is None:
+                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+            return self._page(request, self._instances(event, request.url.params))
         return httpx.Response(404, json={"error": {"code": "UnknownRoute", "message": path}})
 
     def _name(self, user_id: str) -> str:
@@ -152,6 +173,55 @@ class FakeGraph:
             if any(word.startswith(term) for word in name.lower().split())
         ]
         return self._page(request, found)
+
+    def _create_event(self, body: dict) -> httpx.Response:
+        event_id = str(uuid.uuid4())
+        self.events[event_id] = {
+            **body,
+            "id": event_id,
+            "onlineMeeting": {"joinUrl": f"https://teams.example.org/l/{event_id}"},
+        }
+        return httpx.Response(201, json=self._shown(self.events[event_id]))
+
+    @staticmethod
+    def _utc(when: dict) -> dict:
+        local = datetime.fromisoformat(when["dateTime"]).replace(tzinfo=ZoneInfo(when["timeZone"]))
+        return {
+            "dateTime": local.astimezone(UTC).replace(tzinfo=None).isoformat(),
+            "timeZone": "UTC",
+        }
+
+    def _shown(self, event: dict) -> dict:
+        return {**event, "start": self._utc(event["start"]), "end": self._utc(event["end"])}
+
+    def _instances(self, event: dict, params) -> list[dict]:
+        if "recurrence" not in event:
+            return [self._shown(event)]
+        window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
+        rng = event["recurrence"]["range"]
+        day, last = date.fromisoformat(rng["startDate"]), date.fromisoformat(rng["endDate"])
+        weekday = _DAYS.index(event["recurrence"]["pattern"]["daysOfWeek"][0])
+        first = datetime.fromisoformat(event["start"]["dateTime"]).time()
+        length = datetime.fromisoformat(event["end"]["dateTime"]) - datetime.fromisoformat(
+            event["start"]["dateTime"]
+        )
+        out = []
+        while day <= last:
+            if day.weekday() == weekday:
+                start = datetime.combine(day, first)
+                zone = event["start"]["timeZone"]
+                occurrence = {
+                    **event,
+                    "id": f"{event['id']}@{day}",
+                    "start": {"dateTime": start.isoformat(), "timeZone": zone},
+                    "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
+                }
+                shown = self._shown(occurrence)
+                begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
+                if window[0] <= begins < window[1]:
+                    out.append(shown)
+            day += timedelta(days=1)
+        return out
 
     def _page(self, request: httpx.Request, rows: list[dict]) -> httpx.Response:
         start = int(request.url.params.get("skip", 0))
