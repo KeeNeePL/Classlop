@@ -4,6 +4,11 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class RubricLevel(BaseModel):
+    points: int
+    description: str
+
+
 class ItemVersion(BaseModel):
     """A frozen Item, as #31 defines the contract; only the fields grading reads so far."""
 
@@ -14,6 +19,9 @@ class ItemVersion(BaseModel):
     # Closed Items: option label (A-D, P/F) to its text, and the correct labels.
     options: dict[str, str] = {}
     correct_options: list[str] = []
+    model_solution: str | None = None
+    # Open Items: CKE levels, lowest first.
+    rubric: list[RubricLevel] = []
 
 
 async def get_versions(version_ids: list[uuid.UUID]) -> list[ItemVersion]:

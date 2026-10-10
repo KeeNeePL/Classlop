@@ -1,6 +1,8 @@
 import os
 
+from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from pydantic import BaseModel
 
 from classlop.shared.settings import Settings, get_settings
 
@@ -14,6 +16,12 @@ def chat_model(job: str) -> ChatOpenAI:
         api_key=s.llm_api_key,
         default_headers=_key_header(s),
     )
+
+
+async def ask[T: BaseModel](job: str, schema: type[T], messages: list[BaseMessage]) -> T:
+    """A reply in `schema` from the job's chat model."""
+    reply = await chat_model(job).bind(response_format=schema).ainvoke(messages)
+    return schema.model_validate_json(reply.text)
 
 
 def embeddings() -> OpenAIEmbeddings:

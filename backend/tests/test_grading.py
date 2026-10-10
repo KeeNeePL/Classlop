@@ -12,12 +12,13 @@ from datetime import UTC, datetime
 import pytest
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 from PIL import Image
 from pydantic import Field
 from sqlalchemy import select
 
 from classlop import grading, items
-from classlop.items import ItemVersion
+from classlop.items import ItemVersion, RubricLevel
 from classlop.shared import llm, queue, storage
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
@@ -40,45 +41,65 @@ async def stack():
 
 class Recording(GenericFakeChatModel):
     seen: list = Field(default_factory=list)
+    # Scoring runs in parallel, so its replies are picked by the Item text in the prompt.
+    by_text: dict[str, str] = Field(default_factory=dict)
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         self.seen.append(messages)
-        return super()._generate(messages, stop, run_manager, **kwargs)
+        if not self.by_text:
+            return super()._generate(messages, stop, run_manager, **kwargs)
+        prompt = text_of(messages)
+        (reply,) = [r for text, r in self.by_text.items() if text in prompt]
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(reply))])
 
 
 class FakeLLM:
-    """Scripted Transcription replies at `shared.llm`; records what the model was sent."""
+    """Scripted replies per config key at `shared.llm`; records what each model was sent."""
 
     def __init__(self, monkeypatch):
         self.keys: list[str] = []
-        self.model = Recording(messages=iter([]))
+        self.models: dict[str, Recording] = {}
         monkeypatch.setattr(llm, "chat_model", self._chat_model)
 
     def _chat_model(self, key):
         self.keys.append(key)
-        return self.model
+        return self.models[key]
 
-    def transcribes(self, *readings: dict) -> None:
-        reply = AIMessage(json.dumps({"items": list(readings)}))
-        self.model = Recording(messages=iter([reply]))
+    def transcribes(self, *transcriptions: dict) -> None:
+        reply = AIMessage(json.dumps({"items": list(transcriptions)}))
+        self.models["grading.transcribe"] = Recording(messages=iter([reply]))
 
-    def sent(self) -> list[dict]:
-        return [part for messages in self.model.seen for m in messages for part in parts(m)]
+    def scores(self, by_text: dict[str, dict]) -> None:
+        """The scoring reply for each open Item, by its text."""
+        replies = {text: json.dumps(score) for text, score in by_text.items()}
+        self.models["grading.score"] = Recording(messages=iter([]), by_text=replies)
 
-    def prompt(self) -> str:
-        return "\n".join(p["text"] for p in self.sent() if p["type"] == "text")
+    def prompt(self, key="grading.transcribe") -> str:
+        return "\n".join(text_of(messages) for messages in self.models[key].seen)
 
     def images(self) -> list[Image.Image]:
+        seen = self.models["grading.transcribe"].seen
         return [
             Image.open(io.BytesIO(base64.b64decode(p["image_url"]["url"].split(",", 1)[1])))
-            for p in self.sent()
+            for messages in seen
+            for p in parts(messages)
             if p["type"] == "image_url"
         ]
 
 
-def parts(message) -> list[dict]:
-    content = message.content
-    return [{"type": "text", "text": content}] if isinstance(content, str) else content
+def parts(messages) -> list[dict]:
+    """Every content part of the messages; string content is one text part."""
+    return [
+        part
+        for m in messages
+        for part in (
+            [{"type": "text", "text": m.content}] if isinstance(m.content, str) else m.content
+        )
+    ]
+
+
+def text_of(messages) -> str:
+    return "\n".join(p["text"] for p in parts(messages) if p["type"] == "text")
 
 
 @pytest.fixture
@@ -117,6 +138,24 @@ def closed(points=1, correct="B") -> ItemVersion:
         options={"A": "$1$", "B": "$2$", "C": "$4$", "D": "$8$"},
         correct_options=[correct],
     )
+
+
+def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemVersion:
+    return ItemVersion(
+        id=uuid.uuid4(),
+        item_format="open",
+        text=text,
+        points=points,
+        model_solution=r"$\Delta = 36$, $x_1 = -1$, $x_2 = 5$",
+        rubric=[
+            RubricLevel(points=1, description=r"Obliczenie $\Delta = 36$."),
+            RubricLevel(points=2, description="Oba pierwiastki: $x_1 = -1$, $x_2 = 5$."),
+        ],
+    )
+
+
+def score(points, doubt=False, feedback="", mistake=None) -> dict:
+    return {"points": points, "doubt": doubt, "feedback": feedback, "mistake": mistake}
 
 
 def photo(size=(1200, 1600), exif: Image.Exif | None = None) -> bytes:
@@ -286,3 +325,159 @@ async def test_pages_reach_the_model_upright_and_downscaled(bank, fake_llm):
     await hand_in(bank, [closed()], pages=[photo((4000, 3000), sideways), photo((800, 600))])
 
     assert [i.size for i in fake_llm.images()] == [(1500, 2000), (800, 600)]
+
+
+async def test_an_open_item_is_scored_against_its_rubric(bank, fake_llm):
+    item = open_item(points=2)
+    fake_llm.transcribes(read(1, transcription="\\Delta = 36\nx_1 = -7"))
+    fake_llm.scores(
+        {
+            item.text: score(
+                1,
+                feedback="W kroku 2 pojawia się błąd w obliczeniu pierwiastka.",
+                mistake="błąd w obliczeniu x_1",
+            )
+        }
+    )
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert [
+        (i.ai_points, i.max_points, i.reading, i.doubt, i.feedback, i.mistake) for i in result.items
+    ] == [
+        (
+            1,
+            2,
+            "readable",
+            False,
+            "W kroku 2 pojawia się błąd w obliczeniu pierwiastka.",
+            "błąd w obliczeniu x_1",
+        )
+    ]
+    assert not result.held
+    assert result.comment == f"Zadanie 1: 1/2 pkt\n\n{AI_LINE}"
+    prompt = fake_llm.prompt("grading.score")
+    assert all(
+        part in prompt
+        for part in (
+            item.text,
+            item.model_solution,
+            *(level.description for level in item.rubric),
+            "x_1 = -7",
+        )
+    )
+
+
+async def test_a_grading_doubt_holds_the_submission_and_names_the_item(bank, fake_llm):
+    first, second = open_item(text="Rozwiąż $x - 1 = 0$."), open_item(text="Rozwiąż $x + 2 = 0$.")
+    fake_llm.transcribes(read(1, transcription="x = 1"), read(2, transcription="x = 2"))
+    fake_llm.scores({first.text: score(2), second.text: score(1, doubt=True, feedback="...")})
+
+    result = await grading.result(*await hand_in(bank, [first, second]))
+
+    assert result is not None
+    assert [(i.ai_points, i.doubt) for i in result.items] == [(2, False), (1, True)]
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "wątpliwa ocena", "items": [2]}
+    ]
+    assert result.spot_check
+
+
+async def test_a_drawing_flags_the_submission_without_holding_it(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="[rysunek trójkąta] h = 4", drawing=True))
+    fake_llm.scores({item.text: score(2)})
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert [i.drawing for i in result.items] == [True]
+    assert (result.held, result.held_reasons) == (False, [])
+    assert result.spot_check
+    assert [r.model_dump() for r in result.spot_check_reasons] == [
+        {"reason": "rysunek", "items": [1]}
+    ]
+
+
+async def test_a_mixed_submission_scores_only_open_items_with_the_model(bank, fake_llm):
+    choice, solved, empty = closed(correct="B"), open_item(points=2), open_item(text="Wykaż...")
+    fake_llm.transcribes(
+        read(1, chosen="C", transcription="C"),
+        read(2, transcription="x_1 = -1, x_2 = 5"),
+        read(3, reading="blank"),
+    )
+    fake_llm.scores({solved.text: score(2, feedback="Ignored for full points.")})
+
+    result = await grading.result(*await hand_in(bank, [choice, solved, empty]))
+
+    assert result is not None
+    assert fake_llm.keys == ["grading.transcribe", "grading.score"]
+    assert [(i.ai_points, i.feedback, i.mistake) for i in result.items] == [
+        (0, "błędna odpowiedź", None),
+        (2, "poprawnie", None),
+        (0, "brak rozwiązania", None),
+    ]
+    assert result.comment == (
+        "Zadanie 1: 0/1 pkt – błędna odpowiedź\n"
+        "Zadanie 2: 2/2 pkt – poprawnie\n"
+        f"Zadanie 3: 0/2 pkt – brak rozwiązania\n\n{AI_LINE}"
+    )
+
+
+async def test_points_outside_the_items_range_are_capped_and_put_in_doubt(bank, fake_llm):
+    item = open_item(points=2)
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(3)})
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert [(i.ai_points, i.doubt) for i in result.items] == [(2, True)]
+    assert result.held
+
+
+async def test_the_scoring_prompt_sets_the_voice_and_forbids_the_solution(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback="W kroku 2 pojawia się błąd.")})
+
+    await hand_in(bank, [item])
+
+    prompt = fake_llm.prompt("grading.score")
+    assert all(
+        rule in prompt
+        for rule in (
+            "in Polish",
+            '"ty"',
+            "W kroku 2 pojawia się błąd",
+            "Części rozwiązania nie udało",
+            "Never reveal the Model solution or the final answer",
+        )
+    )
+
+
+async def test_lost_points_without_feedback_are_put_in_doubt(bank, fake_llm):
+    item = open_item(points=2)
+    fake_llm.transcribes(read(1, transcription="P = 24"))
+    fake_llm.scores({item.text: score(1, feedback="")})
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert [(i.ai_points, i.doubt) for i in result.items] == [(1, True)]
+    assert result.held
+
+
+async def test_an_item_missing_from_the_transcription_is_not_judged_wrong(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    result = await grading.result(*await hand_in(bank, [closed(), open_item()]))
+
+    assert result is not None
+    assert fake_llm.keys == ["grading.transcribe"]
+    assert [(i.reading, i.ai_points, i.feedback) for i in result.items][1] == (
+        "unsure",
+        0,
+        "nie udało się odczytać rozwiązania",
+    )
