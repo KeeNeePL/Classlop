@@ -173,9 +173,21 @@ def read(number, reading="readable", chosen=None, transcription="", drawing=Fals
     }
 
 
+def frozen() -> dict:
+    """The fields of a stored version that grading ignores."""
+    return dict(
+        id=uuid.uuid4(),
+        item_id=uuid.uuid4(),
+        number=1,
+        created_at=datetime(2026, 10, 1, tzinfo=UTC),
+        difficulty="easy",
+        general_requirements=["I"],
+    )
+
+
 def closed(points=1, correct="B") -> ItemVersion:
     return ItemVersion(
-        id=uuid.uuid4(),
+        **frozen(),
         item_format="closed",
         text="Wartość wyrażenia $2^3 - 6$ jest równa:",
         points=points,
@@ -187,7 +199,8 @@ def closed(points=1, correct="B") -> ItemVersion:
 
 def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemVersion:
     return ItemVersion(
-        id=uuid.uuid4(),
+        **frozen(),
+        answer=r"$x_1 = -1$, $x_2 = 5$",
         item_format="open",
         text=text,
         points=points,

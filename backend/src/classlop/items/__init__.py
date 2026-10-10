@@ -1,35 +1,56 @@
-import uuid
-from typing import Literal
+from classlop.items.index import count_items, search_items
+from classlop.items.records import (
+    ItemEdit,
+    create_item,
+    dismiss_flag,
+    edit_item,
+    get_items,
+    get_versions,
+    give,
+    new_version,
+    restore_item,
+    retag,
+    retire_item,
+    usage,
+)
+from classlop.items.tagging import Tagger
+from classlop.items.types import (
+    CurriculumTopic,
+    Filters,
+    Item,
+    ItemContent,
+    ItemVersion,
+    RubricLevel,
+    SearchPage,
+    SectionCount,
+    Tags,
+    Usage,
+)
 
-from pydantic import BaseModel
-
-
-class RubricLevel(BaseModel):
-    points: int
-    description: str
-
-
-class CurriculumTopic(BaseModel):
-    id: str
-    # Polish, as the Student reads it under "Do powtórki".
-    name: str
-
-
-class ItemVersion(BaseModel):
-    """A frozen Item, as #31 defines the contract; only the fields grading reads so far."""
-
-    id: uuid.UUID
-    item_format: Literal["closed", "open"]
-    text: str
-    points: int
-    # Closed Items: option label (A-D, P/F) to its text, and the correct labels.
-    options: dict[str, str] = {}
-    correct_options: list[str] = []
-    model_solution: str | None = None
-    # Open Items: CKE levels, lowest first.
-    rubric: list[RubricLevel] = []
-    curriculum_topics: list[CurriculumTopic] = []
-
-
-async def get_versions(version_ids: list[uuid.UUID]) -> list[ItemVersion]:
-    raise NotImplementedError("Item records arrive with #31")
+__all__ = [
+    "CurriculumTopic",
+    "Filters",
+    "Item",
+    "ItemContent",
+    "ItemEdit",
+    "ItemVersion",
+    "RubricLevel",
+    "SearchPage",
+    "SectionCount",
+    "Tagger",
+    "Tags",
+    "Usage",
+    "count_items",
+    "create_item",
+    "dismiss_flag",
+    "edit_item",
+    "get_items",
+    "get_versions",
+    "give",
+    "new_version",
+    "restore_item",
+    "retag",
+    "retire_item",
+    "search_items",
+    "usage",
+]
