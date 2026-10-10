@@ -23,6 +23,7 @@ from classlop.shared.settings import get_settings
 
 SETS = Path(__file__).parents[3] / "evals" / "grading"
 CONCURRENCY = 4
+REDELIVERY_DELAY = 30
 
 
 def metrics(outputs: list[dict], references: list[dict]) -> dict:
@@ -186,10 +187,17 @@ async def grade_submission(versions: list[ItemVersion], files: list[Path]) -> di
     async def progress(value: dict) -> None:
         pass
 
-    # As the last attempt: a run that fails is stored Held with no Items, as in production,
-    # and counts as disagreeing instead of ending the whole evaluation.
-    job = Job(id=uuid.uuid4(), kind="grading.grade", payload=payload, attempts=MAX_RECEIVES)
-    await grade(job, progress)
+    # Retried as the queue redelivers it, so a rate limit does not count as a failed grading. A
+    # run that fails on the last attempt is stored Held with no Items, as in production, and
+    # counts as disagreeing instead of ending the whole evaluation.
+    job_id = uuid.uuid4()
+    for attempt in range(1, MAX_RECEIVES + 1):
+        job = Job(id=job_id, kind="grading.grade", payload=payload, attempts=attempt)
+        try:
+            await grade(job, progress)
+            break
+        except Exception:
+            await asyncio.sleep(REDELIVERY_DELAY)
     graded = await result(submission_id, handed_in_at)
     assert graded is not None
     return {

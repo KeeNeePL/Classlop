@@ -19,14 +19,17 @@ Dispute only when the page shows something other than the Transcription:
   exponent, a crossed-out part);
 - work in the Transcription that is not on the page, such as an answer read out of a bare
   "Z. 1";
-- work on the page that is missing from the Transcription, or work written for an Item
-  transcribed as blank;
-- for a closed Item, a chosen option other than the one the student marked or wrote.
+- work written on the page that is missing from the Transcription, or work written for an Item
+  transcribed as blank. Point to the written part: what the solution lacks ("brakuje końca
+  dowodu", "brak wniosku") is a judgement of completeness, not a dispute;
+- for a closed Item, a chosen option other than the one the student marked or wrote. This is
+  the only thing checked on a closed Item.
 
 Never dispute:
 - whether the work is complete: unfinished work transcribed as written is confirmed;
 - whether the maths is correct: mistakes stay as written;
-- side work, calculations or remarks next to a closed Item: only the chosen label is transcribed;
+- side work, calculations or remarks next to a closed Item, however they read: only the chosen
+  label is transcribed;
 - which option a written value means: the student may have written the option's value instead of
   its label ("1" for the option whose value is $1$); that is the same choice.
 
