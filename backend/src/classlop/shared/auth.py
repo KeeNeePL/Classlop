@@ -93,13 +93,15 @@ async def complete_sign_in(flow: dict, params: dict) -> dict:
 
 
 async def graph_token(scopes: list[str]) -> str:
-    """A delegated Graph token for the Teacher, refreshed as needed. One Teacher, so the only
-    account in the cache. Raises SignInRequired once refreshing fails."""
+    """A delegated Graph token for the Teacher, refreshed as needed. Raises SignInRequired once
+    refreshing fails."""
+    s = get_settings()
+    teacher = f"{s.m365_teacher_oid}.{s.m365_tenant_id}"
     async with _cache() as app:
-        accounts = app.get_accounts()
-        if not accounts:
+        account = next((a for a in app.get_accounts() if a["home_account_id"] == teacher), None)
+        if account is None:
             raise SignInRequired
-        result = await asyncio.to_thread(app.acquire_token_silent, scopes, accounts[0])
+        result = await asyncio.to_thread(app.acquire_token_silent, scopes, account)
     if not result or "access_token" not in result:
         raise SignInRequired
     return result["access_token"]

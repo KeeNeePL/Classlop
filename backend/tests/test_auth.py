@@ -136,7 +136,7 @@ class FakeMicrosoft:
     """The endpoints MSAL calls: tenant discovery and the token endpoint."""
 
     def __init__(self):
-        self.refresh_works, self.grants, self.nonce = True, [], ""
+        self.refresh_works, self.grants, self.refreshed, self.nonce = True, [], [], ""
 
     def get(self, url, params=None, headers=None, **kwargs):
         base = f"https://login.microsoftonline.com/{TENANT}"
@@ -161,7 +161,11 @@ class FakeMicrosoft:
         self.grants.append(data["grant_type"])
         if data["grant_type"] == "refresh_token" and not self.refresh_works:
             return Response({"error": "invalid_grant", "error_description": "expired"}, 400)
-        oid = OTHER if data.get("code") == "other" else TEACHER
+        if data["grant_type"] == "refresh_token":
+            oid = data["refresh_token"].removeprefix("refresh-")
+            self.refreshed.append(oid)
+        else:
+            oid = OTHER if data.get("code") == "other" else TEACHER
         claims = {"oid": oid, "tid": TENANT, "name": "Anna Nowak", "aud": "client-1"}
         claims |= {"iss": f"https://login.microsoftonline.com/{TENANT}/v2.0", "exp": 2**31}
         claims |= {"preferred_username": f"{oid}@example.org", "sub": oid}
@@ -172,7 +176,7 @@ class FakeMicrosoft:
                 "scope": "User.Read openid profile offline_access",
                 "expires_in": 3600 if data["grant_type"] == "refresh_token" else -10,
                 "access_token": f"access-{data['grant_type']}",
-                "refresh_token": "refresh-1",
+                "refresh_token": f"refresh-{oid}",
                 "id_token": f"{b64({'alg': 'none'})}.{b64(claims)}.",
                 "client_info": b64({"uid": oid, "utid": TENANT}),
             }
@@ -222,6 +226,19 @@ async def test_a_job_refreshes_the_teachers_token_from_the_stored_cache(microsof
     # The code's access token came back expired, so the refresh token is used.
     assert await auth.graph_token(["User.Read"]) == "access-refresh_token"
     assert microsoft.grants == ["authorization_code", "refresh_token"]
+
+
+async def test_a_job_uses_the_teachers_tokens_when_another_account_is_cached(
+    microsoft, monkeypatch
+):
+    # A leftover from before the Teacher was configured, cached first.
+    monkeypatch.setattr(get_settings(), "m365_teacher_oid", OTHER)
+    await sign_in(microsoft, "other")
+    monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
+    await sign_in(microsoft, "teacher")
+
+    assert await auth.graph_token(["User.Read"]) == "access-refresh_token"
+    assert microsoft.refreshed == [TEACHER]
 
 
 async def test_a_lapsed_refresh_token_means_sign_in_required(microsoft):

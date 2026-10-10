@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 from classlop import teams
 from classlop.shared import auth, jobs
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 RETRY = '<p>{}</p><p><a href="/auth/login">Zaloguj się ponownie</a></p>'
@@ -37,9 +39,11 @@ async def callback(request: Request):
         if flow is None:
             raise auth.SignInFailed("no sign-in in progress")
         claims = await auth.complete_sign_in(flow, dict(request.query_params))
-    except auth.NotAdmitted:
+    except auth.NotAdmitted as exc:
+        log.warning("sign-in refused for %s", exc)
         return HTMLResponse(RETRY.format("To konto nie ma dostępu."), status_code=403)
-    except auth.SignInFailed:
+    except auth.SignInFailed as exc:
+        log.warning("sign-in failed: %s", exc)
         return HTMLResponse(RETRY.format("Logowanie nie powiodło się."), status_code=400)
     request.session["account"] = f"{claims['oid']}.{claims['tid']}"
     request.session["name"] = claims.get("name", "")
