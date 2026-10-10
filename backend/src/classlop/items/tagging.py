@@ -2,7 +2,7 @@
 official API: one Choice for the Curriculum section, a Noul per topic of the likely section(s),
 a Choice for the General requirement and a Score for Difficulty."""
 
-from typing import Any, Protocol
+from typing import Any, Protocol, get_args
 
 from jevper import AsyncSystemOneClient, Choice, Noul, Score
 from langsmith import traceable
@@ -14,7 +14,7 @@ from classlop.shared.settings import get_settings
 
 TAG_AT = 0.5
 SECOND_SECTION_AT = 0.25
-DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium", "hard")
+DIFFICULTIES: tuple[Difficulty, ...] = get_args(Difficulty)
 # Jev reads the text as given: Polish exercises, so the definitions are Polish too.
 DIFFICULTY_LEVELS = [
     "Zadanie łatwe: jedno znane działanie lub wzór, rozwiązanie w jednym-dwóch krokach.",
@@ -75,10 +75,10 @@ class JevTagger:
         scores = {tid: second.answers[tid].noul for tid in topic_names}
         chosen = [tid for tid, p in scores.items() if p >= TAG_AT]
         if not chosen:
-            chosen = [max(asked[0].topics, key=lambda t: scores[t.id]).id]
-        difficulty = first.answers["difficulty"].probabilities
+            chosen = [max(scores, key=lambda tid: scores[tid])]
+        levels = first.answers["difficulty"].probabilities
         return Tagged(
-            difficulty=DIFFICULTIES[int(first.answers["difficulty"].score)],
+            difficulty=DIFFICULTIES[max(levels, key=lambda i: levels[i])],
             curriculum_topics=[
                 CurriculumTopic(id=tid, name=topic_names[tid])
                 for tid in topic_names
@@ -89,7 +89,7 @@ class JevTagger:
                 "section": dict(ranked),
                 "curriculum_topics": scores,
                 "general_requirements": dict(first.answers["general"].probabilities),
-                "difficulty": {d: difficulty[i] for i, d in enumerate(DIFFICULTIES)},
+                "difficulty": {d: levels[i] for i, d in enumerate(DIFFICULTIES)},
             },
         )
 

@@ -10,8 +10,6 @@
 {"id": "fx-10", "text": "Prostokątna działka ma obwód $40$ m i pole co najmniej $75$ m$^2$. Wyznacz możliwe długości krótszego boku.", "topics": ["lo2024:III.4"], "requirement": "III", "difficulty": "medium"}
 {"id": "fx-11", "text": "Dla funkcji $f(x) = 3x - 7$ oblicz $f(4)$.", "topics": ["lo2024:V.2"], "requirement": "I", "difficulty": "easy"}
 {"id": "fx-12", "text": "Dla funkcji $f(x) = x^2 + 2x$ oblicz $f(-3)$.", "topics": ["lo2024:V.2"], "requirement": "I", "difficulty": "easy"}
-{"id": "fx-13", "text": "Z wykresu funkcji $f$ odczytaj jej miejsca zerowe i zbiór wartości.", "topics": ["lo2024:V.4"], "requirement": "II", "difficulty": "easy"}
-{"id": "fx-14", "text": "Na rysunku przedstawiono wykres funkcji $f$ określonej w przedziale $\\langle -4, 5 \\rangle$. Podaj przedziały, w których funkcja jest malejąca.", "topics": ["lo2024:V.4"], "requirement": "II", "difficulty": "medium"}
 {"id": "fx-15", "text": "Funkcja liniowa $f(x) = (m-2)x + 1$ jest rosnąca. Wyznacz możliwe wartości $m$.", "topics": ["lo2024:V.5"], "requirement": "II", "difficulty": "easy"}
 {"id": "fx-16", "text": "Wyznacz wzór funkcji liniowej, której wykres przechodzi przez punkty $A=(0,1)$ i $B=(2,5)$.", "topics": ["lo2024:V.6"], "requirement": "I", "difficulty": "easy"}
 {"id": "fx-17", "text": "Wykres funkcji liniowej jest równoległy do prostej $y = -2x + 3$ i przechodzi przez punkt $(1, 4)$. Wyznacz jej wzór.", "topics": ["lo2024:V.6"], "requirement": "I", "difficulty": "medium"}
