@@ -11,6 +11,7 @@ from ulid import ULID
 from classlop.shared.db import sessions
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
+from classlop.teams.giving import Giving
 from classlop.teams.graph import BASE, GraphClient, GraphError
 from classlop.teams.models import (
     AttendeeRecord,
@@ -108,7 +109,7 @@ def _attendees(upns: list[str]) -> list[dict]:
     return [{"emailAddress": {"address": u}, "type": "required"} for u in upns]
 
 
-class GraphTeams:
+class GraphTeams(Giving):
     """The real area: Postgres records kept in step with the team through Graph."""
 
     def __init__(

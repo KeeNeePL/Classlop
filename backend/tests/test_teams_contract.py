@@ -1,107 +1,19 @@
 """One contract suite for the `teams` interface, run against the real area over FakeGraph (with
-Postgres from compose) and against FakeTeams, so the two cannot drift."""
+Postgres from compose) and against FakeTeams, so the two cannot drift. Fixtures: conftest.py."""
 
-import asyncio
-import os
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-from fake_graph import FakeGraph
-from sqlalchemy import delete
+from tenant import TEACHER
+from tenant import ignore as _ignore
 
 from classlop import teams
-from classlop.shared import jobs, queue, schedule
+from classlop.shared import jobs, schedule
 from classlop.shared.db import sessions
-from classlop.shared.migrate import migrate
 from classlop.shared.models import Job, Schedule
 from classlop.shared.settings import get_settings
 from classlop.teams import handlers
-from classlop.teams.fake import FakeTeams
-from classlop.teams.graph import GraphClient
-from classlop.teams.models import (
-    CalendarCursor,
-    CalendarSeriesRecord,
-    ClassRecord,
-    SettingRecord,
-)
-from classlop.teams.service import GraphTeams
-
-TEACHER = "teacher-oid"
-
-
-class Clock:
-    def __init__(self):
-        self.now = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
-
-    def __call__(self) -> datetime:
-        return self.now
-
-    def advance(self, **delta) -> None:
-        self.now += timedelta(**delta)
-
-
-@pytest.fixture(scope="module", autouse=True)
-async def stack():
-    try:
-        await asyncio.to_thread(migrate)
-        await asyncio.to_thread(queue.url)
-    except Exception:
-        if os.environ.get("CI"):
-            raise
-        pytest.skip("compose stand-ins are not running: docker compose up -d postgres elasticmq")
-
-
-@pytest.fixture(autouse=True)
-async def teacher(monkeypatch):
-    monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
-    async with sessions().begin() as session:
-        for table in (ClassRecord, SettingRecord, CalendarSeriesRecord, CalendarCursor):
-            await session.execute(delete(table))
-
-
-@pytest.fixture
-def clock() -> Clock:
-    return Clock()
-
-
-@pytest.fixture(params=["graph", "fake"])
-def tenant(request, clock):
-    """The area under test, which is also where the test seeds its invented tenant."""
-    if request.param == "fake":
-        return FakeTeams(clock=clock)
-    graph = FakeGraph(TEACHER)
-    tenant = Tenant(graph)
-
-    async def token() -> str:
-        if tenant.lapsed:
-            raise jobs.SignInRequired
-        return "token"
-
-    client = GraphClient(token=token, transport=graph.transport, sleep=_ignore)
-    tenant.area = GraphTeams(client, clock=clock, records=client)
-    return tenant
-
-
-class Tenant:
-    """The real area plus the fake Microsoft behind it."""
-
-    def __init__(self, graph: FakeGraph):
-        self.graph, self.lapsed = graph, False
-        self.add_team, self.add_member = graph.add_team, graph.add_member
-        self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
-        self.add_user, self.rename_team = graph.add_user, graph.rename_team
-        self.team_members, self.team_name = graph.team_members, graph.team_name
-        self.team_is_private = graph.team_is_private
-        self.event_of, self.attend = graph.event_of, graph.attend
-        self.add_channel, self.add_meeting = graph.add_channel, graph.add_meeting
-        self.reschedule, self.cancel, self.delete = graph.reschedule, graph.cancel, graph.delete
-
-    def lapse_sign_in(self) -> None:
-        self.lapsed = True
-
-    def __getattr__(self, name):
-        return getattr(self.area, name)
 
 
 async def test_lists_only_the_teams_the_teacher_owns(tenant):
@@ -457,10 +369,6 @@ async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypat
     async with sessions()() as session:
         row = await session.get(Schedule, "teams.sync-rosters")
     assert (row.kind, row.every_seconds) == ("teams.sync_rosters", 15 * 60)
-
-
-async def _ignore(_):
-    pass
 
 
 def _on(day: int, hour: int = 10, month: int = 9) -> datetime:

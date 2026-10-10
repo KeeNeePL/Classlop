@@ -9,6 +9,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import httpx
+from fake_graph_files import FilesRoutes
 
 from classlop.teams.service import local, zulu
 
@@ -27,7 +28,7 @@ def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -
     return {"caller": {"identity": who}, "startDateTime": zulu(joined), "endDateTime": zulu(left)}
 
 
-class FakeGraph:
+class FakeGraph(FilesRoutes):
     def __init__(self, teacher_id: str):
         self.teacher_id = teacher_id
         self.users: dict[str, tuple[str, str]] = {}
@@ -38,6 +39,7 @@ class FakeGraph:
         self.changes: list[str] = []
         self.deleted: set[str] = set()
         self.call_records: list[dict] = []
+        self._init_files()
         self.transport = httpx.MockTransport(self._handle)
 
     def add_user(self, name: str) -> str:
@@ -182,6 +184,8 @@ class FakeGraph:
         }
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
+        if (found := self._files(request)) is not None:
+            return found
         path = request.url.path.removeprefix("/v1.0")
         method = request.method
         if path == "/me/ownedObjects/microsoft.graph.group":

@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, time, timedelta
 from typing import Literal, Protocol
 
@@ -116,6 +117,64 @@ class Attendance(BaseModel):
     unmatched: list[UnmatchedAttendee]
 
 
+AssignmentType = Literal["homework", "quiz", "exam"]
+# Scheduled and Open are Given. Draft is not Given, and is where a Scheduled one returns when its
+# post fails (`give_failed_at`). Closed is set when #57 closes it.
+AssignmentState = Literal["draft", "scheduled", "open", "closed"]
+SubmissionState = Literal["not_handed_in", "handed_in", "graded", "returned", "missing", "excused"]
+
+
+class AssignmentSpec(BaseModel):
+    """What the caller decides about an Assignment. `student_ids` None means the whole Class."""
+
+    title: str
+    type: AssignmentType
+    due_at: datetime
+    close_at: datetime
+    item_ids: list[uuid.UUID]
+    student_ids: list[str] | None = None
+    reminder_on: bool = True
+
+
+class Assignment(BaseModel):
+    """`item_versions` are the frozen Item versions in the order of `item_ids`, known once the
+    Assignment is Given. `given_at` is when it was Given, `publish_at` when a Scheduled one is
+    posted. Ids are ULIDs; see ids.py for the UUIDs `items` and `grading` use."""
+
+    id: str
+    class_id: str
+    title: str
+    type: AssignmentType
+    state: AssignmentState
+    due_at: datetime
+    close_at: datetime
+    reminder_on: bool
+    whole_class: bool
+    item_ids: list[uuid.UUID]
+    item_versions: list[uuid.UUID] = []
+    given_at: datetime | None = None
+    publish_at: datetime | None = None
+    give_failed_at: datetime | None = None
+    post_id: str | None = None
+    post_channel_id: str | None = None
+
+
+class Submission(BaseModel):
+    """One Student's work on an Assignment. The folder is the Student's private hand-in folder in
+    the Teacher's OneDrive, `permission_id` their sharing permission on it, `chat_id` their 1:1
+    chat with the Teacher and `notice_id` the «Nowa praca» message in it (None until sent)."""
+
+    id: str
+    assignment_id: str
+    student_id: str
+    state: SubmissionState = "not_handed_in"
+    folder_id: str | None = None
+    folder_url: str | None = None
+    permission_id: str | None = None
+    chat_id: str | None = None
+    notice_id: str | None = None
+
+
 class Teams(Protocol):
     """The `teams` area's interface: the real area and FakeTeams both implement it."""
 
@@ -222,4 +281,46 @@ class Teams(Protocol):
     async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
         """Set the Lesson topic and the occurrence title to "<Class>: <Lesson topic>". Raises
         ValueError for an empty topic and LookupError for a Lesson not in the Class."""
+        ...
+
+    async def give_assignment(
+        self, class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
+    ) -> Assignment:
+        """Give the Assignment now (Open) or at `when` (Scheduled), after syncing the roster.
+        Posting it in General with the Items PDF and the due time makes it Given: its Items are
+        frozen by `items.give()`, a Scheduled one's at once. Each recipient then gets a private
+        hand-in folder and a «Nowa praca» chat message. Raises ValueError for a title without
+        letters, a close before the due time, `when` in the past, or a Student of another Class."""
+        ...
+
+    async def get_assignment(self, assignment_id: str) -> Assignment: ...
+
+    async def list_assignments(self, class_id: str) -> list[Assignment]:
+        """Every Assignment of the Class, by due time."""
+        ...
+
+    async def give_again(self, assignment_id: str, when: datetime | None = None) -> Assignment:
+        """Give a Draft now or at `when`, as `give_assignment` does; its Items stay as frozen.
+        Raises ValueError unless the Assignment is a Draft."""
+        ...
+
+    async def publish_scheduled(self, assignment_id: str, last_try: bool = False) -> Assignment:
+        """What the schedule runs at the given time: post a Scheduled Assignment and deliver it.
+        On `last_try`, a post that still fails returns it to Draft with `give_failed_at` set
+        (nothing happens if Teams already accepted the post); before that the error is raised so
+        the job is tried again. Does nothing for an Assignment that is not Scheduled."""
+        ...
+
+    async def list_failed_gives(self) -> list[Assignment]:
+        """Drafts that failed to be given: the home screen's «nie udało się wydać»."""
+        ...
+
+    async def deliver_assignment(self, assignment_id: str) -> int:
+        """Give each recipient still without them their folder, sharing and «Nowa praca» message,
+        one Student at a time so that a failure for one leaves the others done. Returns how many
+        are still waiting. Giving queues a job that calls this until none are."""
+        ...
+
+    async def list_submissions(self, assignment_id: str) -> list[Submission]:
+        """One per recipient, in the order they were created."""
         ...
