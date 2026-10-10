@@ -32,7 +32,13 @@ def _server_url():
 
 def _private_database() -> str | None:
     # A database of its own per run: another branch's migrations or a parallel run never meet ours.
+    # Live tests (`-m live`) keep the dev database: the Teacher's sign-in is stored there.
+    import re
+
     import psycopg
+
+    if re.search(r"(?<!not )\blive\b", " ".join(sys.argv)):
+        return None
 
     url = _server_url()
     name = f"{url.database}_test_{_run}"

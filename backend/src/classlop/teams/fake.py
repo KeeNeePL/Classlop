@@ -520,7 +520,8 @@ class FakeTeams(FakeGiving, FakeHandIns, FakeReturning, FakeLifecycle, FakeRemin
         return [
             Candidate(user_id=i, display_name=name, upn=upn)
             for i, (name, upn) in self._users.items()
-            if any(word.startswith(query.lower()) for word in name.lower().split())
+            if upn.lower().startswith(query.lower())
+            or any(word.startswith(query.lower()) for word in name.lower().split())
         ]
 
     async def create_class(self, name: str, student_user_ids: list[str]) -> Class:

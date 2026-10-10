@@ -895,6 +895,13 @@ async def test_searching_tenant_users_finds_candidates_by_name(tenant):
     ]
 
 
+async def test_searching_tenant_users_also_matches_the_sign_in_address(tenant):
+    jan = tenant.add_user("Jan Kowalski")
+    tenant.add_user("Ewa Zielinska")
+
+    assert [c.user_id for c in await tenant.search_users("jan.kowal")] == [jan]
+
+
 async def test_adding_a_student_adds_them_to_the_team(tenant):
     created = await tenant.create_class("2A matematyka", [])
     jan = tenant.add_user("Jan Kowalski")
