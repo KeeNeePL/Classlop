@@ -40,6 +40,7 @@ class FilesRoutes:
         self._replies: dict[str, list[str]] = {}  # by post id
         self._chats: dict[str, str] = {}  # the Student's user id -> the 1:1 chat with the Teacher
         self._chat_log: dict[str, list[str]] = {}
+        self._chat_attached: dict[str, list[tuple[str, bytes, bool]]] = {}
         self._rejected: set[str] = set()  # user ids and team ids whose chat or post is refused
         self._emails = 0
 
@@ -72,7 +73,7 @@ class FilesRoutes:
     def shared_with(self, user_id: str) -> list[Share]:
         """The folders the Teacher shared with the user, with their role."""
         return [
-            Share(self._path(item["id"]), role, item["url"])
+            Share(self._path(item["id"]), role, item["url"], "content" in item)
             for item in self.drive.values()
             for who, (_, role) in item.get("shares", {}).items()
             if who == user_id
@@ -81,6 +82,15 @@ class FilesRoutes:
     def chat_messages(self, user_id: str) -> list[str]:
         """The HTML of what the Teacher wrote to the user in their 1:1 chat."""
         return self._chat_log.get(self._chats.get(user_id, ""), [])
+
+    def chat_files(self, user_id: str) -> list[tuple[str, bytes]]:
+        """The files attached to what the Teacher wrote to the user, as (name, content), for those
+        the user can open: only a file shared with them."""
+        return [
+            (name, content)
+            for name, content, openable in self._chat_attached.get(self._chats.get(user_id, ""), [])
+            if openable
+        ]
 
     def invitation_emails(self) -> int:
         return self._emails
@@ -116,7 +126,9 @@ class FilesRoutes:
         found = [
             i
             for i in self.drive.values()
-            if user_id in i.get("shares", {}) and folder in (None, self._path(i["id"]))
+            if user_id in i.get("shares", {})
+            and "content" not in i
+            and folder in (None, self._path(i["id"]))
         ]
         return found[-1]
 
@@ -129,6 +141,13 @@ class FilesRoutes:
             return self._files_folder(m[1], m[2])
         if m := re.fullmatch(r"/drives/([^/]+)/items/([^/]+):/(.+):/content", path):
             return self._put_file(m[2], m[3], request)
+        if (m := re.fullmatch(r"/me/drive/items/([^/]+):/(.+):/content", path)) and method == "PUT":
+            return self._put_file(m[1], m[2], request)
+        if m := re.fullmatch(r"/me/drive/items/([^/]+):/([^/]+)", path):
+            child = next(
+                (i for i in self.drive.values() if i["parent"] == m[1] and i["name"] == m[2]), None
+            )
+            return httpx.Response(200, json=self._item(child)) if child else _gone()
         if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages", path):
             return self._post(m[1], request)
         if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)", path):
@@ -347,6 +366,7 @@ class FilesRoutes:
         if item is None:
             return _gone()
         self._emails += bool(body.get("sendInvitation"))
+        item.setdefault("shares", {})
         granted = []
         for recipient in body["recipients"]:
             permission = str(uuid.uuid4())
@@ -373,4 +393,9 @@ class FilesRoutes:
         if owner in self._rejected:
             return httpx.Response(403, json={"error": {"code": "Forbidden"}})
         self._chat_log[chat_id].append(body["body"]["content"])
+        for attachment in body.get("attachments", []):
+            file = next(i for i in self.drive.values() if i["url"] == attachment["contentUrl"])
+            self._chat_attached.setdefault(chat_id, []).append(
+                (attachment["name"], file["content"], owner in file.get("shares", {}))
+            )
         return httpx.Response(201, json={"id": str(uuid.uuid4())})

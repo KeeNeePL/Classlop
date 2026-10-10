@@ -88,6 +88,7 @@ __all__ = [
     "post_reminder",
     "reschedule_reminder",
     "set_reminder",
+    "return_graded",
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
@@ -99,6 +100,7 @@ __all__ = [
     "rename_class",
     "search_users",
     "set_lesson_topic",
+    "submission_graded",
     "sync_roster",
 ]
 
@@ -352,3 +354,16 @@ async def change_times(
     """Move a Given Assignment's due and/or close time; Students are told of a new due time in
     the post's thread."""
     return await backend().change_times(assignment_id, due_at, close_at)
+
+
+async def submission_graded(submission_id: str, handed_in_at: datetime) -> None:
+    """Grading wrote or changed the result of a hand-in: mark the Submission Graded, return it
+    or send a correction as the result and the time allow; the `teams.submission_graded` job
+    calls this."""
+    await backend().submission_graded(submission_id, handed_in_at)
+
+
+async def return_graded(assignment_id: str) -> int:
+    """At the due time, return the Assignment's Graded Submissions that are not Held and ask
+    grading for its Common mistakes; the job at the due time calls this."""
+    return await backend().return_graded(assignment_id)

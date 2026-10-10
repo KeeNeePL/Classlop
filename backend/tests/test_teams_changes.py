@@ -11,7 +11,6 @@ from classlop import teams
 from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
 from classlop.shared.models import Schedule
-from classlop.teams import amendments
 
 
 async def _given(tenant, *names, **changes):
@@ -107,18 +106,17 @@ async def test_the_reminder_follows_the_new_due_time(tenant, gave):
     assert after == DUE
 
 
-async def test_the_due_time_return_follows_the_new_due_time(tenant, gave, monkeypatch):
+async def test_the_return_at_the_due_time_follows_the_new_due_time(tenant, gave):
     _, _, given = await _given(tenant, "Jan Kowalski")
-    seen = []
-
-    async def record(a):
-        seen.append(a.due_at)
-
-    monkeypatch.setattr(amendments, "reschedule_return", record)
+    async with sessions()() as session:
+        assert (await session.get(Schedule, f"teams.due:{given.id}")).next_at == DUE
 
     await tenant.change_times(given.id, due_at=DUE + timedelta(days=1))
 
-    assert seen == [DUE + timedelta(days=1)]
+    async with sessions()() as session:
+        assert (await session.get(Schedule, f"teams.due:{given.id}")).next_at == DUE + timedelta(
+            days=1
+        )
 
 
 @pytest.mark.parametrize(

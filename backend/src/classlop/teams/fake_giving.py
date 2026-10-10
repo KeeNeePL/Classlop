@@ -25,11 +25,13 @@ class Post(NamedTuple):
 
 
 class Share(NamedTuple):
-    """A folder of the Teacher's OneDrive shared with a Student."""
+    """A folder (or, with `file`, a returned Feedback PDF) of the Teacher's OneDrive shared with
+    a Student."""
 
     path: str
     role: str
     url: str
+    file: bool = False
 
 
 class FakeGiving:
@@ -43,6 +45,7 @@ class FakeGiving:
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def sync_roster(self, class_id: str) -> None: ...
         async def reschedule_reminder(self, assignment_id: str) -> None: ...
+        async def _schedule_due(self, assignment_id: str) -> None: ...
 
     def _init_giving(self) -> None:
         self._assignments: dict[str, Assignment] = {}
@@ -180,6 +183,7 @@ class FakeGiving:
             assignment_id, state="scheduled", given_at=now, item_versions=versions, publish_at=when
         )
         await self.reschedule_reminder(assignment_id)
+        await self._schedule_due(assignment_id)
         return scheduled
 
     async def _publish(self, assignment_id: str) -> Assignment:
@@ -210,6 +214,7 @@ class FakeGiving:
                 given.given_at or self._clock(),
             )
             self._save(assignment_id, item_versions=versions)
+        await self._schedule_due(assignment_id)
         if await self._deliver(assignment_id):
             await jobs.enqueue(
                 "teams.deliver_assignment",

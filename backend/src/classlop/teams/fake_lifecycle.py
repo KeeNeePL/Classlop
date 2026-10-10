@@ -80,6 +80,8 @@ class FakeLifecycle:
                 await schedule.cancel(name)
             for submission in self._submissions[given.id].values():
                 self._hands.pop(submission.id, None)
+                self._sent.pop(submission.id, None)
+                self._order.pop(submission.id, None)
                 await asyncio.to_thread(storage.delete_prefix, submissions.prefix(submission.id))
             self._drop_folders(self._assignment_dirs.pop(given.id, None))
             del self._assignments[given.id], self._submissions[given.id], self._pdfs[given.id]

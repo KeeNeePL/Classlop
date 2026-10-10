@@ -69,7 +69,7 @@ async def teacher(monkeypatch, stack):
             HandinCursor,
         ):
             await session.execute(delete(table))
-        for prefix in ("teams.give:", "teams.remind:"):
+        for prefix in ("teams.give:", "teams.remind:", "teams.due:"):
             await session.execute(delete(Schedule).where(Schedule.name.like(f"{prefix}%")))
 
 

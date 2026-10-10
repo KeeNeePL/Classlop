@@ -53,8 +53,3 @@ def due_moved_html(due_at: datetime) -> str:
 def cancelled_html(title: str) -> str:
     """The chat message to each recipient of a deleted Assignment."""
     return f"<p>Praca «{escape(title)}» została anulowana.</p>"
-
-
-async def reschedule_return(a: Assignment) -> None:
-    """Moves the due-time return job to the Assignment's new due time. A no-op until that job
-    exists; the ticket that adds it fills this in."""

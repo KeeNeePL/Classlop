@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 
 from classlop.shared import schedule, storage
 from classlop.shared.db import sessions
-from classlop.teams import assignments, reminders, submissions
+from classlop.teams import assignments, feedback, reminders, submissions
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.assignments import WARSAW
 from classlop.teams.graph import GraphClient, GraphError
@@ -53,7 +53,11 @@ def expired(klass: Class, at: datetime) -> bool:
 
 def schedule_names(assignment_id: str) -> list[str]:
     """Every schedule an Assignment can have, for the tickets that add them to list."""
-    return [assignments.schedule_name(assignment_id), reminders.schedule_name(assignment_id)]
+    return [
+        assignments.schedule_name(assignment_id),
+        reminders.schedule_name(assignment_id),
+        feedback.schedule_name(assignment_id),
+    ]
 
 
 def _begins(event: dict) -> datetime:
