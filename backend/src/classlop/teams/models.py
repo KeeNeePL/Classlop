@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from classlop.shared.db import Base
-from classlop.teams.types import SeriesState
+from classlop.teams.types import ClassState, SeriesState
 
 
 class ClassRecord(Base):
@@ -27,6 +27,8 @@ class ClassRecord(Base):
     general_channel_id: Mapped[str] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text)
     school_year_end: Mapped[date | None] = mapped_column(Date)
+    state: Mapped[ClassState] = mapped_column(Text, default="active", server_default="active")
+    team_deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class StudentRecord(Base):
@@ -179,3 +181,6 @@ class SettingRecord(Base):
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+from classlop.teams import assignment_records, feedback_records, handin_records  # noqa: E402, F401

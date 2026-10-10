@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, time, timedelta
 from typing import Literal, Protocol
 
@@ -36,12 +37,22 @@ class Candidate(BaseModel):
     upn: str
 
 
+class ClassReadOnly(Exception):
+    """The Class's team was deleted in Teams: nothing changes until it is restored or deleted."""
+
+
+# "team_deleted" is read-only: the team is gone from Teams, `team_deleted_at` is when it was found.
+ClassState = Literal["active", "team_deleted"]
+
+
 class Class(BaseModel):
     id: str
     team_id: str
     general_channel_id: str
     name: str
     school_year_end: date | None = None
+    state: ClassState = "active"
+    team_deleted_at: datetime | None = None
 
 
 class Slot(BaseModel):
@@ -114,6 +125,73 @@ class Attendance(BaseModel):
     fetched_at: datetime | None
     entries: list[AttendanceEntry]
     unmatched: list[UnmatchedAttendee]
+
+
+AssignmentType = Literal["homework", "quiz", "exam"]
+# Scheduled and Open are Given. Draft is not Given, and is where a Scheduled one returns when its
+# post fails (`give_failed_at`).
+AssignmentState = Literal["draft", "scheduled", "open", "closed"]
+SubmissionState = Literal["not_handed_in", "handed_in", "graded", "returned", "missing", "excused"]
+
+
+class AssignmentSpec(BaseModel):
+    """What the caller decides about an Assignment. `student_ids` None means the whole Class."""
+
+    title: str
+    type: AssignmentType
+    due_at: datetime
+    close_at: datetime
+    item_ids: list[uuid.UUID]
+    student_ids: list[str] | None = None
+    reminder_on: bool = True
+
+
+class Assignment(BaseModel):
+    """`item_versions` are the frozen Item versions in the order of `item_ids`, known once the
+    Assignment is Given. `given_at` is when it was Given, `publish_at` when a Scheduled one is
+    posted. Ids are ULIDs; see ids.py for the UUIDs `items` and `grading` use."""
+
+    id: str
+    class_id: str
+    title: str
+    type: AssignmentType
+    state: AssignmentState
+    due_at: datetime
+    close_at: datetime
+    reminder_on: bool
+    whole_class: bool
+    item_ids: list[uuid.UUID]
+    item_versions: list[uuid.UUID] = []
+    given_at: datetime | None = None
+    publish_at: datetime | None = None
+    give_failed_at: datetime | None = None
+    post_id: str | None = None
+    post_channel_id: str | None = None
+
+
+class Submission(BaseModel):
+    """One Student's work on an Assignment. The folder is the Student's private hand-in folder in
+    the Teacher's OneDrive, `permission_id` their sharing permission on it, `chat_id` their 1:1
+    chat with the Teacher and `notice_id` the «Nowa praca» message in it (None until sent).
+
+    `handed_in_at` is the server time of the hand-in's last upload, `late` marks a Late
+    submission (handed in after the due time) and `files` are the hand-in's copies in storage.
+    A hand-in settles after 3 quiet minutes; until then the folder's files are not yet the
+    Submission's. `excused_reason` is the Teacher's private note on an Excused Submission."""
+
+    id: str
+    assignment_id: str
+    student_id: str
+    state: SubmissionState = "not_handed_in"
+    folder_id: str | None = None
+    folder_url: str | None = None
+    permission_id: str | None = None
+    chat_id: str | None = None
+    notice_id: str | None = None
+    handed_in_at: datetime | None = None
+    late: bool = False
+    files: list[str] = []
+    excused_reason: str | None = None
 
 
 class Teams(Protocol):
@@ -222,4 +300,148 @@ class Teams(Protocol):
     async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
         """Set the Lesson topic and the occurrence title to "<Class>: <Lesson topic>". Raises
         ValueError for an empty topic and LookupError for a Lesson not in the Class."""
+        ...
+
+    async def give_assignment(
+        self, class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
+    ) -> Assignment:
+        """Give the Assignment now (Open) or at `when` (Scheduled), after syncing the roster.
+        Posting it in General with the Items PDF and the due time makes it Given: its Items are
+        frozen by `items.give()`, a Scheduled one's at once. Each recipient then gets a private
+        hand-in folder and a «Nowa praca» chat message. Raises ValueError for a title without
+        letters, a close before the due time, `when` in the past, or a Student of another Class."""
+        ...
+
+    async def get_assignment(self, assignment_id: str) -> Assignment: ...
+
+    async def list_assignments(self, class_id: str) -> list[Assignment]:
+        """Every Assignment of the Class, by due time."""
+        ...
+
+    async def give_again(self, assignment_id: str, when: datetime | None = None) -> Assignment:
+        """Give a Draft now or at `when`, as `give_assignment` does; its Items stay as frozen.
+        Raises ValueError unless the Assignment is a Draft."""
+        ...
+
+    async def publish_scheduled(self, assignment_id: str, last_try: bool = False) -> Assignment:
+        """What the schedule runs at the given time: post a Scheduled Assignment and deliver it.
+        On `last_try`, a post that still fails returns it to Draft with `give_failed_at` set
+        (nothing happens if Teams already accepted the post); before that the error is raised so
+        the job is tried again. Does nothing for an Assignment that is not Scheduled."""
+        ...
+
+    async def list_failed_gives(self) -> list[Assignment]:
+        """Drafts that failed to be given: the home screen's «nie udało się wydać»."""
+        ...
+
+    async def deliver_assignment(self, assignment_id: str) -> int:
+        """Give each recipient still without them their folder, sharing and «Nowa praca» message,
+        one Student at a time so that a failure for one leaves the others done. Returns how many
+        are still waiting. Giving queues a job that calls this until none are."""
+        ...
+
+    async def list_submissions(self, assignment_id: str) -> list[Submission]:
+        """One per recipient, in the order they were created."""
+        ...
+
+    async def delete_class(self, class_id: str, name: str) -> None:
+        """Delete the Class from Classlop and Teams once `name` is typed as the Class's name:
+        its team (Microsoft keeps it restorable for 30 days), the future Lesson events, the
+        hand-in folders, the schedules of its Assignments and its records. Items and the Students'
+        1:1 chats stay; `dashboard` deletes its own Notes. Raises ValueError for another name.
+        Also works on a Class whose team was deleted in Teams."""
+        ...
+
+    async def list_deleted_teams(self) -> list[Class]:
+        """Classes whose team was deleted in Teams, read-only until the Teacher restores the team
+        (`restore_team`, or in Teams) or deletes the Class: the home screen's «przywróć zespół»
+        and «usuń klasę». A Class still in this state 30 days after `team_deleted_at` is deleted
+        by the next roster sync."""
+        ...
+
+    async def restore_team(self, class_id: str) -> Class:
+        """Ask Teams to restore the Class's deleted team, then sync: the Class is active again.
+        A team restored in Teams does the same on the next roster sync."""
+        ...
+
+    async def set_reminder(self, assignment_id: str, on: bool) -> Assignment:
+        """Switch the Assignment's Reminder on or off (it is on by default, `reminder_on` in the
+        spec). Raises ValueError for a closed Assignment."""
+        ...
+
+    async def reschedule_reminder(self, assignment_id: str) -> None:
+        """Put the Reminder where the Assignment's due time says (a day before it), or remove it
+        if the Reminder is off, the Assignment was Given a day or less before the due time or
+        that moment has passed. Whatever moves the due time calls this; it is safe to repeat."""
+        ...
+
+    async def post_reminder(self, assignment_id: str) -> bool:
+        """What the Reminder's schedule runs: post in General how many Students have not handed in
+        (a count, never names). Returns whether it posted; it does not when the count is zero,
+        the Reminder is off, the Assignment is no longer Open or Scheduled or it is not yet or no
+        longer the day before the due time."""
+        ...
+
+    async def poll_handins(self) -> int:
+        """Read what Students uploaded into their folders: a set unchanged for 3 minutes becomes
+        the Submission's hand-in (Handed in, Late if after the due time, graded on its own), a
+        change before return replaces it, no files at all is Not handed in. Also closes what is
+        due to close. Returns how many Submissions changed state."""
+        ...
+
+    async def submission_graded(self, submission_id: str, handed_in_at: datetime) -> None:
+        """Grading says the result of this hand-in was written or changed (its
+        `teams.submission_graded` job). An event for a hand-in that is no longer the Submission's
+        is ignored. Otherwise the result decides: a Graded Submission waits for the due time, a
+        Late submission is returned as soon as it is graded, a Held result waits for the
+        Teacher's approval, and a changed result after return is sent again as a new message. A
+        failed grading is never returned. Raises LookupError for a Submission that is gone."""
+        ...
+
+    async def return_graded(self, assignment_id: str) -> int:
+        """At the due time: return every Graded Submission that is not Held, and ask grading for
+        the Assignment's Common mistakes. Returns how many were returned; raises RuntimeError
+        after trying them all if any could not be, so the job runs again. Returning sends the
+        Feedback text and PDF in the Student's 1:1 chat (the PDF is in the Teacher's OneDrive,
+        shared to the Student read-only), marks the Submission Returned and makes its folder
+        read-only. A correction later is a new message, never an edit."""
+        ...
+
+    async def close_due_assignments(self) -> int:
+        """Close each Open Assignment whose close time has come: what is settled stays, Students
+        who have not handed in are Missing, and every folder's sharing permission becomes read.
+        Files uploaded after the close time are ignored. Returns how many Submissions went
+        Missing or were settled by the close."""
+        ...
+
+    async def change_times(
+        self, assignment_id: str, due_at: datetime | None = None, close_at: datetime | None = None
+    ) -> Assignment:
+        """Move the due and/or close time of a Scheduled or Open Assignment (None keeps one). A
+        new due time corrects the post in General and replies "Zmiana terminu: ..." in its thread,
+        so Students are notified; a Scheduled Assignment has no post yet and posts the new time.
+        The Reminder and the due-time return follow the due time. Raises ValueError for any other
+        state or a close before the due time."""
+        ...
+
+    async def delete_assignment(self, assignment_id: str) -> None:
+        """Delete an Assignment nothing has been handed in to: the post in General, the hand-in
+        folders, its schedules and its records go, and each Student it reached gets "Praca «...»
+        została anulowana". Its Items stay Given. Raises ValueError once any Student has handed in
+        (including files not yet settled) and LookupError for an unknown Assignment."""
+        ...
+
+    async def add_recipients(self, assignment_id: str, student_ids: list[str]) -> list[Submission]:
+        """Give the Students (current Students of the Class) a Scheduled or Open Assignment too:
+        each gets a folder and a «Nowa praca» message, a Scheduled one's when it is posted.
+        Students who have it already are skipped; returns the new Submissions. A whole-Class
+        Assignment also reaches every Student who joins the Class, at the roster sync. Raises
+        ValueError for another Class's Student, a Former student or an Assignment not Given or
+        already Closed."""
+        ...
+
+    async def excuse_submission(self, submission_id: str, reason: str | None = None) -> Submission:
+        """Mark the Submission Excused, at any time and whatever its state: it drops out of all
+        results and takes no more files. The optional `reason` is the Teacher's private note and
+        is never sent to the Student."""
         ...

@@ -11,7 +11,11 @@ from ulid import ULID
 from classlop.shared.db import sessions
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
-from classlop.teams.graph import BASE, GraphClient, GraphError
+from classlop.teams.changing import Changing
+from classlop.teams.giving import Giving
+from classlop.teams.graph import BASE, GraphClient, or_gone
+from classlop.teams.handins import HandIns
+from classlop.teams.lifecycle import Lifecycle, writable
 from classlop.teams.models import (
     AttendeeRecord,
     CalendarCursor,
@@ -26,6 +30,8 @@ from classlop.teams.models import (
     SlotRecord,
     StudentRecord,
 )
+from classlop.teams.reminding import GraphReminding
+from classlop.teams.returning import Returning
 from classlop.teams.types import (
     LESSON,
     PENDING,
@@ -108,7 +114,7 @@ def _attendees(upns: list[str]) -> list[dict]:
     return [{"emailAddress": {"address": u}, "type": "required"} for u in upns]
 
 
-class GraphTeams:
+class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing):
     """The real area: Postgres records kept in step with the team through Graph."""
 
     def __init__(
@@ -147,6 +153,7 @@ class GraphTeams:
         await self.sync_roster(row.id)
         return _class(row)
 
+    @writable
     async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
         klass = await self.get_class(class_id)
         async with sessions()() as session:
@@ -196,6 +203,7 @@ class GraphTeams:
             first_on=first,
         )
 
+    @writable
     async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
         klass = await self.get_class(class_id)
         async with sessions()() as session:
@@ -226,11 +234,13 @@ class GraphTeams:
             (await session.get_one(SlotRecord, current.id)).last_on = last_on
             session.add(row)
 
+    @writable
     async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
         for lesson in await self.list_lessons(class_id):
             if not lesson.cancelled and first <= lesson.start.astimezone(WARSAW).date() <= last:
                 await self._graph.send("POST", f"/me/events/{lesson.id}/cancel", {})
 
+    @writable
     async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
         topic = topic.strip()
         if not topic:
@@ -252,6 +262,7 @@ class GraphTeams:
                 row.topic = topic
         return lesson.model_copy(update={"topic": topic})
 
+    @writable
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         topic = topic.strip()
         if not topic:
@@ -300,13 +311,8 @@ class GraphTeams:
         for record in records:
             if not record.single:
                 continue
-            try:
-                event = await self._graph.get(f"/me/events/{record.id}")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
-                continue
-            lessons[record.id] = self._lesson(class_id, event, record.topic)
+            if event := await or_gone(self._graph.get(f"/me/events/{record.id}")):
+                lessons[record.id] = self._lesson(class_id, event, record.topic)
         # Teams-made meetings, and what Teams has cancelled, are known from the calendar sync.
         async with sessions()() as session:
             rows = await session.scalars(
@@ -543,6 +549,7 @@ class GraphTeams:
                     fetched += 1
         return fetched
 
+    @writable
     async def override_attendance(
         self, class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
     ) -> None:
@@ -561,6 +568,7 @@ class GraphTeams:
                     )
                 )
 
+    @writable
     async def link_attendee(self, class_id: str, key: str, student_id: str) -> None:
         async with sessions().begin() as session:
             await session.merge(LinkRecord(class_id=class_id, key=key, student_id=student_id))
@@ -641,7 +649,10 @@ class GraphTeams:
     async def sync_roster(self, class_id: str) -> None:
         """Members who are not owners are Students; anyone else becomes a Former student."""
         klass = await self.get_class(class_id)
-        name = (await self._graph.get(f"/teams/{klass.team_id}"))["displayName"]
+        team = await self._team(klass)
+        if team is None:
+            return
+        name = team["displayName"]
         invited = await self._invitees(class_id)
         members = await self._graph.get_all(f"/teams/{klass.team_id}/members")
         present = {m["userId"]: m for m in members if "owner" not in m["roles"]}
@@ -666,6 +677,7 @@ class GraphTeams:
                     row.former_since = self._clock()
         if sorted(invited) != sorted(await self._invitees(class_id)):
             await self._invite_all(class_id)
+        await self._catch_up(class_id)
 
     async def search_users(self, query: str) -> list[Candidate]:
         users = await self._graph.get_all(
@@ -695,12 +707,14 @@ class GraphTeams:
         await self._graph.wait_for(f"/teams/{team_id}/operations/{operation}")
         return await self._link(team_id, name)
 
+    @writable
     async def add_student(self, class_id: str, user_id: str) -> Student:
         klass = await self.get_class(class_id)
         await self._graph.request("POST", f"/teams/{klass.team_id}/members", json=_member(user_id))
         await self.sync_roster(class_id)
         return next(s for s in await self.list_students(class_id) if s.user_id == user_id)
 
+    @writable
     async def remove_student(self, class_id: str, user_id: str) -> None:
         klass = await self.get_class(class_id)
         members = await self._graph.get_all(f"/teams/{klass.team_id}/members")
@@ -711,6 +725,7 @@ class GraphTeams:
                 )
         await self.sync_roster(class_id)
 
+    @writable
     async def rename_class(self, class_id: str, name: str) -> Class:
         klass = await self.get_class(class_id)
         await self._graph.request("PATCH", f"/teams/{klass.team_id}", json={"displayName": name})

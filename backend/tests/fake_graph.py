@@ -4,11 +4,14 @@ endpoints `teams` uses; tests seed it through the methods and never see its rout
 import json
 import re
 import uuid
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import httpx
+from fake_graph_files import FilesRoutes
+from fake_graph_lifecycle import LifecycleRoutes
 
 from classlop.teams.service import local, zulu
 
@@ -27,8 +30,8 @@ def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -
     return {"caller": {"identity": who}, "startDateTime": zulu(joined), "endDateTime": zulu(left)}
 
 
-class FakeGraph:
-    def __init__(self, teacher_id: str):
+class FakeGraph(FilesRoutes, LifecycleRoutes):
+    def __init__(self, teacher_id: str, clock: Callable[[], datetime] = lambda: datetime.now(UTC)):
         self.teacher_id = teacher_id
         self.users: dict[str, tuple[str, str]] = {}
         self.teams: dict[str, dict] = {}
@@ -38,6 +41,8 @@ class FakeGraph:
         self.changes: list[str] = []
         self.deleted: set[str] = set()
         self.call_records: list[dict] = []
+        self._init_files(clock)
+        self._init_lifecycle()
         self.transport = httpx.MockTransport(self._handle)
 
     def add_user(self, name: str) -> str:
@@ -124,6 +129,7 @@ class FakeGraph:
             }
         event_id = json.loads(self._create_event(body).content)["id"]
         thread = channel or f"19:{uuid.uuid4().hex}@thread.v2"
+        self.events[event_id]["made_in_teams"] = True
         self.events[event_id]["onlineMeeting"] = {
             "joinUrl": f"https://teams.example.org/l/meetup-join/{quote(thread)}/0"
         }
@@ -182,6 +188,9 @@ class FakeGraph:
         }
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
+        for routes in (self._lifecycle, self._files):
+            if (found := routes(request)) is not None:
+                return found
         path = request.url.path.removeprefix("/v1.0")
         method = request.method
         if path == "/me/ownedObjects/microsoft.graph.group":
@@ -363,7 +372,8 @@ class FakeGraph:
         window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
         rows = []
         for event_id in dict.fromkeys(self.changes[int(params.get("$deltatoken", 0)) :]):
-            event = self.events[event_id]
+            if (event := self.events.get(event_id)) is None:
+                continue  # deleted since
             series = event_id if "recurrence" in event else None
             rows += [
                 {"id": gone, "@removed": {"reason": "deleted"}}

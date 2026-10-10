@@ -10,6 +10,13 @@ from ulid import ULID
 from classlop.shared.jobs import SignInRequired
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
+from classlop.teams.fake_changing import FakeChanging
+from classlop.teams.fake_giving import FakeGiving
+from classlop.teams.fake_handins import FakeHandIns
+from classlop.teams.fake_lifecycle import FakeLifecycle
+from classlop.teams.fake_reminding import FakeReminding
+from classlop.teams.fake_returning import FakeReturning
+from classlop.teams.lifecycle import writable
 from classlop.teams.service import (
     AFTER,
     BEFORE,
@@ -40,10 +47,15 @@ from classlop.teams.types import (
 )
 
 
-class FakeTeams:
+class FakeTeams(FakeGiving, FakeHandIns, FakeReturning, FakeLifecycle, FakeReminding, FakeChanging):
     def __init__(self, clock: Callable[[], datetime] = now):
         self._clock = clock
         self._signed_in = True
+        self._init_giving()
+        self._init_handins()
+        self._init_returning()
+        self._init_lifecycle()
+        self._init_changing()
         self._users: dict[str, tuple[str, str]] = {}
         self._teams: dict[str, dict] = {}
         self._classes: dict[str, Class] = {}
@@ -301,6 +313,7 @@ class FakeTeams:
             s.upn for s in self._students[event["class_id"]].values() if not s.former_since
         }
 
+    @writable
     async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
         self._require_sign_in()
         if self._series[class_id]:
@@ -317,6 +330,7 @@ class FakeTeams:
         event_id = self._event(class_id, self._classes[class_id].name)
         self._series[class_id].append([event_id, slot, first, None])
 
+    @writable
     async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
         series = next((x for x in self._series[class_id] if x[1] == old and x[3] is None), None)
         if series is None:
@@ -326,6 +340,7 @@ class FakeTeams:
         series[3] = from_date - timedelta(days=1)
         self._start_series(class_id, new, from_date)
 
+    @writable
     async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
         for lesson in await self.list_lessons(class_id):
             if first <= lesson.start.astimezone(WARSAW).date() <= last:
@@ -334,6 +349,7 @@ class FakeTeams:
                 else:
                     self._occurrences.setdefault(lesson.id, {})["cancelled"] = True
 
+    @writable
     async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
         topic = topic.strip()
         if not topic:
@@ -352,6 +368,7 @@ class FakeTeams:
             self._occurrences.setdefault(lesson_id, {}).update(subject=subject, topic=topic)
         return lesson.model_copy(update={"topic": topic})
 
+    @writable
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         self._require_sign_in()
         topic = topic.strip()
@@ -453,6 +470,7 @@ class FakeTeams:
                     fetched += 1
         return fetched
 
+    @writable
     async def override_attendance(
         self, class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
     ) -> None:
@@ -462,6 +480,7 @@ class FakeTeams:
         else:
             overrides[student_id] = state
 
+    @writable
     async def link_attendee(self, class_id: str, key: str, student_id: str) -> None:
         self._links.setdefault(class_id, {})[key] = student_id
 
@@ -473,6 +492,8 @@ class FakeTeams:
 
     async def sync_roster(self, class_id: str) -> None:
         self._require_sign_in()
+        if not await self._team_found(class_id):
+            return
         students = self._students[class_id]
         team = self._teams[self._classes[class_id].team_id]
         self._classes[class_id] = self._classes[class_id].model_copy(update={"name": team["name"]})
@@ -493,6 +514,7 @@ class FakeTeams:
         for event_id, event in self._events.items():
             if event["class_id"] == class_id:
                 self._invite(event_id)
+        await self._catch_up(class_id)
 
     async def search_users(self, query: str) -> list[Candidate]:
         return [
@@ -508,16 +530,19 @@ class FakeTeams:
             self.add_member(team_id, self._users[user_id][0], user_id=user_id)
         return await self._link(team_id)
 
+    @writable
     async def add_student(self, class_id: str, user_id: str) -> Student:
         team_id = self._classes[class_id].team_id
         self.add_member(team_id, self._users[user_id][0], user_id=user_id)
         await self.sync_roster(class_id)
         return self._students[class_id][user_id]
 
+    @writable
     async def remove_student(self, class_id: str, user_id: str) -> None:
         self.remove_member(self._classes[class_id].team_id, user_id)
         await self.sync_roster(class_id)
 
+    @writable
     async def rename_class(self, class_id: str, name: str) -> Class:
         self.rename_team(self._classes[class_id].team_id, name)
         await self.sync_roster(class_id)

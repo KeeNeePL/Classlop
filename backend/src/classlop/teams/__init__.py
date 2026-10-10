@@ -9,16 +9,21 @@ from classlop.shared.settings import get_settings
 from classlop.teams.graph import GRAPH_SCOPES, GraphClient
 from classlop.teams.types import (
     AlreadyLinked,
+    Assignment,
+    AssignmentSpec,
     Attendance,
     AttendanceEntry,
     AttendanceState,
     CalendarQuestion,
     Candidate,
     Class,
+    ClassReadOnly,
+    ClassState,
     Lesson,
     NotOwner,
     Slot,
     Student,
+    Submission,
     Team,
     Teams,
     TimetableExists,
@@ -28,36 +33,62 @@ from classlop.teams.types import (
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
+    "Assignment",
+    "AssignmentSpec",
     "CalendarQuestion",
     "Attendance",
     "AttendanceEntry",
     "AttendanceState",
     "Candidate",
     "Class",
+    "ClassReadOnly",
+    "ClassState",
     "Lesson",
     "NotOwner",
     "Slot",
     "Student",
+    "Submission",
     "Team",
     "Teams",
     "TimetableExists",
     "UnmatchedAttendee",
     "add_lesson",
+    "add_recipients",
     "add_student",
     "add_timetable",
     "answer_calendar_question",
     "backend",
     "cancel_lessons",
     "change_slot",
+    "change_times",
+    "close_due_assignments",
     "create_class",
+    "delete_assignment",
+    "delete_class",
+    "excuse_submission",
+    "deliver_assignment",
+    "list_deleted_teams",
+    "restore_team",
     "fetch_due_attendance",
     "get_attendance",
+    "get_assignment",
+    "give_again",
+    "list_failed_gives",
+    "publish_scheduled",
+    "list_assignments",
+    "list_submissions",
     "get_class",
+    "give_assignment",
     "lateness_threshold",
     "link_attendee",
     "link_team",
     "list_calendar_questions",
     "override_attendance",
+    "poll_handins",
+    "post_reminder",
+    "reschedule_reminder",
+    "set_reminder",
+    "return_graded",
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
@@ -69,6 +100,7 @@ __all__ = [
     "rename_class",
     "search_users",
     "set_lesson_topic",
+    "submission_graded",
     "sync_roster",
 ]
 
@@ -217,3 +249,121 @@ async def change_slot(class_id: str, old: Slot, new: Slot, from_date: date) -> N
 async def set_lesson_topic(class_id: str, lesson_id: str, topic: str) -> Lesson:
     """Set a Lesson's topic, which also becomes its Teams event title."""
     return await backend().set_lesson_topic(class_id, lesson_id, topic)
+
+
+async def give_assignment(
+    class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
+) -> Assignment:
+    """Give an Assignment now or at `when`: post it in General and give each recipient a private
+    hand-in folder and a chat message. Given once Teams accepts the post."""
+    return await backend().give_assignment(class_id, spec, items_pdf, when)
+
+
+async def get_assignment(assignment_id: str) -> Assignment:
+    return await backend().get_assignment(assignment_id)
+
+
+async def list_assignments(class_id: str) -> list[Assignment]:
+    return await backend().list_assignments(class_id)
+
+
+async def list_submissions(assignment_id: str) -> list[Submission]:
+    return await backend().list_submissions(assignment_id)
+
+
+async def deliver_assignment(assignment_id: str) -> int:
+    """Retry the Students an Assignment has not reached; returns how many are still waiting."""
+    return await backend().deliver_assignment(assignment_id)
+
+
+async def give_again(assignment_id: str, when: datetime | None = None) -> Assignment:
+    """Give a Draft that failed to be given, now or at `when`."""
+    return await backend().give_again(assignment_id, when)
+
+
+async def publish_scheduled(assignment_id: str, last_try: bool = False) -> Assignment:
+    """Post a Scheduled Assignment; the job at its time calls this."""
+    return await backend().publish_scheduled(assignment_id, last_try)
+
+
+async def list_failed_gives() -> list[Assignment]:
+    """Drafts that failed to be given, for the home screen."""
+    return await backend().list_failed_gives()
+
+
+async def delete_class(class_id: str, name: str) -> None:
+    """Delete a Class and its team, future Lesson events, hand-in folders and records, once its
+    name is typed. Items and 1:1 chats stay; the caller deletes its own Notes."""
+    await backend().delete_class(class_id, name)
+
+
+async def list_deleted_teams() -> list[Class]:
+    """Read-only Classes whose team was deleted in Teams: «przywróć zespół» or «usuń klasę»."""
+    return await backend().list_deleted_teams()
+
+
+async def restore_team(class_id: str) -> Class:
+    """Restore the Class's deleted team in Teams and make the Class active again."""
+    return await backend().restore_team(class_id)
+
+
+async def set_reminder(assignment_id: str, on: bool) -> Assignment:
+    """Switch an Assignment's Reminder on or off."""
+    return await backend().set_reminder(assignment_id, on)
+
+
+async def reschedule_reminder(assignment_id: str) -> None:
+    """Move the Reminder to a day before the Assignment's (changed) due time, or remove it."""
+    await backend().reschedule_reminder(assignment_id)
+
+
+async def post_reminder(assignment_id: str) -> bool:
+    """Post the Reminder in General now; the Reminder's schedule calls this."""
+    return await backend().post_reminder(assignment_id)
+
+
+async def poll_handins() -> int:
+    """Turn what Students uploaded into Submissions and close what is due; the job calls this
+    every 2 minutes."""
+    return await backend().poll_handins()
+
+
+async def close_due_assignments() -> int:
+    """Close Open Assignments whose close time has come."""
+    return await backend().close_due_assignments()
+
+
+async def delete_assignment(assignment_id: str) -> None:
+    """Delete an Assignment before anything is handed in, telling the Students it reached."""
+    await backend().delete_assignment(assignment_id)
+
+
+async def add_recipients(assignment_id: str, student_ids: list[str]) -> list[Submission]:
+    """Give more Students a Scheduled or Open Assignment: a folder and a «Nowa praca» message."""
+    return await backend().add_recipients(assignment_id, student_ids)
+
+
+async def excuse_submission(submission_id: str, reason: str | None = None) -> Submission:
+    """Mark a Submission Excused at any time, with an optional private reason."""
+    return await backend().excuse_submission(submission_id, reason)
+
+
+async def change_times(
+    assignment_id: str, due_at: datetime | None = None, close_at: datetime | None = None
+) -> Assignment:
+    """Move a Given Assignment's due and/or close time; Students are told of a new due time in
+    the post's thread."""
+    return await backend().change_times(assignment_id, due_at, close_at)
+
+
+async def submission_graded(submission_id: str, handed_in_at: datetime) -> None:
+    """Grading wrote or changed the result of a hand-in: mark the Submission Graded, return it
+    or send a correction as the result and the time allow; the `teams.submission_graded` job
+    calls this."""
+    await backend().submission_graded(submission_id, handed_in_at)
+
+
+async def return_graded(assignment_id: str) -> int:
+    """At the due time, return the Assignment's Graded Submissions that are not Held and ask
+    grading for its Common mistakes; the job at the due time calls this."""
+    return await backend().return_graded(assignment_id)

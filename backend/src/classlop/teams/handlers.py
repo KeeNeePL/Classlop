@@ -1,4 +1,6 @@
 import logging
+import uuid
+from datetime import datetime
 
 import httpx
 
@@ -7,13 +9,14 @@ from classlop.shared.auth import graph_token
 from classlop.shared.jobs import Progress, SignInRequired, handler
 from classlop.shared.models import Job
 from classlop.shared.schedule import declare_every
-from classlop.teams import GRAPH_SCOPES
+from classlop.teams import GRAPH_SCOPES, ids
 
 log = logging.getLogger(__name__)
 
 declare_every("teams.sync-rosters", "rate(15 minutes)", "teams.sync_rosters")
 declare_every("teams.sync-calendar", "rate(15 minutes)", "teams.sync_calendar")
 declare_every("teams.fetch-attendance", "rate(5 minutes)", "teams.fetch_attendance")
+declare_every("teams.poll-handins", "rate(2 minutes)", "teams.poll_handins")
 
 
 @handler("teams.whoami")
@@ -53,3 +56,63 @@ async def sync_rosters(job: Job, progress: Progress) -> dict:
 async def sync_calendar(job: Job, progress: Progress) -> None:
     """Also enqueued on demand when the dashboard opens."""
     await teams.sync_calendar()
+
+
+@handler("teams.deliver_assignment")
+async def deliver_assignment(job: Job, progress: Progress) -> dict:
+    """Retries the Students an Assignment has not reached; fails while any is left, so the job is
+    tried again."""
+    try:
+        left = await teams.deliver_assignment(job.payload["assignment_id"])
+    except LookupError:  # its Class was deleted
+        return {"left": 0}
+    if left:
+        raise RuntimeError(f"{left} Students not reached")
+    return {"left": 0}
+
+
+@handler("teams.give_assignment")
+async def give_assignment(job: Job, progress: Progress) -> None:
+    """Posts a Scheduled Assignment at its time. If it still fails on the last try it returns to
+    Draft, for the home screen to show."""
+    try:
+        await teams.publish_scheduled(job.payload["assignment_id"], last_try=job.final_attempt)
+    except LookupError:  # its Class was deleted
+        return
+
+
+@handler("teams.remind_assignment")
+async def remind_assignment(job: Job, progress: Progress) -> dict:
+    """A day before the due time: how many Students have not handed in, in General."""
+    try:
+        return {"posted": await teams.post_reminder(job.payload["assignment_id"])}
+    except LookupError:  # its Class was deleted
+        return {"posted": False}
+
+
+@handler("teams.poll_handins")
+async def poll_handins(job: Job, progress: Progress) -> dict:
+    """Students' uploads into Submissions, and the close of Assignments past their close time."""
+    return {"changed": await teams.poll_handins()}
+
+
+@handler("teams.submission_graded")
+async def submission_graded(job: Job, progress: Progress) -> None:
+    """Grading's word that a hand-in's result was written or changed."""
+    try:
+        await teams.submission_graded(
+            ids.from_uuid(uuid.UUID(job.payload["submission_id"])),
+            datetime.fromisoformat(job.payload["handed_in_at"]),
+        )
+    except LookupError:  # its Class was deleted
+        return
+
+
+@handler("teams.assignment_due")
+async def assignment_due(job: Job, progress: Progress) -> dict:
+    """At an Assignment's due time: return what is graded and ask grading for its Common
+    mistakes. Fails while any Submission could not be returned, so the job is tried again."""
+    try:
+        return {"returned": await teams.return_graded(job.payload["assignment_id"])}
+    except LookupError:  # its Class was deleted
+        return {"returned": 0}
