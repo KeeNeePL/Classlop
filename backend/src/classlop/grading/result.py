@@ -42,6 +42,8 @@ class Result(BaseModel):
     held_reasons: list[Reason]
     spot_check_reasons: list[Reason]
     comment: str
+    # The current Feedback PDF in storage; none when the Submission has nothing to typeset.
+    pdf_key: str | None
     items: list[ItemResult]
     approved_at: datetime | None
 

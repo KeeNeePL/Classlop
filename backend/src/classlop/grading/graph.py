@@ -11,6 +11,16 @@ from pydantic import BaseModel
 
 from classlop import items as items_area
 from classlop.grading.common_mistakes import chosen_option_mistake, request_if_computed
+from classlop.grading.feedback import (
+    BLANK,
+    CORRECT,
+    NOT_READ,
+    WRONG,
+    store_pdf,
+    summarise,
+    text_comment,
+    typesets,
+)
 from classlop.grading.models import GradedItem, GradedSubmission, Reading
 from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
@@ -19,14 +29,10 @@ from classlop.grading.verification import verify
 from classlop.items import ItemVersion
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
+from classlop.shared.typeset import TypesetError
 
-AI_LINE = "Ocena i komentarz przygotowane przez AI; nauczyciel sprawdza je wyrywkowo."
 # Nothing to judge, or nothing that may be judged: such Items score 0 with no scoring call.
 UNSCORED = ("blank", "unreadable")
-CORRECT, BLANK = "poprawnie", "brak rozwiązania"
-NOT_READ, WRONG = "nie udało się odczytać rozwiązania", "błędna odpowiedź"
-# Fixed Feedback carries no maths, so the text comment shows it; scored Feedback may carry maths.
-FIXED_FEEDBACK = (CORRECT, BLANK, NOT_READ, WRONG)
 
 Rule = tuple[str, Callable[[GradedItem], bool]]
 HELD_REASONS: list[Rule] = [
@@ -35,6 +41,7 @@ HELD_REASONS: list[Rule] = [
     ("wątpliwa ocena", lambda i: i.doubt),
 ]
 FLAG_REASONS: list[Rule] = [("rysunek", lambda i: i.drawing)]
+TYPESET_FAILED = "błąd składu"
 
 
 class AssignedItem(BaseModel):
@@ -66,6 +73,8 @@ class State(Input):
     # The verification note per disputed Item number.
     disputes: dict[int, str]
     scores: Annotated[dict[int, Score], operator.or_]
+    # Items whose Feedback would not typeset even when asked for twice.
+    untypeset: Annotated[list[int], operator.add]
     graded: GradedSubmission
 
 
@@ -158,7 +167,14 @@ def to_scoring(state: State) -> list[Send] | str:
 
 
 async def score_item(state: ScoreTask) -> dict:
-    return {"scores": {state["number"]: await score(state["item"], state["transcription"])}}
+    """The Feedback is typeset here, so a typesetting error shows at grading, not at return."""
+    number, item = state["number"], state["item"]
+    for _ in range(2):
+        scored = await score(item, state["transcription"])
+        # Full points show "poprawnie", whatever the Feedback says.
+        if scored.points >= item.points or await typesets(scored.feedback):
+            return {"scores": {number: scored}}
+    return {"scores": {number: scored}, "untypeset": [number]}
 
 
 def _grade_item(
@@ -204,22 +220,8 @@ def _grade_item(
         feedback=feedback,
         mistake=mistake,
         verification_note=dispute,
+        curriculum_topics=[t.name for t in item.curriculum_topics],
     )
-
-
-def text_comment(items: list[GradedItem]) -> str:
-    """One points line per Item with its effective points, then the fixed AI line."""
-    return "\n".join(_line(i) for i in items) + f"\n\n{AI_LINE}"
-
-
-def _line(item: GradedItem) -> str:
-    points = item.effective_points
-    line = f"Zadanie {item.number}: {points}/{item.max_points} pkt"
-    if points == item.max_points:
-        return f"{line} – {CORRECT}"
-    # A wrong remark under the Teacher's points would contradict them; a fixed one never does.
-    remark = item.feedback in FIXED_FEEDBACK and item.feedback != CORRECT
-    return f"{line} – {item.feedback}" if remark else line
 
 
 def _reasons(items: list[GradedItem], rules: list[Rule]) -> list[dict]:
@@ -248,10 +250,28 @@ async def assess(state: State) -> dict:
             status="graded",
             held_reasons=held,
             spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
-            comment=text_comment(graded),
             items=graded,
         )
     }
+
+
+async def write_feedback(state: State) -> dict:
+    graded = state["graded"]
+    graded.summary = await summarise(graded.items)
+    graded.comment = text_comment(graded.summary, graded.items)
+    held = None
+    if untypeset := sorted(state.get("untypeset", [])):
+        held = {"reason": TYPESET_FAILED, "items": untypeset}
+    else:
+        try:
+            graded.pdf_key = await store_pdf(graded.submission_id, graded.items)
+        except TypesetError:
+            # Each Feedback typeset alone, so no single Item is to blame.
+            held = {"reason": TYPESET_FAILED, "items": []}
+    if held:
+        graded.held_reasons = [*graded.held_reasons, held]
+        graded.spot_check_reasons = [*graded.spot_check_reasons, held]
+    return {"graded": graded}
 
 
 async def persist(state: State) -> dict:
@@ -278,7 +298,7 @@ grade_graph = (
     .add_node(verify_pages)
     .add_node(score_item)
     .add_node(hold)
-    .add_sequence([assess, persist])
+    .add_sequence([assess, write_feedback, persist])
     .add_edge(START, "load")
     .add_conditional_edges("load", to_transcription, ["transcribe_pages", "hold"])
     .add_edge("transcribe_pages", "verify_pages")

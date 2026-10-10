@@ -9,6 +9,12 @@ class RubricLevel(BaseModel):
     description: str
 
 
+class CurriculumTopic(BaseModel):
+    id: str
+    # Polish, as the Student reads it under "Do powtórki".
+    name: str
+
+
 class ItemVersion(BaseModel):
     """A frozen Item, as #31 defines the contract; only the fields grading reads so far."""
 
@@ -22,6 +28,7 @@ class ItemVersion(BaseModel):
     model_solution: str | None = None
     # Open Items: CKE levels, lowest first.
     rubric: list[RubricLevel] = []
+    curriculum_topics: list[CurriculumTopic] = []
 
 
 async def get_versions(version_ids: list[uuid.UUID]) -> list[ItemVersion]:

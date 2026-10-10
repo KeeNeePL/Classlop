@@ -11,6 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pillow_heif
+import pypdfium2 as pdfium
 import pytest
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
@@ -20,7 +21,7 @@ from pydantic import Field
 from sqlalchemy import select
 
 from classlop import grading, items
-from classlop.items import ItemVersion, RubricLevel
+from classlop.items import CurriculumTopic, ItemVersion, RubricLevel
 from classlop.shared import llm, queue, storage
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
@@ -29,6 +30,7 @@ from classlop.shared.models import Job
 pillow_heif.register_heif_opener()
 
 AI_LINE = "Ocena i komentarz przygotowane przez AI; nauczyciel sprawdza je wyrywkowo."
+SUMMARY = "Większość zadań rozwiązujesz poprawnie."
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -45,15 +47,17 @@ async def stack():
 
 class Recording(GenericFakeChatModel):
     seen: list = Field(default_factory=list)
-    # Scoring runs in parallel, so its replies are picked by the Item text in the prompt.
-    by_text: dict[str, str] = Field(default_factory=dict)
+    # Scoring runs in parallel, so its replies are picked by the Item text in the prompt, in
+    # turn, the last one repeating.
+    by_text: dict[str, list[str]] = Field(default_factory=dict)
 
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         self.seen.append(messages)
         if not self.by_text:
             return super()._generate(messages, stop, run_manager, **kwargs)
         prompt = text_of(messages)
-        (reply,) = [r for text, r in self.by_text.items() if text in prompt]
+        (replies,) = [r for text, r in self.by_text.items() if text in prompt]
+        reply = replies.pop(0) if len(replies) > 1 else replies[0]
         return ChatResult(generations=[ChatGeneration(message=AIMessage(reply))])
 
 
@@ -69,12 +73,21 @@ class Clusterer(Recording):
         return ChatResult(generations=[ChatGeneration(message=reply)])
 
 
+class Constant(Recording):
+    reply: str = ""
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.seen.append(messages)
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(self.reply))])
+
+
 class FakeLLM:
     """Scripted replies per config key at `shared.llm`; records what each model was sent."""
 
     def __init__(self, monkeypatch):
         self.keys: list[str] = []
         self.models: dict[str, Recording] = {}
+        self.summarises(SUMMARY)
         monkeypatch.setattr(llm, "chat_model", self._chat_model)
 
     def _chat_model(self, key):
@@ -90,10 +103,17 @@ class FakeLLM:
         reply = AIMessage(json.dumps({"items": list(checks)}))
         self.models["grading.verify"] = Recording(messages=iter([reply]))
 
-    def scores(self, by_text: dict[str, dict]) -> None:
-        """The scoring reply for each open Item, by its text."""
-        replies = {text: json.dumps(score) for text, score in by_text.items()}
+    def scores(self, by_text: dict[str, dict | list[dict]]) -> None:
+        """The scoring reply for each open Item, by its text; a list replies to calls in turn."""
+        replies = {
+            text: [json.dumps(s) for s in (score if isinstance(score, list) else [score])]
+            for text, score in by_text.items()
+        }
         self.models["grading.score"] = Recording(messages=iter([]), by_text=replies)
+
+    def summarises(self, summary: str) -> None:
+        reply = json.dumps({"summary": summary})
+        self.models["grading.summary"] = Constant(messages=iter([]), reply=reply)
 
     def clusters_alike(self) -> None:
         self.models["grading.common_mistakes"] = Clusterer(messages=iter([]))
@@ -161,6 +181,7 @@ def closed(points=1, correct="B") -> ItemVersion:
         points=points,
         options={"A": "$1$", "B": "$2$", "C": "$4$", "D": "$8$"},
         correct_options=[correct],
+        curriculum_topics=[curriculum_topic("Potęgi o wykładnikach naturalnych")],
     )
 
 
@@ -175,7 +196,12 @@ def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemV
             RubricLevel(points=1, description=r"Obliczenie $\Delta = 36$."),
             RubricLevel(points=2, description="Oba pierwiastki: $x_1 = -1$, $x_2 = 5$."),
         ],
+        curriculum_topics=[curriculum_topic("Równania kwadratowe")],
     )
+
+
+def curriculum_topic(name: str) -> CurriculumTopic:
+    return CurriculumTopic(id=f"topic-{name}", name=name)
 
 
 def confirmed(number) -> dict:
@@ -268,7 +294,7 @@ async def test_a_correct_closed_item_scores_full_points_and_teams_is_told_once(b
         for i in result.items
     ] == [(1, 2, 2, 2, "readable", False, "B")]
     assert (result.held, result.held_reasons, result.spot_check) == (False, [], False)
-    assert result.comment == f"Zadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
+    assert result.comment == f"{SUMMARY}\n\nZadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
     assert await graded_events(submission_id) == [
         {"submission_id": str(submission_id), "handed_in_at": handed_in_at.isoformat()}
     ]
@@ -282,7 +308,10 @@ async def test_a_wrong_option_scores_nothing(bank, fake_llm):
     assert result is not None
     assert [(i.ai_points, i.reading) for i in result.items] == [(0, "readable")]
     assert not result.held
-    assert result.comment == f"Zadanie 1: 0/1 pkt – błędna odpowiedź\n\n{AI_LINE}"
+    assert result.comment == (
+        f"{SUMMARY}\n\nZadanie 1: 0/1 pkt – błędna odpowiedź\n\n"
+        f"Do powtórki:\n- Potęgi o wykładnikach naturalnych\n\n{AI_LINE}"
+    )
 
 
 async def test_the_model_sees_the_option_values_but_never_the_key(bank, fake_llm):
@@ -343,8 +372,10 @@ async def test_an_unreadable_item_scores_nothing_and_holds_the_submission(bank, 
         {"reason": "niepewny odczyt", "items": [2]},
     ]
     assert result.comment == (
+        f"{SUMMARY}\n\n"
         "Zadanie 1: 0/1 pkt – nie udało się odczytać rozwiązania\n"
-        f"Zadanie 2: 1/1 pkt – poprawnie\n\n{AI_LINE}"
+        "Zadanie 2: 1/1 pkt – poprawnie\n\n"
+        f"Do powtórki:\n- Potęgi o wykładnikach naturalnych\n\n{AI_LINE}"
     )
 
 
@@ -363,7 +394,9 @@ async def test_a_blank_item_scores_nothing_and_does_not_hold(bank, fake_llm):
     ]
     assert (result.held, result.spot_check) == (False, False)
     assert result.comment == (
-        f"Zadanie 1: 2/2 pkt – poprawnie\nZadanie 2: 0/1 pkt – brak rozwiązania\n\n{AI_LINE}"
+        f"{SUMMARY}\n\n"
+        "Zadanie 1: 2/2 pkt – poprawnie\nZadanie 2: 0/1 pkt – brak rozwiązania\n\n"
+        f"Do powtórki:\n- Potęgi o wykładnikach naturalnych\n\n{AI_LINE}"
     )
 
 
@@ -372,7 +405,7 @@ async def test_transcription_uses_its_configured_model_and_never_invents_work(ba
 
     await hand_in(bank, [closed()])
 
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     # The prototype invented an answer from a bare "Z. 1".
     assert "Transcribe nothing where nothing is written" in fake_llm.prompt()
 
@@ -416,7 +449,9 @@ async def test_an_open_item_is_scored_against_its_rubric(bank, fake_llm):
         )
     ]
     assert not result.held
-    assert result.comment == f"Zadanie 1: 1/2 pkt\n\n{AI_LINE}"
+    assert result.comment == (
+        f"{SUMMARY}\n\nZadanie 1: 1/2 pkt\n\nDo powtórki:\n- Równania kwadratowe\n\n{AI_LINE}"
+    )
     prompt = fake_llm.prompt("grading.score")
     assert all(
         part in prompt
@@ -472,17 +507,145 @@ async def test_a_mixed_submission_scores_only_open_items_with_the_model(bank, fa
     result = await grading.result(*await hand_in(bank, [choice, solved, empty]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
+    assert fake_llm.keys == [
+        "grading.transcribe",
+        "grading.verify",
+        "grading.score",
+        "grading.summary",
+    ]
     assert [(i.ai_points, i.feedback, i.mistake) for i in result.items] == [
         (0, "błędna odpowiedź", "zaznaczona odpowiedź C"),
         (2, "poprawnie", None),
         (0, "brak rozwiązania", None),
     ]
     assert result.comment == (
+        f"{SUMMARY}\n\n"
         "Zadanie 1: 0/1 pkt – błędna odpowiedź\n"
         "Zadanie 2: 2/2 pkt – poprawnie\n"
-        f"Zadanie 3: 0/2 pkt – brak rozwiązania\n\n{AI_LINE}"
+        "Zadanie 3: 0/2 pkt – brak rozwiązania\n\n"
+        "Do powtórki:\n- Potęgi o wykładnikach naturalnych\n- Równania kwadratowe\n\n"
+        f"{AI_LINE}"
     )
+
+
+async def test_the_comment_names_at_most_two_topics_where_points_were_lost(bank, fake_llm):
+    full = closed(correct="B").model_copy(
+        update={"curriculum_topics": [curriculum_topic("Logarytmy")]}
+    )
+    partial = open_item().model_copy(
+        update={
+            "curriculum_topics": [
+                curriculum_topic("Równania kwadratowe"),
+                curriculum_topic("Funkcja kwadratowa"),
+            ]
+        }
+    )
+    wrong = closed(correct="B").model_copy(
+        update={
+            "curriculum_topics": [
+                curriculum_topic("Równania kwadratowe"),
+                curriculum_topic("Wartość bezwzględna"),
+            ]
+        }
+    )
+    fake_llm.transcribes(
+        read(1, chosen="B", transcription="B"),
+        read(2, transcription="\\Delta = 36"),
+        read(3, chosen="C", transcription="C"),
+    )
+    fake_llm.scores({partial.text: score(1, feedback="Brakuje pierwiastków $x_1$ i $x_2$.")})
+    fake_llm.summarises("Zadanie 2 przerywasz po obliczeniu wyróżnika.")
+
+    result = await grading.result(*await hand_in(bank, [full, partial, wrong]))
+
+    assert result is not None
+    assert result.comment == (
+        "Zadanie 2 przerywasz po obliczeniu wyróżnika.\n\n"
+        "Zadanie 1: 1/1 pkt – poprawnie\n"
+        "Zadanie 2: 1/2 pkt\n"
+        "Zadanie 3: 0/1 pkt – błędna odpowiedź\n\n"
+        "Do powtórki:\n- Równania kwadratowe\n- Funkcja kwadratowa\n\n"
+        f"{AI_LINE}"
+    )
+    prompt = fake_llm.prompt("grading.summary")
+    assert "Brakuje pierwiastków $x_1$ i $x_2$." in prompt
+    assert partial.model_solution not in prompt
+
+
+async def feedback_pdf(result) -> str:
+    """The text of the result's Feedback PDF, whitespace collapsed."""
+    document = pdfium.PdfDocument(await asyncio.to_thread(storage.get, result.pdf_key))
+    return " ".join(" ".join(page.get_textpage().get_text_range() for page in document).split())
+
+
+async def test_the_feedback_pdf_shows_each_items_points_and_feedback_with_maths(bank, fake_llm):
+    choice, solved, unread = (
+        closed(),
+        open_item(),
+        open_item(text="Wykaż, że $n^2 + n$ jest parzyste."),
+    )
+    fake_llm.transcribes(
+        read(1, chosen="C", transcription="C"),
+        read(2, transcription="\\Delta = 36"),
+        read(3, reading="unreadable", transcription="n^2 + n = 2k [nieczytelne]"),
+    )
+    fake_llm.scores(
+        {solved.text: score(1, feedback=r"W kroku 2 brakuje pierwiastków: $\sqrt{\Delta} = 6$.")}
+    )
+
+    result = await grading.result(*await hand_in(bank, [choice, solved, unread]))
+
+    assert result is not None
+    assert result.pdf_key is not None
+    assert result.pdf_key.startswith(f"grading/feedback/{result.submission_id}/")
+    text = await feedback_pdf(result)
+    assert all(
+        part in text
+        for part in (
+            "Zadanie 1: 0/1 pkt Błędna odpowiedź.",
+            "Zadanie 2: 1/2 pkt W kroku 2 brakuje pierwiastków:",
+            "Zadanie 3: 0/2 pkt Nie udało się odczytać rozwiązania.",
+            AI_LINE,
+        )
+    )
+    # No guess at unreadable work, no Model solution, no total.
+    assert all(part not in text for part in ("2k", "x_1", "1/5"))
+
+
+MALFORMED = r"W kroku 2 pojawia się błąd: $\frac{1}{2$."
+
+
+async def test_feedback_that_will_not_typeset_is_asked_for_once_more(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(read(1, transcription="\\Delta = 36"))
+    fake_llm.scores(
+        {item.text: [score(1, feedback=MALFORMED), score(1, feedback="Brakuje $x_2$.")]}
+    )
+
+    result = await grading.result(*await hand_in(bank, [item]))
+
+    assert result is not None
+    assert len(fake_llm.models["grading.score"].seen) == 2
+    assert [i.feedback for i in result.items] == ["Brakuje $x_2$."]
+    assert (result.held, result.pdf_key is not None) == (False, True)
+
+
+async def test_feedback_that_still_will_not_typeset_holds_the_submission(bank, fake_llm):
+    other, item = closed(), open_item()
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"), read(2, transcription="x = 5"))
+    fake_llm.scores({item.text: score(1, feedback=MALFORMED)})
+
+    result = await grading.result(*await hand_in(bank, [other, item]))
+
+    assert result is not None
+    assert len(fake_llm.models["grading.score"].seen) == 2
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "błąd składu", "items": [2]}
+    ]
+    assert result.spot_check
+    # Kept for the Teacher to see what failed; no PDF reaches a Student.
+    assert [i.feedback for i in result.items] == ["poprawnie", MALFORMED]
+    assert result.pdf_key is None
 
 
 async def test_points_outside_the_items_range_are_capped_and_put_in_doubt(bank, fake_llm):
@@ -535,7 +698,7 @@ async def test_an_item_missing_from_the_transcription_is_not_judged_wrong(bank, 
     result = await grading.result(*await hand_in(bank, [closed(), open_item()]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     assert [(i.reading, i.ai_points, i.feedback) for i in result.items][1] == (
         "unsure",
         0,
@@ -623,8 +786,13 @@ async def test_work_under_a_number_outside_the_assignment_is_ignored(bank, fake_
 
     assert result is not None
     assert [(i.number, i.ai_points) for i in result.items] == [(1, 2)]
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
-    assert result.comment == f"Zadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
+    assert fake_llm.keys == [
+        "grading.transcribe",
+        "grading.verify",
+        "grading.score",
+        "grading.summary",
+    ]
+    assert result.comment == f"{SUMMARY}\n\nZadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
 
 
 async def test_six_pages_are_still_transcribed(bank, fake_llm):
@@ -645,7 +813,7 @@ async def test_a_confirmed_transcription_keeps_its_reading(bank, fake_llm):
     result = await grading.result(*await hand_in(bank, [closed()], files=[photo(), photo()]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     assert [(i.reading, i.verification_note) for i in result.items] == [("readable", None)]
     assert not result.held
     seen = fake_llm.models["grading.verify"].seen
@@ -693,7 +861,7 @@ async def test_a_redelivered_job_makes_no_second_call_or_event(bank, fake_llm):
 
     submission_id, handed_in_at = await hand_in(bank, [closed()], deliveries=2)
 
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     assert len(await graded_events(submission_id)) == 1
     assert await grading.result(submission_id, handed_in_at) is not None
 
@@ -705,7 +873,7 @@ async def test_a_dispute_never_turns_unreadable_work_into_a_guess(bank, fake_llm
     result = await grading.result(*await hand_in(bank, [open_item()]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     assert [(i.reading, i.feedback) for i in result.items] == [
         ("unreadable", "nie udało się odczytać rozwiązania")
     ]
@@ -719,7 +887,7 @@ async def test_work_missed_on_a_blank_item_is_held_without_scoring_nothing(bank,
     result = await grading.result(*await hand_in(bank, [open_item()]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.summary"]
     assert [(i.reading, i.ai_points, i.feedback, i.verification_note) for i in result.items] == [
         ("unsure", 0, "nie udało się odczytać rozwiązania", "pod Z. 1 jest rozwiązanie")
     ]
@@ -869,13 +1037,18 @@ async def test_an_override_after_the_due_time_becomes_the_effective_points(bank,
         handed_in_at=days_from_now(-2),
         due_at=days_from_now(-1),
     )
+    before = await grading.result(*key)
 
     await grading.override(*key, item.id, 2)
 
     result = await grading.result(*key)
-    assert result is not None
+    assert before is not None and result is not None
     assert [(i.ai_points, i.override, i.points) for i in result.items] == [(0, 2, 2)]
-    assert result.comment.startswith("Zadanie 1: 2/2 pkt – poprawnie\n")
+    # Points are rebuilt, the summary is not regenerated, and nothing is left to revise.
+    assert result.comment == f"{SUMMARY}\n\nZadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
+    assert result.pdf_key not in (None, before.pdf_key)
+    assert "Zadanie 1: 2/2 pkt Poprawnie." in await feedback_pdf(result)
+    assert "Zadanie 1: 0/2 pkt" in await feedback_pdf(before)
     assert len(await graded_events(key[0])) == 2
     assert len(await mistake_jobs(assignment_id)) == 1
 

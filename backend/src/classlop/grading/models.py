@@ -32,7 +32,11 @@ class GradedSubmission(Base):
     status: Mapped[str] = mapped_column(Text)
     held_reasons: Mapped[list] = mapped_column(JSONB)
     spot_check_reasons: Mapped[list] = mapped_column(JSONB)
+    # Regenerated only when the Feedback text changes, never for an Override.
+    summary: Mapped[str] = mapped_column(Text, server_default="")
     comment: Mapped[str] = mapped_column(Text)
+    # The current Feedback PDF; none when there is nothing to typeset or it would not typeset.
+    pdf_key: Mapped[str | None] = mapped_column(Text)
 
     items: Mapped[list["GradedItem"]] = relationship(
         order_by="GradedItem.position", lazy="selectin", cascade="all, delete-orphan"
@@ -67,6 +71,8 @@ class GradedItem(Base):
     mistake: Mapped[str | None] = mapped_column(Text)
     # What the verification read disputed in the Transcription, or that it skipped the Item.
     verification_note: Mapped[str | None] = mapped_column(Text)
+    # The Item's Curriculum topic names, kept so "Do powtórki" is rebuilt without `items`.
+    curriculum_topics: Mapped[list] = mapped_column(JSONB, server_default="[]")
 
     override_record: Mapped["Override | None"] = relationship(lazy="selectin", viewonly=True)
 
