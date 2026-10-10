@@ -1,0 +1,127 @@
+@if (overview(); as o) {
+  @if (o.invented) {
+    <p><cl-invented /></p>
+  }
+
+  <cl-panel>
+    <div class="head">
+      <h2>Postęp</h2>
+      <div class="seg" role="tablist">
+        <button
+          role="tab"
+          [attr.aria-selected]="tab() === 'sections'"
+          [class.on]="tab() === 'sections'"
+          (click)="tab.set('sections')"
+        >
+          Działy
+        </button>
+        <button
+          role="tab"
+          [attr.aria-selected]="tab() === 'topics'"
+          [class.on]="tab() === 'topics'"
+          (click)="tab.set('topics')"
+        >
+          Tematy
+        </button>
+      </div>
+    </div>
+    @for (s of o.sections; track s.id) {
+      <div class="bar" [class.heading]="tab() === 'topics'">
+        <span>{{ s.name }}</span>
+        <cl-progress [value]="s.percent ?? 0" />
+        @if (s.percent == null) {
+          <span class="muted">brak danych</span>
+        } @else {
+          <span>{{ s.percent }}% z {{ s.available }} pkt</span>
+        }
+      </div>
+      @if (tab() === 'topics') {
+        @for (t of s.topics; track t.id) {
+          <div class="bar topic">
+            <cl-math [text]="t.name" />
+            <cl-progress [value]="t.percent ?? 0" />
+            @if (t.percent == null) {
+              <span class="muted">brak danych</span>
+            } @else {
+              <span>{{ t.percent }}% z {{ t.available }} pkt</span>
+            }
+          </div>
+        }
+      }
+    }
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Prace</h2>
+    <cl-line-chart name="Średnia klasy" [points]="line()" />
+    <table>
+      <thead>
+        <tr>
+          <th>Praca</th>
+          <th>Typ</th>
+          <th>Termin</th>
+          <th>Stan</th>
+          <th>Średnia</th>
+          <th>Oddane</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (a of o.assignments; track a.id) {
+          <tr>
+            <td>{{ a.title }}</td>
+            <td>{{ type(a) }}</td>
+            <td>{{ due(a) }}</td>
+            <td>{{ state(a) }}</td>
+            <td>
+              @if (a.average == null) {
+                <span class="muted">brak danych</span>
+              } @else {
+                {{ a.average }}%
+              }
+            </td>
+            <td>{{ a.handed_in }}/{{ a.total }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Wymagają uwagi</h2>
+    <ol aria-label="Wymagają uwagi">
+      @for (a of o.attention; track a.student_id) {
+        <li>
+          <a [routerLink]="link(a.student_id)">{{ a.name }}</a>
+          @if (a.former) {
+            <cl-badge>były uczeń</cl-badge>
+          }
+          <span class="muted">{{ a.reasons.join(', ') }}</span>
+        </li>
+      } @empty {
+        <li class="muted">Nikt.</li>
+      }
+    </ol>
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Uczniowie</h2>
+    <ul aria-label="Uczniowie">
+      @for (s of o.students; track s.id) {
+        <li class="bar">
+          <span>
+            <a [routerLink]="link(s.id)">{{ s.name }}</a>
+            @if (s.former) {
+              <cl-badge>były uczeń</cl-badge>
+            }
+          </span>
+          <cl-progress [value]="s.percent ?? 0" />
+          @if (s.percent == null) {
+            <span class="muted">brak danych</span>
+          } @else {
+            <span>{{ s.percent }}%</span>
+          }
+        </li>
+      }
+    </ul>
+  </cl-panel>
+}

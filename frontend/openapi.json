@@ -41,6 +41,45 @@
         }
       }
     },
+    "/api/classes/{class_id}/overview": {
+      "get": {
+        "summary": "Overview",
+        "operationId": "overview_api_classes__class_id__overview_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Healthz",
@@ -66,6 +105,153 @@
   },
   "components": {
     "schemas": {
+      "AssignmentRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "scheduled",
+              "open",
+              "closed"
+            ],
+            "title": "State"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "handed_in": {
+            "type": "integer",
+            "title": "Handed In"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "type",
+          "state",
+          "due",
+          "average",
+          "handed_in",
+          "total"
+        ],
+        "title": "AssignmentRow"
+      },
+      "Attention": {
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_id",
+          "name",
+          "former",
+          "reasons",
+          "percent"
+        ],
+        "title": "Attention"
+      },
+      "AveragePoint": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "due",
+          "percent"
+        ],
+        "title": "AveragePoint",
+        "description": "One Given Assignment on the Class-average line, at its due time; no percent is a gap."
+      },
       "ClassLink": {
         "properties": {
           "id": {
@@ -143,6 +329,19 @@
         ],
         "title": "Entry"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "Home": {
         "properties": {
           "entries": {
@@ -199,6 +398,232 @@
           "sign_in_lapsed"
         ],
         "title": "MeView"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionBar"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/AssignmentRow"
+            },
+            "type": "array",
+            "title": "Assignments"
+          },
+          "average_line": {
+            "items": {
+              "$ref": "#/components/schemas/AveragePoint"
+            },
+            "type": "array",
+            "title": "Average Line"
+          },
+          "attention": {
+            "items": {
+              "$ref": "#/components/schemas/Attention"
+            },
+            "type": "array",
+            "title": "Attention"
+          },
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/StudentRow"
+            },
+            "type": "array",
+            "title": "Students"
+          },
+          "invented": {
+            "type": "boolean",
+            "title": "Invented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "sections",
+          "assignments",
+          "average_line",
+          "attention",
+          "students",
+          "invented"
+        ],
+        "title": "OverviewResponse"
+      },
+      "SectionBar": {
+        "properties": {
+          "earned": {
+            "type": "integer",
+            "title": "Earned"
+          },
+          "available": {
+            "type": "integer",
+            "title": "Available"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicBar"
+            },
+            "type": "array",
+            "title": "Topics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "earned",
+          "available",
+          "percent",
+          "id",
+          "name",
+          "topics"
+        ],
+        "title": "SectionBar"
+      },
+      "StudentRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "former",
+          "percent"
+        ],
+        "title": "StudentRow"
+      },
+      "TopicBar": {
+        "properties": {
+          "earned": {
+            "type": "integer",
+            "title": "Earned"
+          },
+          "available": {
+            "type": "integer",
+            "title": "Available"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "earned",
+          "available",
+          "percent",
+          "id",
+          "name"
+        ],
+        "title": "TopicBar"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }
