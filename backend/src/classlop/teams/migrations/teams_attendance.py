@@ -1,7 +1,7 @@
 """teams attendance fetches, attendees, overrides, links and settings
 
 Revision ID: teams_attendance
-Revises: teams_timetable
+Revises: teams_timetable_edits
 """
 
 from collections.abc import Sequence
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "teams_attendance"
-down_revision: str | Sequence[str] | None = "teams_timetable"
+down_revision: str | Sequence[str] | None = "teams_timetable_edits"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -12,6 +12,7 @@ from classlop.teams.types import (
     Attendance,
     AttendanceEntry,
     AttendanceState,
+    Candidate,
     Class,
     Lesson,
     NotOwner,
@@ -29,6 +30,7 @@ __all__ = [
     "Attendance",
     "AttendanceEntry",
     "AttendanceState",
+    "Candidate",
     "Class",
     "Lesson",
     "NotOwner",
@@ -39,8 +41,12 @@ __all__ = [
     "TimetableExists",
     "UnmatchedAttendee",
     "add_lesson",
+    "add_student",
     "add_timetable",
     "backend",
+    "cancel_lessons",
+    "change_slot",
+    "create_class",
     "fetch_due_attendance",
     "get_attendance",
     "get_class",
@@ -54,6 +60,10 @@ __all__ = [
     "list_classes",
     "list_owned_teams",
     "list_students",
+    "remove_student",
+    "rename_class",
+    "search_users",
+    "set_lesson_topic",
     "sync_roster",
 ]
 
@@ -100,6 +110,30 @@ async def list_students(class_id: str) -> list[Student]:
 async def sync_roster(class_id: str) -> None:
     """Bring the Class's Students in step with its team now."""
     await backend().sync_roster(class_id)
+
+
+async def search_users(query: str) -> list[Candidate]:
+    """Tenant users to pick as Students, by name."""
+    return await backend().search_users(query)
+
+
+async def create_class(name: str, student_user_ids: list[str]) -> Class:
+    """Create a Private team (the Teacher as owner, the users as members) and link it."""
+    return await backend().create_class(name, student_user_ids)
+
+
+async def add_student(class_id: str, user_id: str) -> Student:
+    return await backend().add_student(class_id, user_id)
+
+
+async def remove_student(class_id: str, user_id: str) -> None:
+    """Removes them from the team; they become a Former student."""
+    await backend().remove_student(class_id, user_id)
+
+
+async def rename_class(class_id: str, name: str) -> Class:
+    """Renames the Class and its team."""
+    return await backend().rename_class(class_id, name)
 
 
 async def add_timetable(class_id: str, slots: list[Slot], school_year_end: date) -> None:
@@ -150,3 +184,18 @@ async def lateness_threshold() -> timedelta:
 async def set_lateness_threshold(threshold: timedelta) -> None:
     """How long after a Lesson's start a first join still counts as on time, for all Classes."""
     await backend().set_lateness_threshold(threshold)
+
+
+async def cancel_lessons(class_id: str, first: date, last: date) -> None:
+    """Cancel every Lesson from `first` to `last` (a break); they keep their Lesson topic."""
+    await backend().cancel_lessons(class_id, first, last)
+
+
+async def change_slot(class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+    """Change a Timetable slot from a date: the old series ends the day before."""
+    await backend().change_slot(class_id, old, new, from_date)
+
+
+async def set_lesson_topic(class_id: str, lesson_id: str, topic: str) -> Lesson:
+    """Set a Lesson's topic, which also becomes its Teams event title."""
+    return await backend().set_lesson_topic(class_id, lesson_id, topic)
