@@ -1,3 +1,9 @@
+from classlop.items.curriculum import (
+    CurriculumSection,
+    GeneralRequirementText,
+    curriculum,
+    general_requirements,
+)
 from classlop.items.index import count_items, search_items
 from classlop.items.records import (
     ItemEdit,
@@ -28,8 +34,10 @@ from classlop.items.types import (
 )
 
 __all__ = [
+    "CurriculumSection",
     "CurriculumTopic",
     "Filters",
+    "GeneralRequirementText",
     "Item",
     "ItemContent",
     "ItemEdit",
@@ -41,9 +49,11 @@ __all__ = [
     "Tags",
     "Usage",
     "count_items",
+    "curriculum",
     "create_item",
     "dismiss_flag",
     "edit_item",
+    "general_requirements",
     "get_items",
     "get_versions",
     "give",

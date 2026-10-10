@@ -1,0 +1,470 @@
+{
+  "act": "Dz.U. 2018 poz. 467 w brzmieniu Dz.U. 2024 poz. 1019, zał. nr 1, matematyka",
+  "general_requirements": [
+    {
+      "id": "I",
+      "name": "Sprawność rachunkowa",
+      "description": "Wykonywanie obliczeń na liczbach rzeczywistych, także przy użyciu kalkulatora, stosowanie praw działań matematycznych przy przekształcaniu wyrażeń algebraicznych oraz wykorzystywanie tych umiejętności przy rozwiązywaniu problemów w kontekstach rzeczywistych i teoretycznych."
+    },
+    {
+      "id": "II",
+      "name": "Wykorzystanie i tworzenie informacji",
+      "description": "1. Interpretowanie i operowanie informacjami przedstawionymi w tekście, zarówno matematycznym, jak i popularnonaukowym, a także w formie wykresów, diagramów, tabel. 2. Używanie języka matematycznego do tworzenia tekstów matematycznych, w tym do opisu prowadzonych rozumowań i uzasadniania wniosków, a także do przedstawiania danych."
+    },
+    {
+      "id": "III",
+      "name": "Wykorzystanie i interpretowanie reprezentacji",
+      "description": "1. Stosowanie obiektów matematycznych i operowanie nimi, interpretowanie pojęć matematycznych. 2. Dobieranie i tworzenie modeli matematycznych przy rozwiązywaniu problemów praktycznych i teoretycznych. 3. Tworzenie pomocniczych obiektów matematycznych na podstawie istniejących, w celu przeprowadzenia argumentacji lub rozwiązania problemu. 4. Wskazywanie konieczności lub możliwości modyfikacji modelu matematycznego w przypadkach wymagających specjalnych zastrzeżeń, dodatkowych założeń, rozważenia szczególnych uwarunkowań."
+    },
+    {
+      "id": "IV",
+      "name": "Rozumowanie i argumentacja",
+      "description": "1. Przeprowadzanie rozumowań, także kilkuetapowych, podawanie argumentów uzasadniających poprawność rozumowania, odróżnianie dowodu od przykładu. 2. Dostrzeganie regularności, podobieństw oraz analogii, formułowanie wniosków na ich podstawie i uzasadnianie ich poprawności. 3. Dobieranie argumentów do uzasadnienia poprawności rozwiązywania problemów, tworzenie ciągu argumentów gwarantujących poprawność rozwiązania i skuteczność w poszukiwaniu rozwiązań zagadnienia. 4. Stosowanie i tworzenie strategii przy rozwiązywaniu zadań, również w sytuacjach nietypowych."
+    }
+  ],
+  "sections": [
+    {
+      "id": "lo2024:I",
+      "name": "Liczby rzeczywiste",
+      "topics": [
+        {
+          "id": "lo2024:I.1",
+          "name": "Wykonuje działania (dodawanie, odejmowanie, mnożenie, dzielenie, potęgowanie, pierwiastkowanie, logarytmowanie) w zbiorze liczb rzeczywistych",
+          "source": "wykonuje działania (dodawanie, odejmowanie, mnożenie, dzielenie, potęgowanie, pierwiastkowanie, logarytmowanie) w zbiorze liczb rzeczywistych"
+        },
+        {
+          "id": "lo2024:I.2",
+          "name": "Przeprowadza proste dowody dotyczące podzielności liczb całkowitych i reszt z dzielenia, np.: a) dowód podzielności przez $24$ iloczynu czterech kolejnych liczb naturalnych, b) dowód własności: jeśli liczba przy dzieleniu przez $4$ daje resztę $3$, to nie jest kwadratem liczby całkowitej",
+          "source": "przeprowadza proste dowody dotyczące podzielności liczb całkowitych i reszt z dzielenia, np.: a) dowód podzielności przez 24 iloczynu czterech kolejnych liczb naturalnych, b) dowód własności: jeśli liczba przy dzieleniu przez 4 daje resztę 3, to nie jest kwadratem liczby całkowitej"
+        },
+        {
+          "id": "lo2024:I.3",
+          "name": "Stosuje własności pierwiastków dowolnego stopnia, w tym pierwiastków stopnia nieparzystego z liczb ujemnych",
+          "source": "stosuje własności pierwiastków dowolnego stopnia, w tym pierwiastków stopnia nieparzystego z liczb ujemnych"
+        },
+        {
+          "id": "lo2024:I.4",
+          "name": "Stosuje związek pierwiastkowania z potęgowaniem oraz prawa działań na potęgach i pierwiastkach",
+          "source": "stosuje związek pierwiastkowania z potęgowaniem oraz prawa działań na potęgach i pierwiastkach"
+        },
+        {
+          "id": "lo2024:I.5",
+          "name": "Stosuje monotoniczność potęgowania, w szczególności własności: jeśli $x < y$ oraz $a > 1$, to $a^x < a^y$, zaś gdy $x < y$ i $0 < a < 1$, to $a^x > a^y$",
+          "source": "stosuje monotoniczność potęgowania, w szczególności własności: jeśli x < y oraz a > 1, to ax < ay , zaś gdy x < y i 0 < a < 1, to ax > ay "
+        },
+        {
+          "id": "lo2024:I.6",
+          "name": "Posługuje się pojęciem przedziału liczbowego, zaznacza przedziały na osi liczbowej",
+          "source": "posługuje się pojęciem przedziału liczbowego, zaznacza przedziały na osi liczbowej"
+        },
+        {
+          "id": "lo2024:I.7",
+          "name": "Stosuje interpretację geometryczną i algebraiczną wartości bezwzględnej, rozwiązuje równania typu: $|x + 4| = 5$",
+          "source": "stosuje interpretację geometryczną i algebraiczną wartości bezwzględnej, rozwiązuje równania typu: |x + 4| = 5"
+        },
+        {
+          "id": "lo2024:I.8",
+          "name": "Wykorzystuje własności potęgowania i pierwiastkowania w sytuacjach praktycznych, w tym do obliczania procentów składanych, zysków z lokat i kosztów kredytów",
+          "source": "wykorzystuje własności potęgowania i pierwiastkowania w sytuacjach praktycznych, w tym do obliczania procentów składanych, zysków z lokat i kosztów kredytów"
+        },
+        {
+          "id": "lo2024:I.9",
+          "name": "Stosuje związek logarytmowania z potęgowaniem, posługuje się wzorami na logarytm iloczynu, logarytm ilorazu i logarytm potęgi",
+          "source": "stosuje związek logarytmowania z potęgowaniem, posługuje się wzorami na logarytm iloczynu, logarytm ilorazu i logarytm potęgi"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:II",
+      "name": "Wyrażenia algebraiczne",
+      "topics": [
+        {
+          "id": "lo2024:II.1",
+          "name": "Stosuje wzory skróconego mnożenia na: $(a+b)^2$, $(a-b)^2$, $a^2-b^2$",
+          "source": "stosuje wzory skróconego mnożenia na: (a + b) 2 , (a − b) 2 , a2 − b2 "
+        },
+        {
+          "id": "lo2024:II.2",
+          "name": "Dodaje, odejmuje i mnoży wielomiany jednej i wielu zmiennych",
+          "source": "dodaje, odejmuje i mnoży wielomiany jednej i wielu zmiennych"
+        },
+        {
+          "id": "lo2024:II.3",
+          "name": "Wyłącza poza nawias jednomian z sumy algebraicznej",
+          "source": "wyłącza poza nawias jednomian z sumy algebraicznej"
+        },
+        {
+          "id": "lo2024:II.4",
+          "name": "Mnoży i dzieli wyrażenia wymierne",
+          "source": "mnoży i dzieli wyrażenia wymierne"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:III",
+      "name": "Równania i nierówności",
+      "topics": [
+        {
+          "id": "lo2024:III.1",
+          "name": "Przekształca równania i nierówności w sposób równoważny, w tym np. przekształca równoważnie równanie $\\frac{5}{x+1}=\\frac{x+3}{2x-1}$",
+          "source": "przekształca równania i nierówności w sposób równoważny, w tym np. przekształca równoważnie równanie 5 𝑥𝑥 + 1 = 𝑥𝑥 + 3 2𝑥𝑥−1"
+        },
+        {
+          "id": "lo2024:III.2",
+          "name": "Interpretuje równania i nierówności liniowe sprzeczne oraz tożsamościowe",
+          "source": "interpretuje równania i nierówności liniowe sprzeczne oraz tożsamościowe"
+        },
+        {
+          "id": "lo2024:III.3",
+          "name": "Rozwiązuje nierówności liniowe z jedną niewiadomą",
+          "source": "rozwiązuje nierówności liniowe z jedną niewiadomą"
+        },
+        {
+          "id": "lo2024:III.4",
+          "name": "Rozwiązuje równania i nierówności kwadratowe",
+          "source": "rozwiązuje równania i nierówności kwadratowe"
+        },
+        {
+          "id": "lo2024:III.5",
+          "name": "Rozwiązuje równania wielomianowe postaci $W(x)=0$ dla wielomianów doprowadzonych do postaci iloczynowej",
+          "source": "rozwiązuje równania wielomianowe postaci W(x) = 0 dla wielomianów doprowadzonych do postaci iloczynowej"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:IV",
+      "name": "Układy równań",
+      "topics": [
+        {
+          "id": "lo2024:IV.1",
+          "name": "Rozwiązuje układy równań liniowych z dwiema niewiadomymi, podaje interpretację geometryczną układów oznaczonych, nieoznaczonych i sprzecznych",
+          "source": "rozwiązuje układy równań liniowych z dwiema niewiadomymi, podaje interpretację geometryczną układów oznaczonych, nieoznaczonych i sprzecznych"
+        },
+        {
+          "id": "lo2024:IV.2",
+          "name": "Stosuje układy równań do rozwiązywania zadań tekstowych",
+          "source": "stosuje układy równań do rozwiązywania zadań tekstowych"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:V",
+      "name": "Funkcje",
+      "topics": [
+        {
+          "id": "lo2024:V.1",
+          "name": "Określa funkcje jako jednoznaczne przyporządkowanie za pomocą opisu słownego, tabeli, wykresu, wzoru (także różnymi wzorami na różnych przedziałach)",
+          "source": "określa funkcje jako jednoznaczne przyporządkowanie za pomocą opisu słownego, tabeli, wykresu, wzoru (także różnymi wzorami na różnych przedziałach)"
+        },
+        {
+          "id": "lo2024:V.2",
+          "name": "Oblicza wartość funkcji zadanej wzorem algebraicznym",
+          "source": "oblicza wartość funkcji zadanej wzorem algebraicznym"
+        },
+        {
+          "id": "lo2024:V.3",
+          "name": "Odczytuje i interpretuje wartości funkcji określonych za pomocą tabel, wykresów, wzorów itp., również w sytuacjach wielokrotnego użycia tego samego źródła informacji lub kilku źródeł jednocześnie",
+          "source": "odczytuje i interpretuje wartości funkcji określonych za pomocą tabel, wykresów, wzorów itp., również w sytuacjach wielokrotnego użycia tego samego źródła informacji lub kilku źródeł jednocześnie"
+        },
+        {
+          "id": "lo2024:V.4",
+          "name": "Odczytuje z wykresu funkcji: dziedzinę, zbiór wartości, miejsca zerowe, przedziały monotoniczności, przedziały, w których funkcja przyjmuje wartości większe (nie mniejsze) lub mniejsze (nie większe) od danej liczby, największe i najmniejsze wartości funkcji (o ile istnieją) w danym przedziale domkniętym oraz argumenty, dla których wartości największe i najmniejsze są przez funkcję przyjmowane",
+          "source": "odczytuje z wykresu funkcji: dziedzinę, zbiór wartości, miejsca zerowe, przedziały monotoniczności, przedziały, w których funkcja przyjmuje wartości większe (nie mniejsze) lub mniejsze (nie większe) od danej liczby, największe i najmniejsze wartości funkcji (o ile istnieją) w danym przedziale domkniętym oraz argumenty, dla których wartości największe i najmniejsze są przez funkcję przyjmowane"
+        },
+        {
+          "id": "lo2024:V.5",
+          "name": "Interpretuje współczynniki występujące we wzorze funkcji liniowej",
+          "source": "interpretuje współczynniki występujące we wzorze funkcji liniowej"
+        },
+        {
+          "id": "lo2024:V.6",
+          "name": "Wyznacza wzór funkcji liniowej na podstawie informacji o jej wykresie lub o jej własnościach",
+          "source": "wyznacza wzór funkcji liniowej na podstawie informacji o jej wykresie lub o jej własnościach"
+        },
+        {
+          "id": "lo2024:V.7",
+          "name": "Szkicuje wykres funkcji kwadratowej zadanej wzorem",
+          "source": "szkicuje wykres funkcji kwadratowej zadanej wzorem"
+        },
+        {
+          "id": "lo2024:V.8",
+          "name": "Interpretuje współczynniki występujące we wzorze funkcji kwadratowej w postaci ogólnej, kanonicznej i iloczynowej (jeśli istnieje)",
+          "source": "interpretuje współczynniki występujące we wzorze funkcji kwadratowej w postaci ogólnej, kanonicznej i iloczynowej (jeśli istnieje)"
+        },
+        {
+          "id": "lo2024:V.9",
+          "name": "Wyznacza wzór funkcji kwadratowej na podstawie informacji o tej funkcji lub o jej wykresie",
+          "source": "wyznacza wzór funkcji kwadratowej na podstawie informacji o tej funkcji lub o jej wykresie"
+        },
+        {
+          "id": "lo2024:V.10",
+          "name": "Wyznacza największą i najmniejszą wartość funkcji kwadratowej w przedziale domkniętym",
+          "source": "wyznacza największą i najmniejszą wartość funkcji kwadratowej w przedziale domkniętym"
+        },
+        {
+          "id": "lo2024:V.11",
+          "name": "Wykorzystuje własności funkcji liniowej i kwadratowej do interpretacji zagadnień geometrycznych, fizycznych itp., także osadzonych w kontekście praktycznym",
+          "source": "wykorzystuje własności funkcji liniowej i kwadratowej do interpretacji zagadnień geometrycznych, fizycznych itp., także osadzonych w kontekście praktycznym"
+        },
+        {
+          "id": "lo2024:V.12",
+          "name": "Na podstawie wykresu funkcji $y=f(x)$ szkicuje wykresy funkcji $y=f(x-a)$, $y=f(x)+b$",
+          "source": "na podstawie wykresu funkcji 𝑦𝑦 = 𝑓𝑓(𝑥𝑥) szkicuje wykresy funkcji 𝑦𝑦 = 𝑓𝑓(𝑥𝑥 − 𝑎𝑎), 𝑦𝑦 = 𝑓𝑓(𝑥𝑥) + 𝑏𝑏"
+        },
+        {
+          "id": "lo2024:V.13",
+          "name": "Posługuje się funkcją $f(x)=\\frac{a}{x}$, w tym jej wykresem, do opisu i interpretacji zagadnień związanych z wielkościami odwrotnie proporcjonalnymi, również w zastosowaniach praktycznych",
+          "source": "posługuje się funkcją 𝑓𝑓(𝑥𝑥) = 𝑎𝑎 𝑥𝑥 , w tym jej wykresem, do opisu i interpretacji zagadnień związanych z wielkościami odwrotnie proporcjonalnymi, również w zastosowaniach praktycznych"
+        },
+        {
+          "id": "lo2024:V.14",
+          "name": "Posługuje się funkcjami wykładniczą i logarytmiczną, w tym ich wykresami, do opisu i interpretacji zagadnień związanych z zastosowaniami praktycznymi",
+          "source": "posługuje się funkcjami wykładniczą i logarytmiczną, w tym ich wykresami, do opisu i interpretacji zagadnień związanych z zastosowaniami praktycznymi"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:VI",
+      "name": "Ciągi",
+      "topics": [
+        {
+          "id": "lo2024:VI.1",
+          "name": "Oblicza wyrazy ciągu określonego wzorem ogólnym",
+          "source": "oblicza wyrazy ciągu określonego wzorem ogólnym"
+        },
+        {
+          "id": "lo2024:VI.2",
+          "name": "Oblicza początkowe wyrazy ciągów określonych rekurencyjnie",
+          "source": "oblicza początkowe wyrazy ciągów określonych rekurencyjnie"
+        },
+        {
+          "id": "lo2024:VI.3",
+          "name": "W prostych przypadkach bada, czy ciąg jest rosnący, czy malejący",
+          "source": "w prostych przypadkach bada, czy ciąg jest rosnący, czy malejący"
+        },
+        {
+          "id": "lo2024:VI.4",
+          "name": "Sprawdza, czy dany ciąg jest arytmetyczny lub geometryczny",
+          "source": "sprawdza, czy dany ciąg jest arytmetyczny lub geometryczny"
+        },
+        {
+          "id": "lo2024:VI.5",
+          "name": "Stosuje wzór na n-ty wyraz i na sumę n początkowych wyrazów ciągu arytmetycznego",
+          "source": "stosuje wzór na n-ty wyraz i na sumę n początkowych wyrazów ciągu arytmetycznego"
+        },
+        {
+          "id": "lo2024:VI.6",
+          "name": "Stosuje wzór na n-ty wyraz i na sumę n początkowych wyrazów ciągu geometrycznego",
+          "source": "stosuje wzór na n-ty wyraz i na sumę n początkowych wyrazów ciągu geometrycznego"
+        },
+        {
+          "id": "lo2024:VI.7",
+          "name": "Wykorzystuje własności ciągów, w tym arytmetycznych i geometrycznych, do rozwiązywania zadań, również osadzonych w kontekście praktycznym",
+          "source": "wykorzystuje własności ciągów, w tym arytmetycznych i geometrycznych, do rozwiązywania zadań, również osadzonych w kontekście praktycznym"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:VII",
+      "name": "Trygonometria",
+      "topics": [
+        {
+          "id": "lo2024:VII.1",
+          "name": "Wykorzystuje definicje funkcji: sinus, cosinus i tangens dla kątów od $0^\\circ$ do $180^\\circ$, w szczególności wyznacza wartości funkcji trygonometrycznych dla kątów $30^\\circ$, $45^\\circ$, $60^\\circ$",
+          "source": "wykorzystuje definicje funkcji: sinus, cosinus i tangens dla kątów od 0° do 180°, w szczególności wyznacza wartości funkcji trygonometrycznych dla kątów 30°, 45°, 60°"
+        },
+        {
+          "id": "lo2024:VII.2",
+          "name": "Korzysta z wzorów $\\sin^2\\alpha+\\cos^2\\alpha=1$, $\\operatorname{tg}\\alpha=\\frac{\\sin\\alpha}{\\cos\\alpha}$",
+          "source": "korzysta z wzorów sin2 𝛼𝛼 + cos2 𝛼𝛼 = 1, tg 𝛼𝛼 = sin𝛼𝛼 cos 𝛼𝛼"
+        },
+        {
+          "id": "lo2024:VII.3",
+          "name": "Stosuje twierdzenie cosinusów oraz wzór na pole trójkąta $P=\\frac{1}{2}\\cdot a\\cdot b\\cdot \\sin\\gamma$",
+          "source": "stosuje twierdzenie cosinusów oraz wzór na pole trójkąta 𝑃𝑃 = 1 2 ⋅ 𝑎𝑎 ⋅ 𝑏𝑏 ⋅ sin 𝛾𝛾"
+        },
+        {
+          "id": "lo2024:VII.4",
+          "name": "Oblicza kąty trójkąta prostokątnego i długości jego boków przy odpowiednich danych (rozwiązuje trójkąty prostokątne, w tym z wykorzystaniem funkcji trygonometrycznych)",
+          "source": "oblicza kąty trójkąta prostokątnego i długości jego boków przy odpowiednich danych (rozwiązuje trójkąty prostokątne, w tym z wykorzystaniem funkcji trygonometrycznych)"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:VIII",
+      "name": "Planimetria",
+      "topics": [
+        {
+          "id": "lo2024:VIII.1",
+          "name": "Wyznacza promienie i średnice okręgów, długości cięciw okręgów oraz odcinków stycznych, w tym z wykorzystaniem twierdzenia Pitagorasa",
+          "source": "wyznacza promienie i średnice okręgów, długości cięciw okręgów oraz odcinków stycznych, w tym z wykorzystaniem twierdzenia Pitagorasa"
+        },
+        {
+          "id": "lo2024:VIII.2",
+          "name": "Rozpoznaje trójkąty ostrokątne, prostokątne i rozwartokątne przy danych długościach boków (m.in. stosuje twierdzenie odwrotne do twierdzenia Pitagorasa i twierdzenie cosinusów); stosuje twierdzenie: w trójkącie naprzeciw większego kąta wewnętrznego leży dłuższy bok",
+          "source": "rozpoznaje trójkąty ostrokątne, prostokątne i rozwartokątne przy danych długościach boków (m.in. stosuje twierdzenie odwrotne do twierdzenia Pitagorasa i twierdzenie cosinusów); stosuje twierdzenie: w trójkącie naprzeciw większego kąta wewnętrznego leży dłuższy bok"
+        },
+        {
+          "id": "lo2024:VIII.3",
+          "name": "Rozpoznaje wielokąty foremne i korzysta z ich podstawowych własności",
+          "source": "rozpoznaje wielokąty foremne i korzysta z ich podstawowych własności"
+        },
+        {
+          "id": "lo2024:VIII.4",
+          "name": "Korzysta z własności kątów i przekątnych w prostokątach, równoległobokach, rombach i trapezach",
+          "source": "korzysta z własności kątów i przekątnych w prostokątach, równoległobokach, rombach i trapezach"
+        },
+        {
+          "id": "lo2024:VIII.5",
+          "name": "Stosuje własności kątów wpisanych i środkowych",
+          "source": "stosuje własności kątów wpisanych i środkowych"
+        },
+        {
+          "id": "lo2024:VIII.6",
+          "name": "Stosuje wzory na pole wycinka koła i długość łuku okręgu",
+          "source": "stosuje wzory na pole wycinka koła i długość łuku okręgu"
+        },
+        {
+          "id": "lo2024:VIII.7",
+          "name": "Stosuje twierdzenie Talesa",
+          "source": "stosuje twierdzenie Talesa"
+        },
+        {
+          "id": "lo2024:VIII.8",
+          "name": "Korzysta z cech podobieństwa trójkątów",
+          "source": "korzysta z cech podobieństwa trójkątów"
+        },
+        {
+          "id": "lo2024:VIII.9",
+          "name": "Wykorzystuje zależności między obwodami oraz między polami figur podobnych",
+          "source": "wykorzystuje zależności między obwodami oraz między polami figur podobnych"
+        },
+        {
+          "id": "lo2024:VIII.10",
+          "name": "Wskazuje podstawowe punkty szczególne w trójkącie: środek okręgu wpisanego w trójkąt, środek okręgu opisanego na trójkącie, ortocentrum, środek ciężkości oraz korzysta z ich własności",
+          "source": "wskazuje podstawowe punkty szczególne w trójkącie: środek okręgu wpisanego w trójkąt, środek okręgu opisanego na trójkącie, ortocentrum, środek ciężkości oraz korzysta z ich własności"
+        },
+        {
+          "id": "lo2024:VIII.11",
+          "name": "Przeprowadza dowody geometryczne",
+          "source": "przeprowadza dowody geometryczne"
+        },
+        {
+          "id": "lo2024:VIII.12",
+          "name": "Stosuje funkcje trygonometryczne do wyznaczania długości odcinków w figurach płaskich oraz obliczania pól figur",
+          "source": "stosuje funkcje trygonometryczne do wyznaczania długości odcinków w figurach płaskich oraz obliczania pól figur"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:IX",
+      "name": "Geometria analityczna na płaszczyźnie kartezjańskiej",
+      "topics": [
+        {
+          "id": "lo2024:IX.1",
+          "name": "Rozpoznaje wzajemne położenie prostych na płaszczyźnie na podstawie ich równań, w tym znajduje wspólny punkt dwóch prostych, jeśli taki istnieje",
+          "source": "rozpoznaje wzajemne położenie prostych na płaszczyźnie na podstawie ich równań, w tym znajduje wspólny punkt dwóch prostych, jeśli taki istnieje"
+        },
+        {
+          "id": "lo2024:IX.2",
+          "name": "Posługuje się równaniami prostych na płaszczyźnie, w postaci kierunkowej i ogólnej, w tym wyznacza równanie prostej o zadanych własnościach (takich, jak np. przechodzenie przez dwa dane punkty, znany współczynnik kierunkowy, równoległość do innej prostej)",
+          "source": "posługuje się równaniami prostych na płaszczyźnie, w postaci kierunkowej i ogólnej, w tym wyznacza równanie prostej o zadanych własnościach (takich, jak np. przechodzenie przez dwa dane punkty, znany współczynnik kierunkowy, równoległość do innej prostej)"
+        },
+        {
+          "id": "lo2024:IX.3",
+          "name": "Oblicza odległość dwóch punktów w układzie współrzędnych",
+          "source": "oblicza odległość dwóch punktów w układzie współrzędnych"
+        },
+        {
+          "id": "lo2024:IX.4",
+          "name": "Posługuje się równaniem okręgu $(x-a)^2+(y-b)^2=r^2$",
+          "source": "posługuje się równaniem okręgu (𝑥𝑥 − 𝑎𝑎)2 + (𝑦𝑦 − 𝑏𝑏)2 = 𝑟𝑟2"
+        },
+        {
+          "id": "lo2024:IX.5",
+          "name": "Wyznacza obrazy okręgów i wielokątów w symetriach osiowych względem osi układu współrzędnych, symetrii środkowej (o środku w początku układu współrzędnych)",
+          "source": "wyznacza obrazy okręgów i wielokątów w symetriach osiowych względem osi układu współrzędnych, symetrii środkowej (o środku w początku układu współrzędnych)"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:X",
+      "name": "Stereometria",
+      "topics": [
+        {
+          "id": "lo2024:X.1",
+          "name": "Rozpoznaje wzajemne położenie prostych w przestrzeni, w szczególności proste prostopadłe nieprzecinające się",
+          "source": "rozpoznaje wzajemne położenie prostych w przestrzeni, w szczególności proste prostopadłe nieprzecinające się"
+        },
+        {
+          "id": "lo2024:X.2",
+          "name": "Posługuje się pojęciem kąta między prostą a płaszczyzną oraz pojęciem kąta dwuściennego między półpłaszczyznami",
+          "source": "posługuje się pojęciem kąta między prostą a płaszczyzną oraz pojęciem kąta dwuściennego między półpłaszczyznami"
+        },
+        {
+          "id": "lo2024:X.3",
+          "name": "Rozpoznaje w graniastosłupach i ostrosłupach kąty między odcinkami (np. krawędziami, krawędziami i przekątnymi) oraz kąty między ścianami, oblicza miary tych kątów",
+          "source": "rozpoznaje w graniastosłupach i ostrosłupach kąty między odcinkami (np. krawędziami, krawędziami i przekątnymi) oraz kąty między ścianami, oblicza miary tych kątów"
+        },
+        {
+          "id": "lo2024:X.4",
+          "name": "Rozpoznaje w walcach i w stożkach kąt między odcinkami oraz kąt między odcinkami i płaszczyznami (np. kąt rozwarcia stożka, kąt między tworzącą a podstawą), oblicza miary tych kątów",
+          "source": "rozpoznaje w walcach i w stożkach kąt między odcinkami oraz kąt między odcinkami i płaszczyznami (np. kąt rozwarcia stożka, kąt między tworzącą a podstawą), oblicza miary tych kątów"
+        },
+        {
+          "id": "lo2024:X.5",
+          "name": "Oblicza objętości i pola powierzchni graniastosłupów, ostrosłupów, walca, stożka i kuli, również z wykorzystaniem trygonometrii",
+          "source": "oblicza objętości i pola powierzchni graniastosłupów, ostrosłupów, walca, stożka i kuli, również z wykorzystaniem trygonometrii"
+        },
+        {
+          "id": "lo2024:X.6",
+          "name": "Wykorzystuje zależność między objętościami brył podobnych",
+          "source": "wykorzystuje zależność między objętościami brył podobnych"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:XI",
+      "name": "Kombinatoryka",
+      "topics": [
+        {
+          "id": "lo2024:XI.1",
+          "name": "Zlicza obiekty w prostych sytuacjach kombinatorycznych",
+          "source": "zlicza obiekty w prostych sytuacjach kombinatorycznych"
+        },
+        {
+          "id": "lo2024:XI.2",
+          "name": "Zlicza obiekty, stosując reguły mnożenia i dodawania (także łącznie) dla dowolnej liczby czynności, np.: a) obliczenie, ile jest czterocyfrowych nieparzystych liczb całkowitych dodatnich takich, że w ich zapisie dziesiętnym występuje dokładnie jedna cyfra 1 i dokładnie jedna cyfra 2, b) obliczenie, ile jest czterocyfrowych parzystych liczb całkowitych dodatnich takich, że w ich zapisie dziesiętnym występuje dokładnie jedna cyfra 0 i dokładnie jedna cyfra 1",
+          "source": "zlicza obiekty, stosując reguły mnożenia i dodawania (także łącznie) dla dowolnej liczby czynności, np.: a) obliczenie, ile jest czterocyfrowych nieparzystych liczb całkowitych dodatnich takich, że w ich zapisie dziesiętnym występuje dokładnie jedna cyfra 1 i dokładnie jedna cyfra 2, b) obliczenie, ile jest czterocyfrowych parzystych liczb całkowitych dodatnich takich, że w ich zapisie dziesiętnym występuje dokładnie jedna cyfra 0 i dokładnie jedna cyfra 1"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:XII",
+      "name": "Rachunek prawdopodobieństwa i statystyka",
+      "topics": [
+        {
+          "id": "lo2024:XII.1",
+          "name": "Oblicza prawdopodobieństwo w modelu klasycznym",
+          "source": "oblicza prawdopodobieństwo w modelu klasycznym"
+        },
+        {
+          "id": "lo2024:XII.2",
+          "name": "Oblicza średnią arytmetyczną i średnią ważoną, znajduje medianę i dominantę",
+          "source": "oblicza średnią arytmetyczną i średnią ważoną, znajduje medianę i dominantę"
+        }
+      ]
+    },
+    {
+      "id": "lo2024:XIII",
+      "name": "Optymalizacja i rachunek różniczkowy",
+      "topics": [
+        {
+          "id": "lo2024:XIII.1",
+          "name": "Rozwiązuje zadania optymalizacyjne w sytuacjach dających się opisać funkcją kwadratową",
+          "source": "rozwiązuje zadania optymalizacyjne w sytuacjach dających się opisać funkcją kwadratową"
+        }
+      ]
+    }
+  ]
+}

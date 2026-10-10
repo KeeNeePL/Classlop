@@ -22,7 +22,7 @@ from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
 from classlop.shared.settings import get_settings
 
-TOPIC = CurriculumTopic(id="lo2024:II.5", name="Równania kwadratowe")
+TOPIC = CurriculumTopic(id="lo2024:III.4", name="Równania kwadratowe")
 
 
 @pytest.fixture(scope="module", autouse=True)

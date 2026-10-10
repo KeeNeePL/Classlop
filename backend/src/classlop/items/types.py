@@ -4,8 +4,9 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
+from classlop.items.curriculum import CurriculumTopic, GeneralRequirement
+
 Difficulty = Literal["easy", "medium", "hard"]
-GeneralRequirement = Literal["I", "II", "III", "IV"]
 ItemFormat = Literal["closed", "open"]
 # Where an Item came from: a Chat generation request, a Chat Item upload, or the shortfall of a
 # Nowa praca.
@@ -17,11 +18,6 @@ TagField = Literal["difficulty", "curriculum_topics", "general_requirements"]
 class RubricLevel(BaseModel):
     points: int
     description: str
-
-
-class CurriculumTopic(BaseModel):
-    id: str
-    name: str  # Polish, as the Student reads it
 
 
 class Tags(BaseModel):
