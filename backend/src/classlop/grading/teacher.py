@@ -7,7 +7,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from classlop.grading.common_mistakes import request_common_mistakes
-from classlop.grading.graph import announce, text_comment
+from classlop.grading.feedback import store_pdf, text_comment
+from classlop.grading.graph import announce
 from classlop.grading.models import GradedSubmission, Override
 from classlop.shared.db import sessions
 
@@ -46,7 +47,10 @@ async def override(
         )
         await session.flush()
         await session.refresh(item, ["override_record"])
-        submission.comment = text_comment(submission.items)
+        submission.comment = text_comment(submission.summary, submission.items)
+        # No PDF means the Feedback would not typeset; the Teacher's points do not change that.
+        if submission.pdf_key is not None:
+            submission.pdf_key = await store_pdf(submission_id, submission.items)
     await _changed(submission)
 
 
