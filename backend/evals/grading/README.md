@@ -39,4 +39,4 @@ uv run classlop eval-grading set-01
 - **LangSmith:** with `LANGSMITH_API_KEY` set, the run is a LangSmith experiment (EU) on the dataset `grading-<set>-<hash>`. The hash changes when the set does, so experiments on one dataset compare like with like.
 - **Without the key:** it grades locally and prints the report only.
 - **Side effects:** the run writes results to the dev database, uploads the files under `grading/evaluation/`, and enqueues the events grading always sends. Leave the dev worker stopped while it runs: `teams` does not handle `teams.submission_graded` yet, so those jobs would retry and end in the dead-letter queue.
-- **A Submission that fails to grade:** it is stored Held with no Items, as on a last attempt, and counts as disagreeing. It does not stop the run.
+- **A Submission that fails to grade:** it is retried as the queue redelivers it, 30 seconds apart, so a rate limit (429) does not end its grading. If the last attempt fails too, it is stored Held with no Items and counts as disagreeing. It does not stop the run.
