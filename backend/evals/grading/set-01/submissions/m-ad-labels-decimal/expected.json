@@ -1,0 +1,27 @@
+{
+  "notes": "Items labelled \"Ad. 1\" to \"Ad. 5\". Zad. 3 complete. Zad. 4 proves the weaker a^2 + 9 >= 0, not the given inequality, and reaches no Rubric level. Zad. 5 names the hypotenuse x and answers h = 4,8, an equivalent form of 24/5 written with a Polish decimal comma: full points. No drawing, nothing held.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "x^2 - 4x - 5 = 0\n\\Delta = 36\n\\sqrt{\\Delta} = 6\nx_1 = -1 \\lor x_2 = 5"
+    },
+    {
+      "number": 4,
+      "reading": "readable",
+      "points": 0,
+      "transcription": "a \\in \\mathbb{R} \\quad a^2 + 9 \\geq 0 \\quad \\square"
+    },
+    {
+      "number": 5,
+      "reading": "readable",
+      "points": 3,
+      "transcription": "P = 24\nx = 10\nP = \\frac{x \\cdot h}{2}\nh = \\frac{2P}{x} = \\frac{48}{10} = 4{,}8"
+    }
+  ]
+}

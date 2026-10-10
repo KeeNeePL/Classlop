@@ -1,0 +1,12 @@
+{
+  "notes": "Zad. 1: \"B i C\", two options marked, so unsure and the Submission is Held; no points are credited. Zad. 2: B and C are clearly crossed out and A is left, so the choice is A, readable and wrong. \"7. x = 18\" is labelled with a number outside the Assignment and is ignored. Zad. 3, 4 and 5 blank.",
+  "held": true,
+  "spot_check": ["niepewny odczyt"],
+  "items": [
+    {"number": 1, "reading": "unsure", "points": 0, "transcription": "B, C [dwie zaznaczone odpowiedzi]"},
+    {"number": 2, "reading": "readable", "points": 0, "transcription": "A"},
+    {"number": 3, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 4, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}

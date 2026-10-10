@@ -1,0 +1,12 @@
+{
+  "notes": "No Item numbers and no copied tasks: a bare \"B\" and a bare \"x = -1\". The B fits both closed Items (each has an option B), so it cannot be attributed and both are unsure. The x = -1 copies no task; it can only be a root of Zad. 3 but is not attributed with certainty, so Zad. 3 is unsure too, and a single root reaches no Rubric level. No points are credited for unattributable work. Zad. 4 and 5 blank.",
+  "held": true,
+  "spot_check": ["niepewny odczyt"],
+  "items": [
+    {"number": 1, "reading": "unsure", "points": 0, "transcription": "B [bez numeru zadania: zad. 1 albo 2]"},
+    {"number": 2, "reading": "unsure", "points": 0, "transcription": "B [bez numeru zadania: zad. 1 albo 2]"},
+    {"number": 3, "reading": "unsure", "points": 0, "transcription": "x = -1 [bez numeru zadania]"},
+    {"number": 4, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}
