@@ -37,12 +37,22 @@ class Candidate(BaseModel):
     upn: str
 
 
+class ClassReadOnly(Exception):
+    """The Class's team was deleted in Teams: nothing changes until it is restored or deleted."""
+
+
+# "team_deleted" is read-only: the team is gone from Teams, `team_deleted_at` is when it was found.
+ClassState = Literal["active", "team_deleted"]
+
+
 class Class(BaseModel):
     id: str
     team_id: str
     general_channel_id: str
     name: str
     school_year_end: date | None = None
+    state: ClassState = "active"
+    team_deleted_at: datetime | None = None
 
 
 class Slot(BaseModel):
@@ -323,4 +333,24 @@ class Teams(Protocol):
 
     async def list_submissions(self, assignment_id: str) -> list[Submission]:
         """One per recipient, in the order they were created."""
+        ...
+
+    async def delete_class(self, class_id: str, name: str) -> None:
+        """Delete the Class from Classlop and Teams once `name` is typed as the Class's name:
+        its team (Microsoft keeps it restorable for 30 days), the future Lesson events, the
+        hand-in folders, the schedules of its Assignments and its records. Items and the Students'
+        1:1 chats stay; `dashboard` deletes its own Notes. Raises ValueError for another name.
+        Also works on a Class whose team was deleted in Teams."""
+        ...
+
+    async def list_deleted_teams(self) -> list[Class]:
+        """Classes whose team was deleted in Teams, read-only until the Teacher restores the team
+        (`restore_team`, or in Teams) or deletes the Class: the home screen's «przywróć zespół»
+        and «usuń klasę». A Class still in this state 30 days after `team_deleted_at` is deleted
+        by the next roster sync."""
+        ...
+
+    async def restore_team(self, class_id: str) -> Class:
+        """Ask Teams to restore the Class's deleted team, then sync: the Class is active again.
+        A team restored in Teams does the same on the next roster sync."""
         ...

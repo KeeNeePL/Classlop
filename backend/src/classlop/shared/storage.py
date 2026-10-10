@@ -31,6 +31,10 @@ def get(key: str) -> bytes:
     return _client().get_object(Bucket=get_settings().s3_bucket, Key=key)["Body"].read()
 
 
+def delete(key: str) -> None:
+    _client().delete_object(Bucket=get_settings().s3_bucket, Key=key)
+
+
 def presigned_url(key: str, expires_in: int = 300) -> str:
     """A short-lived GET URL the browser can open."""
     return _client(public=True).generate_presigned_url(
