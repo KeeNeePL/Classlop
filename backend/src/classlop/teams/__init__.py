@@ -9,6 +9,8 @@ from classlop.shared.settings import get_settings
 from classlop.teams.graph import GRAPH_SCOPES, GraphClient
 from classlop.teams.types import (
     AlreadyLinked,
+    Assignment,
+    AssignmentSpec,
     Attendance,
     AttendanceEntry,
     AttendanceState,
@@ -19,6 +21,7 @@ from classlop.teams.types import (
     NotOwner,
     Slot,
     Student,
+    Submission,
     Team,
     Teams,
     TimetableExists,
@@ -28,6 +31,8 @@ from classlop.teams.types import (
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
+    "Assignment",
+    "AssignmentSpec",
     "CalendarQuestion",
     "Attendance",
     "AttendanceEntry",
@@ -38,6 +43,7 @@ __all__ = [
     "NotOwner",
     "Slot",
     "Student",
+    "Submission",
     "Team",
     "Teams",
     "TimetableExists",
@@ -50,9 +56,17 @@ __all__ = [
     "cancel_lessons",
     "change_slot",
     "create_class",
+    "deliver_assignment",
     "fetch_due_attendance",
     "get_attendance",
+    "get_assignment",
+    "give_again",
+    "list_failed_gives",
+    "publish_scheduled",
+    "list_assignments",
+    "list_submissions",
     "get_class",
+    "give_assignment",
     "lateness_threshold",
     "link_attendee",
     "link_team",
@@ -217,3 +231,43 @@ async def change_slot(class_id: str, old: Slot, new: Slot, from_date: date) -> N
 async def set_lesson_topic(class_id: str, lesson_id: str, topic: str) -> Lesson:
     """Set a Lesson's topic, which also becomes its Teams event title."""
     return await backend().set_lesson_topic(class_id, lesson_id, topic)
+
+
+async def give_assignment(
+    class_id: str, spec: AssignmentSpec, items_pdf: bytes, when: datetime | None = None
+) -> Assignment:
+    """Give an Assignment now or at `when`: post it in General and give each recipient a private
+    hand-in folder and a chat message. Given once Teams accepts the post."""
+    return await backend().give_assignment(class_id, spec, items_pdf, when)
+
+
+async def get_assignment(assignment_id: str) -> Assignment:
+    return await backend().get_assignment(assignment_id)
+
+
+async def list_assignments(class_id: str) -> list[Assignment]:
+    return await backend().list_assignments(class_id)
+
+
+async def list_submissions(assignment_id: str) -> list[Submission]:
+    return await backend().list_submissions(assignment_id)
+
+
+async def deliver_assignment(assignment_id: str) -> int:
+    """Retry the Students an Assignment has not reached; returns how many are still waiting."""
+    return await backend().deliver_assignment(assignment_id)
+
+
+async def give_again(assignment_id: str, when: datetime | None = None) -> Assignment:
+    """Give a Draft that failed to be given, now or at `when`."""
+    return await backend().give_again(assignment_id, when)
+
+
+async def publish_scheduled(assignment_id: str, last_try: bool = False) -> Assignment:
+    """Post a Scheduled Assignment; the job at its time calls this."""
+    return await backend().publish_scheduled(assignment_id, last_try)
+
+
+async def list_failed_gives() -> list[Assignment]:
+    """Drafts that failed to be given, for the home screen."""
+    return await backend().list_failed_gives()

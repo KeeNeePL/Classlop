@@ -18,6 +18,10 @@ GRAPH_SCOPES = [
     "User.ReadBasic.All",
     "Calendars.ReadWrite",
     "OnlineMeetings.ReadWrite",
+    "Files.ReadWrite.All",
+    "Chat.Create",
+    "ChatMessage.Send",
+    "ChannelMessage.Send",
 ]
 
 BASE = "https://graph.microsoft.com/v1.0"

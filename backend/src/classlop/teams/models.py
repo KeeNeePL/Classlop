@@ -179,3 +179,6 @@ class SettingRecord(Base):
 
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+from classlop.teams import assignment_records  # noqa: E402, F401
