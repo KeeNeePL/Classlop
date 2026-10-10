@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from classlop.shared import schedule
 from classlop.teams import reminders
-from classlop.teams.graph import GraphClient
+from classlop.teams.graph import GraphClient, html_body
 from classlop.teams.lifecycle import check_writable
 from classlop.teams.types import Assignment, Class, Student, Submission
 
@@ -46,7 +46,7 @@ class Reminding:
 
     async def post_reminder(self, assignment_id: str) -> bool:
         """What the schedule runs. Whether it posted: it does not when the Reminder is off, the
-        Assignment is no longer Open or Scheduled, the Class is read-only or all have handed in."""
+        Assignment is not Open, the Class is read-only or all have handed in."""
         given = await self.get_assignment(assignment_id)
         if not reminders.is_due(given, self._clock()):
             return False
@@ -77,5 +77,5 @@ class GraphReminding(Reminding):
         await self._graph.send(
             "POST",
             f"/teams/{klass.team_id}/channels/{klass.general_channel_id}/messages",
-            {"body": {"contentType": "html", "content": html}},
+            {"body": html_body(html)},
         )

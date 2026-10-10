@@ -17,7 +17,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams import amendments, assignments, lifecycle
 from classlop.teams import submissions as rules
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
-from classlop.teams.graph import GraphClient, GraphError
+from classlop.teams.graph import GraphClient, html_body, or_gone
 from classlop.teams.handin_records import HandinFileRecord
 from classlop.teams.lifecycle import check_writable
 from classlop.teams.types import Assignment, Class, Student, Submission
@@ -60,7 +60,7 @@ class Changing:
     async def add_recipients(self, assignment_id: str, student_ids: list[str]) -> list[Submission]:
         row = await self._row(assignment_id)
         check_writable(await self.get_class(row.class_id))
-        if row.state not in ("scheduled", "open"):
+        if row.state not in assignments.LIVE:
             raise ValueError("Students are added to a Scheduled or Open Assignment")
         chosen = assignments.recipients(await self.list_students(row.class_id), student_ids)
         return await self._enrol(row, chosen)
@@ -74,7 +74,7 @@ class Changing:
                     select(AssignmentRecord).where(
                         AssignmentRecord.class_id == class_id,
                         AssignmentRecord.whole_class,
-                        AssignmentRecord.state.in_(["scheduled", "open"]),
+                        AssignmentRecord.state.in_(assignments.LIVE),
                     )
                 )
             )
@@ -138,11 +138,7 @@ class Changing:
         if row.post_id:
             teacher = get_settings().m365_teacher_oid
             post = f"/teams/{klass.team_id}/channels/{row.post_channel_id}/messages/{row.post_id}"
-            try:
-                await self._graph.request("POST", f"/users/{teacher}{post}/softDelete")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
+            await or_gone(self._graph.request("POST", f"/users/{teacher}{post}/softDelete"))
         if row.folder_id:
             await self._discard(f"/me/drive/items/{row.folder_id}")
         for name in lifecycle.schedule_names(assignment_id):
@@ -158,7 +154,7 @@ class Changing:
     async def _tell_cancelled(self, title: str, submissions: list[Submission]) -> None:
         """A message to each Student the Assignment reached; one that fails is not tried again,
         as the Assignment is gone either way."""
-        message = {"body": {"contentType": "html", "content": amendments.cancelled_html(title)}}
+        message = {"body": html_body(amendments.cancelled_html(title))}
         for submission in submissions:
             if not (submission.chat_id and submission.notice_id):
                 continue
@@ -174,10 +170,9 @@ class Changing:
         klass = await self.get_class(a.class_id)
         url = f"/teams/{klass.team_id}/channels/{a.post_channel_id}/messages/{a.post_id}"
         attachments = (await self._graph.get(url))["attachments"]
-        html = assignments.post_html(a, attachments[0]["id"])
-        body = {"contentType": "html", "content": html}
+        body = html_body(assignments.post_html(a, attachments[0]["id"]))
         await self._graph.request("PATCH", url, json={"body": body, "attachments": attachments})
-        reply = {"body": {"contentType": "html", "content": amendments.due_moved_html(a.due_at)}}
+        reply = {"body": html_body(amendments.due_moved_html(a.due_at))}
         await self._graph.send("POST", f"{url}/replies", reply)
 
     async def _recompute_late(self, a: Assignment) -> None:
@@ -186,7 +181,7 @@ class Changing:
             rows = await session.scalars(
                 select(SubmissionRecord).where(
                     SubmissionRecord.assignment_id == a.id,
-                    SubmissionRecord.state.in_(["handed_in", "graded"]),
+                    SubmissionRecord.state.in_(rules.HANDED_IN),
                 )
             )
             for row in rows:

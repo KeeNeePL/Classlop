@@ -18,7 +18,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.shared.settings import get_settings
 from classlop.teams import assignments, ids
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
-from classlop.teams.graph import BASE, GraphClient, GraphError
+from classlop.teams.graph import BASE, GraphClient, attachment_id, html_body, or_gone
 from classlop.teams.lifecycle import check_writable, writable
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment, AssignmentSpec, Class, Student, Submission
@@ -74,7 +74,7 @@ class Giving:
         if when is not None:
             return await self._schedule(row.id, when)
         try:
-            return await self._publish(row.id)
+            return await self._give_now(row.id)
         except Exception:
             # Nothing was Given: the Teacher tries again from scratch.
             async with sessions().begin() as session:
@@ -93,14 +93,14 @@ class Giving:
         assignments.check_time(when, self._clock())
         await self._save_assignment(assignment_id, give_failed_at=None)
         if when is None:
-            return await self._publish(assignment_id)
+            return await self._give_now(assignment_id)
         return await self._schedule(assignment_id, when)
 
     async def publish_scheduled(self, assignment_id: str, last_try: bool = False) -> Assignment:
         """At the scheduled time. If the post fails on the job's last try, the Assignment returns
         to Draft with `give_failed_at` set, unless Teams accepted the post meanwhile."""
         row = await self._row(assignment_id)
-        if row.state not in ("scheduled", "open"):
+        if row.state not in assignments.LIVE:
             return _assignment(row)
         try:
             return await self._publish(assignment_id)
@@ -166,6 +166,24 @@ class Giving:
             )
             return [Submission.model_validate(r, from_attributes=True) for r in rows]
 
+    async def _give_now(self, assignment_id: str) -> Assignment:
+        """`_publish` for the Teacher's own request. Once Teams has accepted the post the
+        Assignment is Given, so a failure after it is left to a retry job, not shown as failure."""
+        try:
+            return await self._publish(assignment_id)
+        except Exception as error:
+            if (await self._row(assignment_id)).post_id is None:
+                raise
+            log.exception("assignment %s posted but not finished", assignment_id)
+            await jobs.enqueue(
+                "teams.give_assignment",
+                {"assignment_id": assignment_id},
+                delay=assignments.RETRY_DELAY,
+            )
+            if isinstance(error, SignInRequired):
+                raise
+            return await self.get_assignment(assignment_id)
+
     async def _publish(self, assignment_id: str) -> Assignment:
         """Post in General, which Gives the Assignment and freezes its Items, then deliver it to
         the Students. Every step records what it did, so a repeat resumes where one stopped."""
@@ -225,15 +243,12 @@ class Giving:
                 headers={"Content-Type": "application/pdf"},
             )
         ).json()
-        attachment = file["eTag"].strip('"{').split("}")[0]  # the GUID in "{GUID},version"
+        attachment = attachment_id(file)
         post = await self._graph.send(
             "POST",
             f"{channel}/messages",
             {
-                "body": {
-                    "contentType": "html",
-                    "content": assignments.post_html(_assignment(row), attachment),
-                },
+                "body": html_body(assignments.post_html(_assignment(row), attachment)),
                 "attachments": [
                     {
                         "id": attachment,
@@ -295,13 +310,8 @@ class Giving:
         parent, walked = None, []
         for name in ("Classlop", assignments.safe(klass.name)):
             walked.append(quote(name))
-            try:
-                folder = await self._graph.get(f"/me/drive/root:/{'/'.join(walked)}")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
-                folder = await self._folder(parent, name)
-            parent = folder["id"]
+            folder = await or_gone(self._graph.get(f"/me/drive/root:/{'/'.join(walked)}"))
+            parent = (folder or await self._folder(parent, name))["id"]
         folder = await self._folder(parent, assignments.safe(row.title))
         await self._save_assignment(row.id, folder_id=folder["id"])
         return folder["id"]
@@ -356,12 +366,7 @@ class Giving:
         notice = await self._graph.send(
             "POST",
             f"/chats/{submission.chat_id}/messages",
-            {
-                "body": {
-                    "contentType": "html",
-                    "content": assignments.notice_html(assignment, submission.folder_url or ""),
-                }
-            },
+            {"body": html_body(assignments.notice_html(assignment, submission.folder_url or ""))},
         )
         await self._save_submission(submission, notice_id=notice["id"])
 

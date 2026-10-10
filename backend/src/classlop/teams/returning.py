@@ -20,7 +20,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.teams import feedback, ids
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.feedback_records import FeedbackRecord
-from classlop.teams.graph import GraphClient, GraphError
+from classlop.teams.graph import GraphClient, attachment_id, html_body, or_gone
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment, SubmissionState
 
@@ -174,12 +174,9 @@ class Returning:
             )
             await self._save_feedback(sent, shared=True)
         body: dict = {
-            "body": {
-                "contentType": "html",
-                "content": feedback.message_html(
-                    assignment, found.comment, corrected, sent.attachment_id
-                ),
-            }
+            "body": html_body(
+                feedback.message_html(assignment, found.comment, corrected, sent.attachment_id)
+            )
         }
         if key:
             body["attachments"] = [
@@ -221,7 +218,7 @@ class Returning:
         await self._save_feedback(
             sent,
             item_id=file["id"],
-            attachment_id=file["eTag"].strip('"{').split("}")[0],  # the GUID in "{GUID},version"
+            attachment_id=attachment_id(file),
             web_url=file["webUrl"],
         )
 
@@ -230,12 +227,8 @@ class Returning:
         parent = (await self._row(assignment_id)).folder_id
         if parent is None:
             raise RuntimeError("the Assignment has no folder")
-        try:
-            return (await self._graph.get(f"/me/drive/items/{parent}:/{feedback.FOLDER}"))["id"]
-        except GraphError as error:
-            if error.status != 404:
-                raise
-        return (await self._folder(parent, feedback.FOLDER))["id"]
+        found = await or_gone(self._graph.get(f"/me/drive/items/{parent}:/{feedback.FOLDER}"))
+        return (found or await self._folder(parent, feedback.FOLDER))["id"]
 
     async def _save_feedback(self, record: FeedbackRecord, **fields) -> None:
         async with sessions().begin() as session:

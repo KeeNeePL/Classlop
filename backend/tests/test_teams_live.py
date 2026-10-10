@@ -99,13 +99,7 @@ async def test_a_student_sees_only_their_own_folder(monkeypatch):
         assert await reads(jan_token, ewa.folder_id) in (403, 404)
         assert await reads(ewa_token, jan.folder_id) in (403, 404)
     finally:
-        teacher = GraphClient()
-        await teacher.request("DELETE", f"/groups/{klass.team_id}")
-        try:
-            root = await teacher.get(f"/me/drive/root:/Classlop/{klass.name}")
-            await teacher.request("DELETE", f"/me/drive/items/{root['id']}")
-        except GraphError:
-            pass
+        await area.delete_class(klass.id, klass.name)
 
 
 def _const(token: str):

@@ -189,6 +189,33 @@ async def test_deleting_one_of_two_files_regrades_what_is_left(tenant, gave, clo
     assert len(await _grading_jobs(mine)) == 2
 
 
+@pytest.mark.parametrize("removed", ["a.jpg", "b.jpg"])
+async def test_deleting_a_file_after_the_due_time_does_not_make_an_on_time_hand_in_late(
+    tenant, gave, clock, removed
+):
+    klass, users, given = await _given(tenant, "Jan Kowalski")
+    jan = users["Jan Kowalski"]
+    clock.now = given.due_at - timedelta(minutes=10)
+    tenant.upload(jan, "a.jpg", b"one")
+    clock.advance(minutes=1)
+    tenant.upload(jan, "b.jpg", b"two")
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+    first = await _submission(tenant, klass, given, "Jan Kowalski")
+    clock.advance(minutes=30)
+
+    tenant.delete_file(jan, removed)
+    await tenant.poll_handins()
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+
+    mine = await _submission(tenant, klass, given, "Jan Kowalski")
+    assert (first.late, mine.state, mine.late) == (False, "handed_in", False)
+    assert len(mine.files) == 1
+    assert mine.handed_in_at != first.handed_in_at
+    assert len(await _grading_jobs(mine)) == 2
+
+
 async def test_files_added_and_removed_within_the_quiet_time_change_nothing(tenant, gave, clock):
     klass, users, given = await _given(tenant, "Jan Kowalski")
     jan = users["Jan Kowalski"]

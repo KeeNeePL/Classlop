@@ -17,6 +17,8 @@ LABELS: dict[AssignmentType, str] = {
 # What OneDrive refuses in a name.
 _FORBIDDEN = re.compile(r'[\\/:*?"<>|#%~\x00-\x1f]+')
 RETRY_DELAY = 60
+# Given, and not yet Closed: the states in which an Assignment still changes.
+LIVE = ("scheduled", "open")
 
 
 def check(spec: AssignmentSpec) -> None:
@@ -71,7 +73,7 @@ def post_html(a: Assignment, attachment_id: str) -> str:
 
 
 def notice_html(a: Assignment, folder_url: str) -> str:
-    """The «Nowa praca» chat message. The folder never opens inside Teams (#44)."""
+    """The «Nowa praca» chat message."""
     return (
         f"<p>«Nowa praca»: <b>{escape(a.title)}</b>. Termin oddania: {local_time(a.due_at)}.</p>"
         f'<p>Twój prywatny folder na zdjęcia pracy: <a href="{escape(folder_url)}">'

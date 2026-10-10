@@ -10,7 +10,7 @@ from tenant import CLOSE, DUE, ITEMS, PDF, ignore
 from tenant import make_class as _class
 from tenant import spec as _spec
 
-from classlop import teams
+from classlop import items, teams
 from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
 from classlop.shared.models import Job, Schedule
@@ -374,3 +374,39 @@ async def test_an_assignment_whose_post_is_refused_is_not_given(tenant, gave):
     assert gave == []
     assert await tenant.list_assignments(klass.id) == []
     assert tenant.channel_posts(klass.team_id) == []
+
+
+async def test_a_failure_after_the_post_is_accepted_is_finished_by_a_retry_job(
+    tenant, gave, monkeypatch
+):
+    klass, users = await _class(tenant, "Jan Kowalski")
+    working = items.give
+    broken = True
+
+    async def give(*args):
+        if broken:
+            raise RuntimeError("the Items are unreachable")
+        return await working(*args)
+
+    monkeypatch.setattr(items, "give", give)
+
+    given = await tenant.give_assignment(klass.id, _spec(), PDF)
+
+    assert (given.state, given.item_versions) == ("open", [])
+    assert len(tenant.channel_posts(klass.team_id)) == 1
+    async with sessions()() as session:
+        retries = await session.scalars(
+            select(Job).where(
+                Job.kind == "teams.give_assignment",
+                Job.payload["assignment_id"].astext == given.id,
+            )
+        )
+    assert len(retries.all()) == 1
+    broken = False
+    monkeypatch.setattr(teams, "backend", lambda: tenant)
+    await handlers.give_assignment(_publish_job(given), ignore)
+
+    finished = await tenant.get_assignment(given.id)
+    assert finished.item_versions == [uuid.UUID(int=101), uuid.UUID(int=102)]
+    assert len(tenant.channel_posts(klass.team_id)) == 1
+    assert len(tenant.chat_messages(users["Jan Kowalski"])) == 1

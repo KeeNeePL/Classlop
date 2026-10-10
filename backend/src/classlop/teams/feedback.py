@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from html import escape
 from typing import Literal
 
-from classlop.teams import assignments, ids
+from classlop.teams import assignments, ids, submissions
 from classlop.teams.types import Assignment, SubmissionState
 
 FOLDER = "Feedback"
@@ -39,7 +39,7 @@ def step(
     Only a Held result is kept back after the due time; a Late submission is returned on grading."""
     if state == "returned":
         return "correct" if not held and pdf_key != sent else "skip"
-    if state not in ("handed_in", "graded"):
+    if state not in submissions.HANDED_IN:
         return "skip"
     if held or not (late or now >= due_at):
         return "mark"

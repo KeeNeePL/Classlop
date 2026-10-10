@@ -14,7 +14,7 @@ from classlop.shared.db import sessions
 from classlop.teams import assignments, feedback, reminders, submissions
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.assignments import WARSAW
-from classlop.teams.graph import GraphClient, GraphError
+from classlop.teams.graph import GraphClient, or_gone
 from classlop.teams.models import ClassRecord, LessonRecord, SlotRecord
 from classlop.teams.types import Class, ClassReadOnly
 
@@ -52,7 +52,7 @@ def expired(klass: Class, at: datetime) -> bool:
 
 
 def schedule_names(assignment_id: str) -> list[str]:
-    """Every schedule an Assignment can have, for the tickets that add them to list."""
+    """Every schedule an Assignment can have; a new one is added here."""
     return [
         assignments.schedule_name(assignment_id),
         reminders.schedule_name(assignment_id),
@@ -98,11 +98,8 @@ class Lifecycle:
         """The Class's team as Teams has it, or None if it is deleted: the Class is then held
         read-only from the time it was found, and deleted once it has waited 30 days. A team that
         is back releases the Class."""
-        try:
-            team = await self._graph.get(f"/teams/{klass.team_id}")
-        except GraphError as error:
-            if error.status != 404:
-                raise
+        team = await or_gone(self._graph.get(f"/teams/{klass.team_id}"))
+        if team is None:
             if klass.state == "active":
                 klass = klass.model_copy(
                     update={"state": "team_deleted", "team_deleted_at": self._clock()}
@@ -135,7 +132,7 @@ class Lifecycle:
             for name in schedule_names(row.id):
                 await schedule.cancel(name)
             if row.folder_id:
-                await self._discard(f"/me/drive/items/{row.folder_id}")
+                await self._discard_assignment_folder(row.folder_id)
             if row.pdf_key:
                 await asyncio.to_thread(storage.delete, row.pdf_key)
             for submission_id in await self._submission_ids(row.id):
@@ -177,29 +174,28 @@ class Lifecycle:
             if last < slot.first_on:
                 await self._discard(f"/me/events/{slot.event_id}")
                 continue
-            try:
-                series = await self._graph.get(f"/me/events/{slot.event_id}")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
+            series = await or_gone(self._graph.get(f"/me/events/{slot.event_id}"))
+            if series is None:
                 continue
             series["recurrence"]["range"]["endDate"] = last.isoformat()
             await self._graph.send(
                 "PATCH", f"/me/events/{slot.event_id}", {"recurrence": series["recurrence"]}
             )
         for event_id in singles:
-            try:
-                event = await self._graph.get(f"/me/events/{event_id}")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
-                continue
-            if _begins(event) > now:
+            event = await or_gone(self._graph.get(f"/me/events/{event_id}"))
+            if event and _begins(event) > now:
                 await self._discard(f"/me/events/{event_id}")
 
     async def _discard(self, url: str) -> None:
-        try:
-            await self._graph.request("DELETE", url)
-        except GraphError as error:
-            if error.status != 404:
-                raise
+        await or_gone(self._graph.request("DELETE", url))
+
+    async def _discard_assignment_folder(self, folder_id: str) -> None:
+        """The Assignment's folder, and the Class's folder above it once nothing else is in it."""
+        found = await or_gone(self._graph.get(f"/me/drive/items/{folder_id}"))
+        await self._discard(f"/me/drive/items/{folder_id}")
+        if found is None:
+            return
+        parent = f"/me/drive/items/{found['parentReference']['id']}"
+        left = await or_gone(self._graph.get(f"{parent}/children", **{"$top": 1}))
+        if left is not None and not left["value"]:
+            await self._discard(parent)

@@ -110,6 +110,21 @@ async def test_deleting_a_class_deletes_hand_in_folders_and_schedules_but_keeps_
     assert tenant.chat_messages(jan) == notice
 
 
+async def test_deleting_a_class_deletes_its_onedrive_folder_and_leaves_other_classes_alone(
+    tenant, clock
+):
+    one, _ = await _class(tenant, "2A matematyka", "Jan Kowalski")
+    other, _ = await _class(tenant, "2B matematyka", "Ewa Zielinska")
+    for klass in (one, other):
+        await tenant.give_assignment(klass.id, _spec(), PDF)
+        await tenant.give_assignment(klass.id, _spec(), PDF)
+    assert tenant.class_folders() == ["Classlop/2A matematyka", "Classlop/2B matematyka"]
+
+    await tenant.delete_class(one.id, "2A matematyka")
+
+    assert tenant.class_folders() == ["Classlop/2B matematyka"]
+
+
 async def test_a_team_deleted_in_teams_makes_its_class_read_only_until_it_is_dealt_with(
     tenant, clock
 ):

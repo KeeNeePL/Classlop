@@ -1,4 +1,4 @@
-"""FakeGraph's OneDrive, sharing, 1:1 chats and channel posts. Later tickets add routes here (or
+"""FakeGraph's OneDrive, sharing, 1:1 chats and channel posts. New routes go here (or
 beside it) and inspect the same state; the methods without an underscore are what a test sees,
 and FakeTeams has the same by name."""
 
@@ -78,6 +78,11 @@ class FilesRoutes:
             for who, (_, role) in item.get("shares", {}).items()
             if who == user_id
         ]
+
+    def class_folders(self) -> list[str]:
+        """The `Classlop/<Class>` folders in the Teacher's OneDrive."""
+        paths = (self._path(i["id"]) for i in self.drive.values() if i["id"] != ROOT)
+        return sorted(p for p in paths if p.startswith("Classlop/") and p.count("/") == 1)
 
     def chat_messages(self, user_id: str) -> list[str]:
         """The HTML of what the Teacher wrote to the user in their 1:1 chat."""
@@ -161,6 +166,18 @@ class FilesRoutes:
         if m := re.fullmatch(r"/me/drive/root:/(.+)", path):
             found = self._by_path(m[1])
             return httpx.Response(200, json=self._item(found)) if found else _gone()
+        if m := re.fullmatch(r"/me/drive/items/([^/]+)", path):
+            item = self.drive.get(m[1])
+            if item is None:
+                return _gone()
+            return httpx.Response(
+                200, json={**self._item(item), "parentReference": {"id": item["parent"]}}
+            )
+        if (m := re.fullmatch(r"/me/drive/items/([^/]+)/children", path)) and method == "GET":
+            if m[1] not in self.drive:
+                return _gone()
+            kids = [self._item(i) for i in self.drive.values() if i["parent"] == m[1]]
+            return httpx.Response(200, json={"value": kids})
         if m := re.fullmatch(r"/me/drive/(?:root|items/([^/]+))/children", path):
             return self._new_folder(m[1] or ROOT, json.loads(request.content))
         if (m := re.fullmatch(r"/me/drive/items/([^/]+)/invite", path)) and method == "POST":

@@ -23,6 +23,7 @@ GRAPH_SCOPES = [
     "ChatMessage.Send",
     "ChannelMessage.Send",
     "ChannelMessage.ReadWrite",
+    "ChannelMessage.Read.All",
 ]
 
 BASE = "https://graph.microsoft.com/v1.0"
@@ -35,6 +36,25 @@ class GraphError(Exception):
     def __init__(self, response: httpx.Response):
         super().__init__(f"{response.request.method} {response.request.url.path}: {response.text}")
         self.status = response.status_code
+
+
+async def or_gone[T](call: Awaitable[T]) -> T | None:
+    """What the call returns, or None if Graph says the item is gone (404)."""
+    try:
+        return await call
+    except GraphError as error:
+        if error.status != 404:
+            raise
+        return None
+
+
+def html_body(content: str) -> dict:
+    return {"contentType": "html", "content": content}
+
+
+def attachment_id(item: dict) -> str:
+    """The GUID in a drive item's eTag, `{GUID},version`, which a message's attachment uses."""
+    return item["eTag"].strip('"{').split("}")[0]
 
 
 class GraphOperationFailed(Exception):

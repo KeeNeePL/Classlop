@@ -1,6 +1,5 @@
 """How a Student's files become a Submission, as plain functions: the real area and FakeTeams
-share them, so the rules cannot drift. State changes go through `settle` and `missing`; whatever
-returns a Submission to the Student (return, #58) or releases it (Excused) just joins FROZEN."""
+share them, so the rules cannot drift."""
 
 import hashlib
 from collections.abc import Iterable
@@ -13,6 +12,9 @@ from classlop.teams.types import Assignment, AssignmentState, SubmissionState
 QUIET = timedelta(minutes=3)
 # Files and folders of these Submissions are no longer read: the work went back or is not owed.
 FROZEN: frozenset[SubmissionState] = frozenset({"returned", "missing", "excused"})
+# A hand-in the Teacher has not yet sent back, and every state in which the Student has handed in.
+HANDED_IN: tuple[SubmissionState, ...] = ("handed_in", "graded")
+WITH_WORK: tuple[SubmissionState, ...] = (*HANDED_IN, "returned")
 
 
 def takes_files(
@@ -42,18 +44,27 @@ def settle(
     files: list[tuple[str, datetime]],
     due_at: datetime,
     now: datetime,
+    settled: tuple[str | None, datetime | None] = (None, None),
     force: bool = False,
 ) -> Settlement | None:
     """What the folder's files make of the Submission once they have been still for 3 minutes
     (at once if `force`), or None while they have not or the Submission takes no files. The
     caller compares the signature with the last settled one to tell a new hand-in from an
-    unchanged one. The hand-in's time is the last change: the last upload, or the moment a
-    deletion was seen."""
+    unchanged one. The hand-in's time is the server time of the last upload of the files that
+    remain, and it is Late by that time alone. Grading tells hand-ins apart by that time, so
+    when other files with the same last upload were settled before (`settled`: their signature
+    and time), the moment the change was seen stands in for it."""
     if state in FROZEN or changed_at is None or (not force and now < changed_at + QUIET):
         return None
     if not files:
         return Settlement("not_handed_in", None, False, None)
-    return Settlement("handed_in", changed_at, changed_at > due_at, signature(files))
+    last, sig = max(uploaded_at for _, uploaded_at in files), signature(files)
+    return Settlement(
+        "handed_in",
+        changed_at if sig != settled[0] and last == settled[1] else last,
+        last > due_at,
+        sig,
+    )
 
 
 def becomes_missing(state: SubmissionState, former: bool, delivered: bool) -> bool:

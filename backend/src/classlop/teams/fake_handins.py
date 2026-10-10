@@ -139,6 +139,7 @@ class FakeHandIns:
             files=[(file_id, seen[1]) for file_id, seen in ordered],
             due_at=assignment.due_at,
             now=self._clock(),
+            settled=(hand.signature, submission.handed_in_at),
             force=force,
         )
         if settlement is None:

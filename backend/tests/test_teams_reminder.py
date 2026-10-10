@@ -138,6 +138,18 @@ async def test_a_scheduled_assignment_gets_its_reminder_when_it_is_given(tenant,
     assert (await _scheduled(given)).next_at == DUE - timedelta(hours=24)
 
 
+async def test_the_reminder_is_skipped_while_the_assignment_is_not_yet_posted(
+    tenant, gave, clock, monkeypatch
+):
+    klass, _ = await make_class(tenant, "Jan Kowalski")
+    given = await tenant.give_assignment(klass.id, _spec(), PDF, DUE - timedelta(hours=23))
+    clock.now = DUE - timedelta(hours=23, minutes=30)
+
+    await _fire(tenant, monkeypatch, given)
+
+    assert tenant.channel_posts(klass.team_id) == []
+
+
 async def test_the_reminder_is_skipped_when_everyone_has_handed_in(
     tenant, gave, clock, monkeypatch
 ):

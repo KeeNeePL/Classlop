@@ -8,8 +8,7 @@ from html import escape
 from classlop.teams import assignments, submissions
 from classlop.teams.types import Assignment, Student, Submission
 
-LEAD = timedelta(hours=24)
-LIVE = ("scheduled", "open")
+ADVANCE = timedelta(hours=24)
 
 
 def schedule_name(assignment_id: str) -> str:
@@ -19,16 +18,17 @@ def schedule_name(assignment_id: str) -> str:
 def fires_at(a: Assignment, now: datetime) -> datetime | None:
     """A day before the due time, if the Reminder is on, the Assignment was Given more than a
     day before it (so no quiz or exam is nagged about) and that moment is yet to come."""
-    if not a.reminder_on or a.state not in LIVE or a.given_at is None:
+    if not a.reminder_on or a.state not in assignments.LIVE or a.given_at is None:
         return None
-    at = a.due_at - LEAD
+    at = a.due_at - ADVANCE
     return at if a.given_at < at and now < at else None
 
 
 def is_due(a: Assignment, now: datetime) -> bool:
-    """Whether a fired schedule still means it: the Reminder is on, the Assignment is Open or
-    Scheduled and the due time is less than a day away but not past."""
-    return a.reminder_on and a.state in LIVE and a.due_at - LEAD <= now < a.due_at
+    """Whether a fired schedule still means it: the Reminder is on, the Assignment is posted (a
+    Scheduled one is not, and a Reminder before the post would be skipped, not posted late) and
+    the due time is less than a day away but not past."""
+    return a.reminder_on and a.state == "open" and a.due_at - ADVANCE <= now < a.due_at
 
 
 def waiting(pairs: Iterable[tuple[Submission, Student]]) -> int:

@@ -77,6 +77,9 @@ class FakeGiving:
     def shared_with(self, user_id: str) -> list[Share]:
         return self._shares.get(user_id, [])
 
+    def class_folders(self) -> list[str]:
+        return sorted(f for f in self._folders if f.startswith("Classlop/") and f.count("/") == 1)
+
     def chat_messages(self, user_id: str) -> list[str]:
         return self._chat_log.get(user_id, [])
 
@@ -112,7 +115,7 @@ class FakeGiving:
         if when is not None:
             return await self._schedule(given.id, when)
         try:
-            return await self._publish(given.id)
+            return await self._give_now(given.id)
         except Exception:
             if self._assignments[given.id].post_id is None:
                 del self._assignments[given.id], self._submissions[given.id]
@@ -126,12 +129,12 @@ class FakeGiving:
         assignments.check_time(when, self._clock())
         self._save(assignment_id, give_failed_at=None)
         if when is None:
-            return await self._publish(assignment_id)
+            return await self._give_now(assignment_id)
         return await self._schedule(assignment_id, when)
 
     async def publish_scheduled(self, assignment_id: str, last_try: bool = False) -> Assignment:
         self._require_sign_in()
-        if self._assignments[assignment_id].state not in ("scheduled", "open"):
+        if self._assignments[assignment_id].state not in assignments.LIVE:
             return self._assignments[assignment_id]
         try:
             return await self._publish(assignment_id)
@@ -185,6 +188,21 @@ class FakeGiving:
         await self.reschedule_reminder(assignment_id)
         await self._schedule_due(assignment_id)
         return scheduled
+
+    async def _give_now(self, assignment_id: str) -> Assignment:
+        try:
+            return await self._publish(assignment_id)
+        except Exception as error:
+            if self._assignments[assignment_id].post_id is None:
+                raise
+            await jobs.enqueue(
+                "teams.give_assignment",
+                {"assignment_id": assignment_id},
+                delay=assignments.RETRY_DELAY,
+            )
+            if isinstance(error, SignInRequired):
+                raise
+            return self._assignments[assignment_id]
 
     async def _publish(self, assignment_id: str) -> Assignment:
         given = self._assignments[assignment_id]
@@ -250,8 +268,10 @@ class FakeGiving:
         if not waiting:
             return 0
         if assignment_id not in self._assignment_dirs:
+            class_dir = f"Classlop/{assignments.safe(klass.name)}"
+            self._folders.add(class_dir)
             self._assignment_dirs[assignment_id] = self._folder(
-                f"Classlop/{assignments.safe(klass.name)}", assignments.safe(given.title)
+                class_dir, assignments.safe(given.title)
             )
         left = 0
         for submission in waiting:

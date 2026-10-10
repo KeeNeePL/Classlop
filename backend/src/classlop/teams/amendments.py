@@ -4,7 +4,7 @@ the words Students read, so they cannot drift."""
 from datetime import datetime
 from html import escape
 
-from classlop.teams import assignments
+from classlop.teams import assignments, submissions
 from classlop.teams.types import Assignment, Submission
 
 
@@ -13,7 +13,7 @@ def moved(
 ) -> tuple[datetime, datetime]:
     """The due and close times after a change, which only a Given Assignment that is not yet
     Closed takes."""
-    if a.state not in ("scheduled", "open"):
+    if a.state not in assignments.LIVE:
         raise ValueError("only a Scheduled or Open Assignment changes its times")
     due, close = due_at or a.due_at, close_at or a.close_at
     if close < due:
@@ -33,11 +33,7 @@ def is_late(handed_in_at: datetime, due_at: datetime) -> bool:
 def worked_on(submission: Submission, uploaded: bool) -> bool:
     """Whether the Student has handed anything in: a settled hand-in, or files in their folder that
     have not settled yet (`uploaded`)."""
-    return (
-        uploaded
-        or submission.state in ("handed_in", "graded", "returned")
-        or bool(submission.files)
-    )
+    return uploaded or submission.state in submissions.WITH_WORK or bool(submission.files)
 
 
 def check_deletable(submissions: list[Submission], uploaded: set[str]) -> None:

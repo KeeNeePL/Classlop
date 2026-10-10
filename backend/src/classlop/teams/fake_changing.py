@@ -84,7 +84,7 @@ class FakeChanging:
         self._require_sign_in()
         given = self._assignments[assignment_id]
         check_writable(await self.get_class(given.class_id))
-        if given.state not in ("scheduled", "open"):
+        if given.state not in assignments.LIVE:
             raise ValueError("Students are added to a Scheduled or Open Assignment")
         chosen = assignments.recipients(await self.list_students(given.class_id), student_ids)
         return await self._enrol(given, chosen)
@@ -92,7 +92,7 @@ class FakeChanging:
     async def _catch_up(self, class_id: str) -> None:
         current = [s for s in await self.list_students(class_id) if not s.former_since]
         for given in await self._of_class(class_id):
-            if given.whole_class and given.state in ("scheduled", "open"):
+            if given.whole_class and given.state in assignments.LIVE:
                 await self._enrol(given, current)
 
     async def _enrol(self, given: Assignment, students: list[Student]) -> list[Submission]:
@@ -144,7 +144,7 @@ class FakeChanging:
             self._replies.setdefault(after.post_id, []).append(amendments.due_moved_html(due))
         self._save(assignment_id, due_at=due, close_at=close)
         for submission in self._submissions[assignment_id].values():
-            if submission.state in ("handed_in", "graded") and submission.handed_in_at:
+            if submission.state in rules.HANDED_IN and submission.handed_in_at:
                 late = amendments.is_late(submission.handed_in_at, due)
                 self._update(submission, late=late)
         await self.reschedule_reminder(assignment_id)

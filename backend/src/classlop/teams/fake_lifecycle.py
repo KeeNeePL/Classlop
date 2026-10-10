@@ -83,7 +83,11 @@ class FakeLifecycle:
                 self._sent.pop(submission.id, None)
                 self._order.pop(submission.id, None)
                 await asyncio.to_thread(storage.delete_prefix, submissions.prefix(submission.id))
-            self._drop_folders(self._assignment_dirs.pop(given.id, None))
+            if folder := self._assignment_dirs.pop(given.id, None):
+                self._drop_folders(folder)
+                parent = folder.rpartition("/")[0]
+                if not any(f.startswith(parent + "/") for f in self._folders):
+                    self._folders.discard(parent)
             del self._assignments[given.id], self._submissions[given.id], self._pdfs[given.id]
         if team:
             self._deleted_teams[klass.team_id] = self._teams.pop(klass.team_id)

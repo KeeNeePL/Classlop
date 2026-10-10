@@ -13,7 +13,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams import attendance
 from classlop.teams.changing import Changing
 from classlop.teams.giving import Giving
-from classlop.teams.graph import BASE, GraphClient, GraphError
+from classlop.teams.graph import BASE, GraphClient, or_gone
 from classlop.teams.handins import HandIns
 from classlop.teams.lifecycle import Lifecycle, writable
 from classlop.teams.models import (
@@ -311,13 +311,8 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing
         for record in records:
             if not record.single:
                 continue
-            try:
-                event = await self._graph.get(f"/me/events/{record.id}")
-            except GraphError as error:
-                if error.status != 404:
-                    raise
-                continue
-            lessons[record.id] = self._lesson(class_id, event, record.topic)
+            if event := await or_gone(self._graph.get(f"/me/events/{record.id}")):
+                lessons[record.id] = self._lesson(class_id, event, record.topic)
         # Teams-made meetings, and what Teams has cancelled, are known from the calendar sync.
         async with sessions()() as session:
             rows = await session.scalars(

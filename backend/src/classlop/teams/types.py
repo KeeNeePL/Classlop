@@ -129,7 +129,7 @@ class Attendance(BaseModel):
 
 AssignmentType = Literal["homework", "quiz", "exam"]
 # Scheduled and Open are Given. Draft is not Given, and is where a Scheduled one returns when its
-# post fails (`give_failed_at`). Closed is set when #57 closes it.
+# post fails (`give_failed_at`).
 AssignmentState = Literal["draft", "scheduled", "open", "closed"]
 SubmissionState = Literal["not_handed_in", "handed_in", "graded", "returned", "missing", "excused"]
 

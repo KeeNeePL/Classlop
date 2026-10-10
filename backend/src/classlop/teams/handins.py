@@ -16,7 +16,7 @@ from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
 from classlop.teams import submissions
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
-from classlop.teams.graph import GraphClient, GraphError
+from classlop.teams.graph import GraphClient, or_gone
 from classlop.teams.handin_records import HandinCursor, HandinFileRecord
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment
@@ -132,6 +132,7 @@ class HandIns:
                 files=[(f.id, f.uploaded_at) for f in files],
                 due_at=assignment.due_at,
                 now=self._clock(),
+                settled=(row.signature, row.handed_in_at),
                 force=force,
             )
             settled = row.signature
@@ -222,15 +223,14 @@ class HandIns:
     async def _lock(self, submission_id: str) -> None:
         async with sessions()() as session:
             row = await session.get_one(SubmissionRecord, submission_id)
-        try:
-            await self._graph.send(
+        # A folder the Teacher deleted needs no lock.
+        await or_gone(
+            self._graph.send(
                 "PATCH",
                 f"/me/drive/items/{row.folder_id}/permissions/{row.permission_id}",
                 {"roles": ["read"]},
             )
-        except GraphError as error:
-            if error.status != 404:  # a folder the Teacher deleted needs no lock
-                raise
+        )
         async with sessions().begin() as session:
             (await session.get_one(SubmissionRecord, submission_id)).locked = True
 
