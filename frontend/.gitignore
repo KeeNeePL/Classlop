@@ -45,3 +45,6 @@ Thumbs.db
 
 # Generated from openapi.json by ng-openapi-gen
 /src/app/api
+
+# Playwright
+/test-results

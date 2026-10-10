@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from classlop.dashboard import auth
+from classlop.dashboard import auth, home, overview
 from classlop.shared import db, search, storage
 from classlop.shared.settings import get_settings
 
@@ -28,6 +28,8 @@ def create_app() -> FastAPI:
         https_only=True,
     )
     app.include_router(auth.router)
+    app.include_router(home.router)
+    app.include_router(overview.router)
 
     @app.get("/healthz")
     async def healthz(response: Response) -> dict[str, str]:

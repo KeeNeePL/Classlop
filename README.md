@@ -25,6 +25,8 @@ Signing in at http://localhost:8000 needs `M365_CLIENT_SECRET`, `M365_TEACHER_OI
 
 Frontend with live reload: `cd frontend && npm ci && npm start` serves http://localhost:4200 and proxies `/api` and `/auth` to :8000 (sign-in itself returns to :8000). After changing the API, refresh the generated client's source: `cd backend && uv run classlop openapi > ../frontend/openapi.json`.
 
+Playwright tests for the dashboard run against a dev server on :4201 and a backend on :8001 with the Teacher already signed in and no database: `cd frontend && npx playwright install chromium` once, then `npm run e2e`.
+
 New migration on your area's branch: `cd backend && uv run alembic revision -m "..." --head=<area>@head`.
 
 If Windows blocks compiled packages (Smart App Control), run the tests in Linux instead:

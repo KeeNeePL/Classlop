@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
 from classlop import teams
+from classlop.dashboard import auth as dashboard
 from classlop.dashboard.app import create_app
 from classlop.shared import auth, jobs
 from classlop.shared.db import sessions
@@ -31,8 +32,11 @@ def tenant(monkeypatch):
 
 
 def client() -> TestClient:
+    app = create_app()
+    # These tests are about signing in, not the jobs table.
+    app.dependency_overrides[dashboard.sign_in_lapsed] = lambda: False
     # https: the session cookie is Secure.
-    return TestClient(create_app(), base_url="https://testserver", follow_redirects=False)
+    return TestClient(app, base_url="https://testserver", follow_redirects=False)
 
 
 @pytest.fixture
@@ -75,7 +79,7 @@ def test_the_teacher_signs_in_and_out(stubbed):
     callback = web.get("/auth/callback", params={"code": "teacher", "state": "s1"})
     assert (callback.status_code, callback.headers["location"]) == (307, "/")
     assert stubbed == [True]
-    assert web.get("/api/me").json() == {"name": "Anna Nowak"}
+    assert web.get("/api/me").json()["name"] == "Anna Nowak"
 
     web.get("/auth/logout")
     assert web.get("/api/me").status_code == 401

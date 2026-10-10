@@ -1,0 +1,93 @@
+header {
+  margin-bottom: 20px;
+}
+
+header p {
+  margin: 6px 0 0;
+}
+
+ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.q {
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.ico {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.at {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* the teacher's red pen: what needs attention is marked in the margin */
+.problem {
+  border-left: 3px solid var(--red);
+}
+
+.problem .ico {
+  border-color: var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  font-size: 18px;
+}
+
+.live {
+  border-color: var(--line);
+}
+
+.live .ico {
+  position: relative;
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.live .ico::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1.6s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(217 58 47 / 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgb(217 58 47 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live .ico::after {
+    animation: none;
+  }
+}

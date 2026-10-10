@@ -1,0 +1,92 @@
+nav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: var(--paper);
+  /* the margin line of an exercise book */
+  border-right: 1px solid rgb(217 58 47 / 0.5);
+  padding: 20px 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--ink);
+}
+
+a:hover {
+  background: var(--grid);
+}
+
+/* the active entry is marked with a highlighter */
+a.on .name {
+  background: linear-gradient(transparent 55%, var(--marker) 55%);
+  font-weight: 700;
+}
+
+.logo {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  padding: 0 8px 14px;
+}
+
+.label {
+  padding: 18px 8px 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.new {
+  color: var(--pen);
+  font-weight: 600;
+}
+
+/* circled with the red pen */
+.count {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.count:empty {
+  display: none;
+}
+
+.bottom {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.teacher {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.teacher a {
+  display: inline;
+  padding: 0;
+  color: var(--pen);
+}
+
+.teacher a:hover {
+  background: none;
+  text-decoration: underline;
+}

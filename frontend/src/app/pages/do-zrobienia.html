@@ -1,0 +1,25 @@
+<header>
+  <h1>Do zrobienia</h1>
+  <p class="muted">{{ today }}</p>
+</header>
+@if (home(); as h) {
+  <ol aria-label="Do zrobienia">
+    @for (e of h.entries; track $index) {
+      <li class="q {{ mark(e).tone }}">
+        <span class="ico">{{ mark(e).icon }}</span>
+        <div>
+          <b class="title">{{ e.title }}</b>
+          <div class="muted">{{ e.detail }}</div>
+        </div>
+        <time class="at">{{ at(e) }}</time>
+        @if (external(e)) {
+          <a class="btn ghost" [href]="e.link">{{ e.action }}</a>
+        } @else {
+          <a class="btn ghost" [routerLink]="e.link">{{ e.action }}</a>
+        }
+      </li>
+    } @empty {
+      <li class="muted">Wszystko zrobione.</li>
+    }
+  </ol>
+}

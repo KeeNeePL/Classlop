@@ -13,6 +13,7 @@ os.environ.setdefault("AWS_ACCESS_KEY_ID", "dev")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "dev")
 _run = uuid.uuid4().hex[:8]
 os.environ["ITEMS_INDEX"] = f"test-items-{_run}"
+os.environ["EXEMPLARS_INDEX"] = f"test-exemplars-{_run}"
 os.environ["JOBS_QUEUE"] = f"test-jobs-{_run}"
 os.environ["JOBS_DLQ"] = f"test-jobs-dlq-{_run}"
 os.environ["JOBS_VISIBILITY_TIMEOUT"] = "5"

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://classlop:classlop@localhost:5432/classlop"
     opensearch_url: str = "http://localhost:9200"
     items_index: str = "items"
+    exemplars_index: str = "exemplars"
 
     aws_region: str = "eu-central-1"
     aws_access_key_id: str | None = None
@@ -51,6 +52,9 @@ class Settings(BaseSettings):
     public_url: str = "http://localhost:8000"
     # Signs the session cookie; unset, a random key per process signs everyone out on restart.
     session_key: SecretStr | None = None
+
+    typesafe_api_key: SecretStr | None = None
+    typesafe_base_url: str = "https://api.typesafe.ai/v1"
 
     langsmith_api_key: SecretStr | None = None
     langsmith_endpoint: str = "https://eu.api.smith.langchain.com"

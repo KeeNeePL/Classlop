@@ -214,7 +214,7 @@ def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemV
 
 
 def curriculum_topic(name: str) -> CurriculumTopic:
-    return CurriculumTopic(id=f"topic-{name}", name=name)
+    return CurriculumTopic(id="lo2024:III.4", name=name)
 
 
 def confirmed(number) -> dict:
