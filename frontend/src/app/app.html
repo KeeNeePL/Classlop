@@ -1,0 +1,10 @@
+<header>
+  <span class="brand">Classlop</span>
+  @if (name(); as name) {
+    <span class="teacher">{{ name }}</span>
+    <a href="/auth/logout">Wyloguj</a>
+  }
+</header>
+<main>
+  <router-outlet />
+</main>

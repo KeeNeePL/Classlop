@@ -21,6 +21,10 @@ docker compose up --build        # http://localhost:8000/healthz
 cd backend && uv sync && uv run pytest
 ```
 
+Signing in at http://localhost:8000 needs `M365_CLIENT_SECRET`, `M365_TEACHER_OID` and `SESSION_KEY` in `.env`, written by `scripts/setup-demo-tenant.sh`. `docker compose run --rm worker classlop whoami` then shows a worker job reaching Graph as the Teacher.
+
+Frontend with live reload: `cd frontend && npm ci && npm start` serves http://localhost:4200 and proxies `/api` and `/auth` to :8000 (sign-in itself returns to :8000). After changing the API, refresh the generated client's source: `cd backend && uv run classlop openapi > ../frontend/openapi.json`.
+
 New migration on your area's branch: `cd backend && uv run alembic revision -m "..." --head=<area>@head`.
 
 If Windows blocks compiled packages (Smart App Control), run the tests in Linux instead:
@@ -44,7 +48,7 @@ npx --yes aws-cdk@2.1145.0 deploy Classlop
 
 The deploy prints `Url` (the dashboard on `*.cloudfront.net`) and `CallbackUrl`. The stack runs at about 4 USD a day; the account's own 25 USD monthly AWS Budget is the cost alarm, so the stack adds none.
 
-**Fill the app secret** `classlop/app` once, in the Secrets Manager console (Retrieve secret value, Edit, key/value): `M365_CLIENT_SECRET`, `LLM_API_KEY`, `LANGSMITH_API_KEY`, `TYPESAFE_API_KEY`, `LLM_BASE_URL`, `M365_TENANT_ID`, `M365_CLIENT_ID`. `SESSION_KEY` is generated; leave it. Later deploys never overwrite these values. The tasks read the secret when they start, so restart both services after an edit:
+**Fill the app secret** `classlop/app` once, in the Secrets Manager console (Retrieve secret value, Edit, key/value): `M365_CLIENT_SECRET`, `LLM_API_KEY`, `LANGSMITH_API_KEY`, `TYPESAFE_API_KEY`, `LLM_BASE_URL`, `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_TEACHER_OID`. `SESSION_KEY` is generated; leave it. Later deploys never overwrite these values. The tasks read the secret when they start, so restart both services after an edit:
 
 ```sh
 aws ecs update-service --cluster <ClusterName> --service <service> --force-new-deployment

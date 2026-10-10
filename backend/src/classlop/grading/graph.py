@@ -8,8 +8,21 @@ from typing import Annotated, TypedDict
 from langgraph.graph import START, StateGraph
 from langgraph.types import Send
 from pydantic import BaseModel
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 
 from classlop import items as items_area
+from classlop.grading.common_mistakes import chosen_option_mistake, request_if_computed
+from classlop.grading.feedback import (
+    BLANK,
+    CORRECT,
+    NOT_READ,
+    WRONG,
+    store_pdf,
+    summarise,
+    text_comment,
+    typesets,
+)
 from classlop.grading.models import GradedItem, GradedSubmission, Reading
 from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
@@ -18,14 +31,10 @@ from classlop.grading.verification import verify
 from classlop.items import ItemVersion
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
+from classlop.shared.typeset import TypesetError
 
-AI_LINE = "Ocena i komentarz przygotowane przez AI; nauczyciel sprawdza je wyrywkowo."
 # Nothing to judge, or nothing that may be judged: such Items score 0 with no scoring call.
 UNSCORED = ("blank", "unreadable")
-CORRECT, BLANK = "poprawnie", "brak rozwiązania"
-NOT_READ, WRONG = "nie udało się odczytać rozwiązania", "błędna odpowiedź"
-# Fixed Feedback carries no maths, so the text comment shows it; scored Feedback may carry maths.
-FIXED_FEEDBACK = (CORRECT, BLANK, NOT_READ, WRONG)
 
 Rule = tuple[str, Callable[[GradedItem], bool]]
 HELD_REASONS: list[Rule] = [
@@ -34,6 +43,8 @@ HELD_REASONS: list[Rule] = [
     ("wątpliwa ocena", lambda i: i.doubt),
 ]
 FLAG_REASONS: list[Rule] = [("rysunek", lambda i: i.drawing)]
+TYPESET_FAILED = "błąd składu"
+GRADING_FAILED = "ocena nie powiodła się"
 
 
 class AssignedItem(BaseModel):
@@ -48,6 +59,8 @@ class GradeJob(BaseModel):
     handed_in_at: datetime
     items: list[AssignedItem]
     files: list[str]
+    assignment_id: uuid.UUID
+    due_at: datetime
 
 
 class Input(TypedDict):
@@ -63,6 +76,8 @@ class State(Input):
     # The verification note per disputed Item number.
     disputes: dict[int, str]
     scores: Annotated[dict[int, Score], operator.or_]
+    # Items whose Feedback would not typeset even when asked for twice.
+    untypeset: Annotated[list[int], operator.add]
     graded: GradedSubmission
 
 
@@ -92,6 +107,8 @@ async def hold(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
+            due_at=job.due_at,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held,
@@ -153,7 +170,14 @@ def to_scoring(state: State) -> list[Send] | str:
 
 
 async def score_item(state: ScoreTask) -> dict:
-    return {"scores": {state["number"]: await score(state["item"], state["transcription"])}}
+    """The Feedback is typeset here, so a typesetting error shows at grading, not at return."""
+    number, item = state["number"], state["item"]
+    for _ in range(2):
+        scored = await score(item, state["transcription"])
+        # Full points show "poprawnie", whatever the Feedback says.
+        if scored.points >= item.points or await typesets(scored.feedback):
+            return {"scores": {number: scored}}
+    return {"scores": {number: scored}, "untypeset": [number]}
 
 
 def _grade_item(
@@ -169,8 +193,11 @@ def _grade_item(
         chosen = transcription.chosen_option if transcription else None
         right = reading not in UNSCORED and [chosen] == item.correct_options
         points = item.points if right else 0
+        wrong_choice = reading not in UNSCORED and not right and chosen in item.options
+        mistake = chosen_option_mistake(chosen) if wrong_choice and chosen else None
     else:
         points = min(max(scored.points, 0), item.points) if scored else 0
+        mistake = scored.mistake if scored and points < item.points else None
     if reading == "blank":
         feedback = BLANK
     elif reading == "unreadable" or not (transcription and transcription.transcription.strip()):
@@ -194,14 +221,10 @@ def _grade_item(
         if transcription and reading != "blank"
         else "",
         feedback=feedback,
-        mistake=scored.mistake if scored and points < item.points else None,
+        mistake=mistake,
         verification_note=dispute,
+        curriculum_topics=[t.name for t in item.curriculum_topics],
     )
-
-
-def _line(item: GradedItem) -> str:
-    line = f"Zadanie {item.number}: {item.ai_points}/{item.max_points} pkt"
-    return f"{line} – {item.feedback}" if item.feedback in FIXED_FEEDBACK else line
 
 
 def _reasons(items: list[GradedItem], rules: list[Rule]) -> list[dict]:
@@ -225,29 +248,93 @@ async def assess(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
+            due_at=job.due_at,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
-            comment="\n".join(_line(i) for i in graded) + f"\n\n{AI_LINE}",
             items=graded,
         )
     }
 
 
+async def write_feedback(state: State) -> dict:
+    graded = state["graded"]
+    graded.summary = await summarise(graded.items)
+    graded.comment = text_comment(graded.summary, graded.items)
+    held = None
+    if untypeset := sorted(state.get("untypeset", [])):
+        held = {"reason": TYPESET_FAILED, "items": untypeset}
+    else:
+        try:
+            graded.pdf_key = await store_pdf(graded.submission_id, graded.items)
+        except TypesetError:
+            # Each Feedback typeset alone, so no single Item is to blame.
+            held = {"reason": TYPESET_FAILED, "items": []}
+    if held:
+        graded.held_reasons = [*graded.held_reasons, held]
+        graded.spot_check_reasons = [*graded.spot_check_reasons, held]
+    return {"graded": graded}
+
+
 async def persist(state: State) -> dict:
+    job, graded = state["job"], state["graded"]
+    graded.grade_job = job.model_dump(mode="json")
     async with sessions().begin() as session:
-        session.add(state["graded"])
-    await announce(state["job"])
+        # Oceń ponownie: a successful run replaces the failed result.
+        await session.execute(
+            delete(GradedSubmission).where(
+                GradedSubmission.submission_id == job.submission_id,
+                GradedSubmission.handed_in_at == job.handed_in_at,
+                GradedSubmission.status == "failed",
+            )
+        )
+        session.add(graded)
+    await announce(job.submission_id, job.handed_in_at, status="graded")
+    await request_if_computed(job.assignment_id)
     return {}
 
 
-async def announce(job: GradeJob) -> None:
-    """Tell `teams` the result is written; the key keeps a redelivered job from telling twice."""
-    payload = {
-        "submission_id": str(job.submission_id),
-        "handed_in_at": job.handed_in_at.isoformat(),
-    }
-    key = f"teams.submission_graded:{job.submission_id}@{payload['handed_in_at']}"
+async def store_failure(job: GradeJob) -> None:
+    """The last attempt failed: the Teacher sees the Submission Held and can grade it again."""
+    held = [{"reason": GRADING_FAILED, "items": []}]
+    async with sessions().begin() as session:
+        # A result written before the failure stands, and is announced below if it was not yet.
+        await session.execute(
+            insert(GradedSubmission)
+            .values(
+                submission_id=job.submission_id,
+                handed_in_at=job.handed_in_at,
+                assignment_id=job.assignment_id,
+                due_at=job.due_at,
+                status="failed",
+                held_reasons=held,
+                spot_check_reasons=held,
+                comment="",
+                grade_job=job.model_dump(mode="json"),
+            )
+            .on_conflict_do_nothing()
+        )
+        status = await session.scalar(
+            select(GradedSubmission.status).where(
+                GradedSubmission.submission_id == job.submission_id,
+                GradedSubmission.handed_in_at == job.handed_in_at,
+            )
+        )
+    await announce(job.submission_id, job.handed_in_at, status=status)
+    # The newest hand-in now has no Items, so its earlier mistakes no longer count.
+    await request_if_computed(job.assignment_id)
+
+
+async def announce(
+    submission_id: uuid.UUID, handed_in_at: datetime, status: str | None = None
+) -> None:
+    """Tell `teams` the result was written or changed. Grading passes the status it wrote, which
+    keys the event, so a redelivered grading job never tells twice while a graded result
+    replacing a failed one is told; the Teacher's changes pass none and are each their own."""
+    at = handed_in_at.isoformat()
+    key = f"teams.submission_graded:{submission_id}@{at}:{status}" if status else None
+    payload = {"submission_id": str(submission_id), "handed_in_at": at}
     await jobs.enqueue("teams.submission_graded", payload, key=key)
 
 
@@ -258,7 +345,7 @@ grade_graph = (
     .add_node(verify_pages)
     .add_node(score_item)
     .add_node(hold)
-    .add_sequence([assess, persist])
+    .add_sequence([assess, write_feedback, persist])
     .add_edge(START, "load")
     .add_conditional_edges("load", to_transcription, ["transcribe_pages", "hold"])
     .add_edge("transcribe_pages", "verify_pages")
