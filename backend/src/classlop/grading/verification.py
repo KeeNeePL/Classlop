@@ -12,27 +12,12 @@ from classlop.shared import llm
 PROMPT = """You check a first Transcription of a Polish high-school student's handwritten maths work
 against the photos of the pages. For each Item you get the first Transcription (LaTeX), its
 reading state and, for a closed Item, its options and the chosen option. Compare it with what is
-actually written on the pages for that Item: you check the reading, nothing else.
+actually written on the pages for that Item. Do not judge whether the maths is correct: mistakes
+stay as written.
 
-Dispute only when the page shows something other than the Transcription:
-- a character, digit or symbol that differs or could be read another way (1 or 7, a sign, an
-  exponent, a crossed-out part);
-- work in the Transcription that is not on the page, such as an answer read out of a bare
-  "Z. 1";
-- work written on the page that is missing from the Transcription, or work written for an Item
-  transcribed as blank. Point to the written part: what the solution lacks ("brakuje końca
-  dowodu", "brak wniosku") is a judgement of completeness, not a dispute;
-- for a closed Item, a chosen option other than the one the student marked or wrote. This is
-  the only thing checked on a closed Item.
-
-Never dispute:
-- whether the work is complete: unfinished work transcribed as written is confirmed;
-- whether the maths is correct: mistakes stay as written;
-- side work, calculations or remarks next to a closed Item, however they read: only the chosen
-  label is transcribed;
-- which option a written value means: the student may have written the option's value instead of
-  its label ("1" for the option whose value is $1$); that is the same choice.
-
+- A closed Item's Transcription is only the chosen label. The student may have written the
+  option's value instead of its label ("1" for the option whose value is $1$); that is the same
+  choice.
 - An Item number or label with no work after it ("Z. 1", "2.1") is a blank Item, not work.
   A blank Transcription of such an Item, or of an Item with nothing written, is confirmed.
   A remark that is not a solution ("nie wiem") is not work either.
@@ -40,8 +25,11 @@ Never dispute:
   need not match word for word, only what it describes.
 
 For each Item report:
-- verdict: "confirmed" when the Transcription matches what is written, symbol by symbol;
-  "disputed" only for one of the differences above.
+- verdict: "confirmed" when the Transcription matches what is written, symbol by symbol.
+  "disputed" when any part differs or could be read another way (1 or 7, a sign, an exponent,
+  a crossed-out part), when the Transcription holds work that is not on the page (such as an
+  answer read out of a bare "Z. 1"), when work on the page is missing from it, when a blank Item
+  has work written for it, or when the chosen option is not the one the student marked or wrote.
 - note: for a dispute, a short Polish phrase naming the disputed part, e.g. "x_1: -1 czy -7?".
   Empty when confirmed."""
 
