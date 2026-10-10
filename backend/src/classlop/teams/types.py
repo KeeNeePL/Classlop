@@ -17,6 +17,14 @@ class Team(BaseModel):
     name: str
 
 
+class Candidate(BaseModel):
+    """A tenant user the Teacher may pick as a Student."""
+
+    user_id: str
+    display_name: str
+    upn: str
+
+
 class Class(BaseModel):
     id: str
     team_id: str
@@ -50,4 +58,24 @@ class Teams(Protocol):
         """Every Student, Former students included (`former_since` set)."""
         ...
 
-    async def sync_roster(self, class_id: str) -> None: ...
+    async def sync_roster(self, class_id: str) -> None:
+        """Also renames the Class to match its team."""
+        ...
+
+    async def search_users(self, query: str) -> list[Candidate]:
+        """Tenant users whose name has a word starting with `query`."""
+        ...
+
+    async def create_class(self, name: str, student_user_ids: list[str]) -> Class:
+        """A new Private team named `name`, the Teacher as owner and the users as members."""
+        ...
+
+    async def add_student(self, class_id: str, user_id: str) -> Student: ...
+
+    async def remove_student(self, class_id: str, user_id: str) -> None:
+        """Removes them from the team; they become a Former student."""
+        ...
+
+    async def rename_class(self, class_id: str, name: str) -> Class:
+        """Renames the team too."""
+        ...
