@@ -14,6 +14,7 @@ from classlop.grading.models import GradedItem, GradedSubmission, Reading
 from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
 from classlop.grading.transcription import ItemTranscription, transcribe
+from classlop.grading.verification import verify
 from classlop.items import ItemVersion
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
@@ -59,6 +60,8 @@ class State(Input):
     # The Held reason when the files cannot be transcribed at all.
     file_problem: str | None
     transcriptions: dict[int, ItemTranscription]
+    # The verification note per disputed Item number.
+    disputes: dict[int, str]
     scores: Annotated[dict[int, Score], operator.or_]
     graded: GradedSubmission
 
@@ -102,6 +105,27 @@ async def transcribe_pages(state: State) -> dict:
     return {"transcriptions": await transcribe(state["items"], state["pages"])}
 
 
+async def verify_pages(state: State) -> dict:
+    """A disputed Item becomes unsure, so the Teacher sees it before any Student does."""
+    transcriptions = state["transcriptions"]
+    checks = await verify(state["items"], state["pages"], transcriptions)
+    disputes = {
+        n: check.note if check else "brak weryfikacji"
+        for n in transcriptions
+        if (check := checks.get(n)) is None or check.verdict == "disputed"
+    }
+    return {
+        "disputes": disputes,
+        "transcriptions": {
+            # A dispute only lowers confidence: unreadable work is never turned into a guess.
+            n: t.model_copy(update={"reading": "unsure"})
+            if n in disputes and t.reading != "unreadable"
+            else t
+            for n, t in transcriptions.items()
+        },
+    }
+
+
 def _reading(item: ItemVersion, transcription: ItemTranscription | None) -> Reading:
     # An Item the model left out of its reply is unsure, not blank.
     if transcription is None:
@@ -122,6 +146,7 @@ def to_scoring(state: State) -> list[Send] | str:
         for n, item in state["items"]
         if item.item_format == "open"
         and (t := transcriptions.get(n))
+        and t.transcription.strip()
         and _reading(item, t) not in UNSCORED
     ]
     return tasks or "assess"
@@ -137,6 +162,7 @@ def _grade_item(
     item: ItemVersion,
     transcription: ItemTranscription | None,
     scored: Score | None,
+    dispute: str | None,
 ) -> GradedItem:
     reading = _reading(item, transcription)
     if item.item_format == "closed":
@@ -147,7 +173,7 @@ def _grade_item(
         points = min(max(scored.points, 0), item.points) if scored else 0
     if reading == "blank":
         feedback = BLANK
-    elif reading == "unreadable" or transcription is None:
+    elif reading == "unreadable" or not (transcription and transcription.transcription.strip()):
         feedback = NOT_READ
     elif points == item.points:
         feedback = CORRECT
@@ -169,6 +195,7 @@ def _grade_item(
         else "",
         feedback=feedback,
         mistake=scored.mistake if scored and points < item.points else None,
+        verification_note=dispute,
     )
 
 
@@ -188,7 +215,9 @@ def _reasons(items: list[GradedItem], rules: list[Rule]) -> list[dict]:
 async def assess(state: State) -> dict:
     job, transcriptions, scores = state["job"], state["transcriptions"], state.get("scores", {})
     graded = [
-        _grade_item(position, n, item, transcriptions.get(n), scores.get(n))
+        _grade_item(
+            position, n, item, transcriptions.get(n), scores.get(n), state["disputes"].get(n)
+        )
         for position, (n, item) in enumerate(state["items"])
     ]
     held = _reasons(graded, HELD_REASONS)
@@ -208,24 +237,32 @@ async def assess(state: State) -> dict:
 async def persist(state: State) -> dict:
     async with sessions().begin() as session:
         session.add(state["graded"])
-    job = state["job"]
-    await jobs.enqueue(
-        "teams.submission_graded",
-        {"submission_id": str(job.submission_id), "handed_in_at": job.handed_in_at.isoformat()},
-    )
+    await announce(state["job"])
     return {}
+
+
+async def announce(job: GradeJob) -> None:
+    """Tell `teams` the result is written; the key keeps a redelivered job from telling twice."""
+    payload = {
+        "submission_id": str(job.submission_id),
+        "handed_in_at": job.handed_in_at.isoformat(),
+    }
+    key = f"teams.submission_graded:{job.submission_id}@{payload['handed_in_at']}"
+    await jobs.enqueue("teams.submission_graded", payload, key=key)
 
 
 grade_graph = (
     StateGraph(State, input_schema=Input)
     .add_node(load)
     .add_node(transcribe_pages)
+    .add_node(verify_pages)
     .add_node(score_item)
     .add_node(hold)
     .add_sequence([assess, persist])
     .add_edge(START, "load")
     .add_conditional_edges("load", to_transcription, ["transcribe_pages", "hold"])
-    .add_conditional_edges("transcribe_pages", to_scoring, ["score_item", "assess"])
+    .add_edge("transcribe_pages", "verify_pages")
+    .add_conditional_edges("verify_pages", to_scoring, ["score_item", "assess"])
     .add_edge("score_item", "assess")
     .add_edge("hold", "persist")
     .compile()

@@ -27,6 +27,7 @@ class ItemResult(BaseModel):
     ai_transcription: str
     feedback: str
     mistake: str | None
+    verification_note: str | None
 
     @computed_field
     @property

@@ -71,6 +71,11 @@ class FakeLLM:
     def transcribes(self, *transcriptions: dict) -> None:
         reply = AIMessage(json.dumps({"items": list(transcriptions)}))
         self.models["grading.transcribe"] = Recording(messages=iter([reply]))
+        self.verifies(*(confirmed(t["number"]) for t in transcriptions))
+
+    def verifies(self, *checks: dict) -> None:
+        reply = AIMessage(json.dumps({"items": list(checks)}))
+        self.models["grading.verify"] = Recording(messages=iter([reply]))
 
     def scores(self, by_text: dict[str, dict]) -> None:
         """The scoring reply for each open Item, by its text."""
@@ -157,6 +162,14 @@ def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemV
     )
 
 
+def confirmed(number) -> dict:
+    return {"number": number, "verdict": "confirmed", "note": ""}
+
+
+def disputed(number, note) -> dict:
+    return {"number": number, "verdict": "disputed", "note": note}
+
+
 def score(points, doubt=False, feedback="", mistake=None) -> dict:
     return {"points": points, "doubt": doubt, "feedback": feedback, "mistake": mistake}
 
@@ -181,8 +194,11 @@ def pdf(pages: int, size=(595, 842)) -> bytes:
     return out.getvalue()
 
 
-async def hand_in(bank, assignment: list[ItemVersion], files: list[bytes] | None = None):
-    """Run `grading.grade` as `teams` enqueues it; returns the hand-in's key."""
+async def hand_in(
+    bank, assignment: list[ItemVersion], files: list[bytes] | None = None, deliveries: int = 1
+):
+    """Run `grading.grade` as `teams` enqueues it, as often as SQS delivers it; returns the
+    hand-in's key."""
     submission_id, handed_in_at = uuid.uuid4(), datetime.now(UTC)
     keys = []
     for n, file in enumerate(files or [photo()], 1):
@@ -202,8 +218,9 @@ async def hand_in(bank, assignment: list[ItemVersion], files: list[bytes] | None
     async def progress(value):
         pass
 
-    job = Job(id=uuid.uuid4(), kind="grading.grade", payload=payload, attempts=1)
-    await grading.grade(job, progress)
+    for attempt in range(1, deliveries + 1):
+        job = Job(id=uuid.uuid4(), kind="grading.grade", payload=payload, attempts=attempt)
+        await grading.grade(job, progress)
     return submission_id, handed_in_at
 
 
@@ -330,7 +347,7 @@ async def test_transcription_uses_its_configured_model_and_never_invents_work(ba
 
     await hand_in(bank, [closed()])
 
-    assert fake_llm.keys == ["grading.transcribe"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
     # The prototype invented an answer from a bare "Z. 1".
     assert "Transcribe nothing where nothing is written" in fake_llm.prompt()
 
@@ -430,7 +447,7 @@ async def test_a_mixed_submission_scores_only_open_items_with_the_model(bank, fa
     result = await grading.result(*await hand_in(bank, [choice, solved, empty]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe", "grading.score"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
     assert [(i.ai_points, i.feedback, i.mistake) for i in result.items] == [
         (0, "błędna odpowiedź", None),
         (2, "poprawnie", None),
@@ -493,7 +510,7 @@ async def test_an_item_missing_from_the_transcription_is_not_judged_wrong(bank, 
     result = await grading.result(*await hand_in(bank, [closed(), open_item()]))
 
     assert result is not None
-    assert fake_llm.keys == ["grading.transcribe"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
     assert [(i.reading, i.ai_points, i.feedback) for i in result.items][1] == (
         "unsure",
         0,
@@ -581,7 +598,7 @@ async def test_work_under_a_number_outside_the_assignment_is_ignored(bank, fake_
 
     assert result is not None
     assert [(i.number, i.ai_points) for i in result.items] == [(1, 2)]
-    assert fake_llm.keys == ["grading.transcribe", "grading.score"]
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify", "grading.score"]
     assert result.comment == f"Zadanie 1: 2/2 pkt – poprawnie\n\n{AI_LINE}"
 
 
@@ -595,3 +612,90 @@ async def test_six_pages_are_still_transcribed(bank, fake_llm):
     assert result is not None
     assert len(fake_llm.images()) == 6
     assert not result.held
+
+
+async def test_a_confirmed_transcription_keeps_its_reading(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    result = await grading.result(*await hand_in(bank, [closed()], files=[photo(), photo()]))
+
+    assert result is not None
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert [(i.reading, i.verification_note) for i in result.items] == [("readable", None)]
+    assert not result.held
+    seen = fake_llm.models["grading.verify"].seen
+    assert len(seen) == 1
+    assert sum(p["type"] == "image_url" for p in parts(seen[0])) == 2
+    assert '"transcription": "B"' in text_of(seen[0])
+
+
+async def test_a_disputed_item_becomes_unsure_and_holds_with_the_note(bank, fake_llm):
+    item = open_item()
+    fake_llm.transcribes(
+        read(1, chosen="B", transcription="B"), read(2, transcription="x_1 = -1, x_2 = 5")
+    )
+    fake_llm.verifies(confirmed(1), disputed(2, "x_1: -1 czy -7?"))
+    fake_llm.scores({item.text: score(2)})
+
+    result = await grading.result(*await hand_in(bank, [closed(), item]))
+
+    assert result is not None
+    assert [(i.reading, i.verification_note) for i in result.items] == [
+        ("readable", None),
+        ("unsure", "x_1: -1 czy -7?"),
+    ]
+    assert [r.model_dump() for r in result.held_reasons] == [
+        {"reason": "niepewny odczyt", "items": [2]}
+    ]
+
+
+async def test_work_invented_on_an_empty_page_is_disputed(bank, fake_llm):
+    # The prototype read an answer "B" out of a bare "Z. 1".
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    fake_llm.verifies(disputed(1, "na stronie jest tylko numer Z. 1, bez odpowiedzi"))
+
+    result = await grading.result(*await hand_in(bank, [closed()]))
+
+    assert result is not None
+    assert [(i.reading, i.verification_note) for i in result.items] == [
+        ("unsure", "na stronie jest tylko numer Z. 1, bez odpowiedzi")
+    ]
+    assert result.held
+
+
+async def test_a_redelivered_job_makes_no_second_call_or_event(bank, fake_llm):
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+
+    submission_id, handed_in_at = await hand_in(bank, [closed()], deliveries=2)
+
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert len(await graded_events(submission_id)) == 1
+    assert await grading.result(submission_id, handed_in_at) is not None
+
+
+async def test_a_dispute_never_turns_unreadable_work_into_a_guess(bank, fake_llm):
+    fake_llm.transcribes(read(1, reading="unreadable", transcription="[nieczytelne]"))
+    fake_llm.verifies(disputed(1, "widać x = 3"))
+
+    result = await grading.result(*await hand_in(bank, [open_item()]))
+
+    assert result is not None
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert [(i.reading, i.feedback) for i in result.items] == [
+        ("unreadable", "nie udało się odczytać rozwiązania")
+    ]
+    assert [r.reason for r in result.held_reasons] == ["nieczytelne"]
+
+
+async def test_work_missed_on_a_blank_item_is_held_without_scoring_nothing(bank, fake_llm):
+    fake_llm.transcribes(read(1, reading="blank"))
+    fake_llm.verifies(disputed(1, "pod Z. 1 jest rozwiązanie"))
+
+    result = await grading.result(*await hand_in(bank, [open_item()]))
+
+    assert result is not None
+    assert fake_llm.keys == ["grading.transcribe", "grading.verify"]
+    assert [(i.reading, i.ai_points, i.feedback, i.verification_note) for i in result.items] == [
+        ("unsure", 0, "nie udało się odczytać rozwiązania", "pod Z. 1 jest rozwiązanie")
+    ]
+    assert result.held

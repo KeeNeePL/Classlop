@@ -59,3 +59,5 @@ class GradedItem(Base):
     feedback: Mapped[str] = mapped_column(Text)
     # A short name for the mistake, gathered into Common mistakes.
     mistake: Mapped[str | None] = mapped_column(Text)
+    # What the verification read disputed in the Transcription, or that it skipped the Item.
+    verification_note: Mapped[str | None] = mapped_column(Text)
