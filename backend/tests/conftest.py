@@ -5,6 +5,7 @@ import uuid
 
 # Before any settings are read: private queues, so a running compose worker never steals jobs.
 os.environ.setdefault("SQS_ENDPOINT_URL", "http://localhost:9324")
+os.environ.setdefault("S3_ENDPOINT_URL", "http://localhost:8333")
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "dev")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "dev")
 _run = uuid.uuid4().hex[:8]
