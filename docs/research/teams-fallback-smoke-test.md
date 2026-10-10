@@ -38,3 +38,17 @@ Because the mailboxes are not provisioned, a fallback was tried: `POST /me/onlin
 - Creating the meeting works without a mailbox (201, `joinWebUrl` returned), and `GET /me/onlineMeetings?$filter=JoinWebUrl eq '...'` finds it. `JoinWebUrl` and `joinMeetingId` are the only supported filter properties.
 - Teacher and Student both joined and left after about two minutes. The Student's browser asked for a name on joining despite being signed in there, i.e. the join was probably anonymous or as a guest; students must join from a signed-in Teams session for the report to name them.
 - `GET .../attendanceReports` returned 404 `SDS_ErrorInvalidUser`, both on `/me` and on `/users/{id}`. Cause not established; the missing Exchange mailbox is the leading suspect. Retry once mailboxes exist, or after a delay.
+
+## Attendance through call records: holds
+
+`GET /communications/callRecords` (application permission `CallRecords.Read.All`, client-credentials token) works without a mailbox.
+
+- Filter the list with `startDateTime ge ...` and match a Lesson by the record's `joinWebUrl`.
+- Each time a meeting is held there is a separate `groupCall` record, even for the same `joinWebUrl`: a session that emptied and was rejoined later produced a second record. Records map to held occurrences without splitting by time window.
+- `participants_v2` names each signed-in participant (`identity.user` with `id`, `displayName`, `userPrincipalName`); `sessions` give per-participant join and leave times. The Student's `id` matches `createdBy.user.id` from the hand-in delta.
+- A Student who joins from the raw link in a browser without a Teams session shows up as `identity.guest` («Guest user», no UPN) and cannot be matched to a Student. Students must join from inside Teams, signed in; posting the join link in the Class channel does this.
+- This needs an app secret and app-only permission on top of signing in as the Teacher; the design so far assumed delegated access only.
+
+## Posting the Lesson link to the Class
+
+With delegated `ChannelMessage.Send` and `Channel.ReadBasic.All`, `GET /teams/{id}/primaryChannel` and `POST .../channels/{id}/messages` posted the join link to the Class channel. A meeting made with `POST /me/onlineMeetings` is not tied to the team otherwise; a channel meeting needs a group calendar event, which needs Exchange.
