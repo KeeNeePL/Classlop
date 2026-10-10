@@ -1,0 +1,48 @@
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+ol {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0;
+}
+
+.q {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.ico.live {
+  background: #ffedd5;
+  color: var(--live);
+}
+
+.ico.work {
+  background: var(--soft);
+  color: var(--accent);
+}
+
+.ico.problem {
+  background: #fee2e2;
+  color: #991b1b;
+}

@@ -15,7 +15,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Me"
+                  "$ref": "#/components/schemas/MeView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/home": {
+      "get": {
+        "summary": "Home",
+        "operationId": "home_api_home_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Home"
                 }
               }
             }
@@ -48,18 +66,139 @@
   },
   "components": {
     "schemas": {
-      "Me": {
+      "ClassLink": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "graded": {
+            "type": "integer",
+            "title": "Graded"
           }
         },
         "type": "object",
         "required": [
-          "name"
+          "id",
+          "name",
+          "graded"
         ],
-        "title": "Me"
+        "title": "ClassLink"
+      },
+      "Entry": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "live_lesson",
+              "sign_in",
+              "give_failed",
+              "team_removed",
+              "graded",
+              "next_lesson",
+              "deadline"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "link": {
+            "type": "string",
+            "title": "Link"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "detail",
+          "link",
+          "action"
+        ],
+        "title": "Entry"
+      },
+      "Home": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "entries_invented": {
+            "type": "boolean",
+            "title": "Entries Invented"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassLink"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "flagged_items": {
+            "type": "integer",
+            "title": "Flagged Items"
+          },
+          "sidebar_invented": {
+            "type": "boolean",
+            "title": "Sidebar Invented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "entries_invented",
+          "classes",
+          "flagged_items",
+          "sidebar_invented"
+        ],
+        "title": "Home"
+      },
+      "MeView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sign_in_lapsed": {
+            "type": "boolean",
+            "title": "Sign In Lapsed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "sign_in_lapsed"
+        ],
+        "title": "MeView"
       }
     }
   }

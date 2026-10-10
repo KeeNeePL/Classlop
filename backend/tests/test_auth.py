@@ -75,7 +75,7 @@ def test_the_teacher_signs_in_and_out(stubbed):
     callback = web.get("/auth/callback", params={"code": "teacher", "state": "s1"})
     assert (callback.status_code, callback.headers["location"]) == (307, "/")
     assert stubbed == [True]
-    assert web.get("/api/me").json() == {"name": "Anna Nowak"}
+    assert web.get("/api/me").json()["name"] == "Anna Nowak"
 
     web.get("/auth/logout")
     assert web.get("/api/me").status_code == 401

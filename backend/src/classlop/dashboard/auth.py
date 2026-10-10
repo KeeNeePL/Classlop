@@ -4,9 +4,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
+from sqlalchemy import exists, select
 
 from classlop import teams
 from classlop.shared import auth, jobs
+from classlop.shared.db import sessions
+from classlop.shared.models import Job
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,6 +19,10 @@ RETRY = '<p>{}</p><p><a href="/auth/login">Zaloguj się ponownie</a></p>'
 
 class Me(BaseModel):
     name: str
+
+
+class MeView(Me):
+    sign_in_lapsed: bool
 
 
 def teacher(request: Request) -> Me:
@@ -57,6 +64,16 @@ async def logout(request: Request) -> RedirectResponse:
     return RedirectResponse("/")
 
 
+async def sign_in_lapsed() -> bool:
+    """A job is parked until the Teacher signs in again."""
+    async with sessions()() as session:
+        return bool(
+            await session.scalar(select(exists().where(Job.status == "waiting_for_sign_in")))
+        )
+
+
 @router.get("/api/me")
-async def me(current: Annotated[Me, Depends(teacher)]) -> Me:
-    return current
+async def me(
+    current: Annotated[Me, Depends(teacher)], lapsed: Annotated[bool, Depends(sign_in_lapsed)]
+) -> MeView:
+    return MeView(name=current.name, sign_in_lapsed=lapsed)
