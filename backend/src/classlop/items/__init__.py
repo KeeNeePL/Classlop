@@ -10,7 +10,7 @@ from classlop.items.generation import (
     Line,
     request_generation,
 )
-from classlop.items.index import count_items, search_items
+from classlop.items.index import count_items, pick_items, search_items
 from classlop.items.records import (
     ItemEdit,
     create_item,
@@ -68,6 +68,7 @@ __all__ = [
     "give",
     "new_version",
     "request_generation",
+    "pick_items",
     "restore_item",
     "retag",
     "retire_item",
