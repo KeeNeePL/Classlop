@@ -91,6 +91,7 @@ APP_SECRETS = [
     "LLM_BASE_URL",
     "M365_TENANT_ID",
     "M365_CLIENT_ID",
+    "M365_TEACHER_OID",
 ]
 
 
