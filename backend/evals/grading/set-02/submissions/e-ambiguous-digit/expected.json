@@ -1,0 +1,20 @@
+{
+  "notes": "Zad. 3: a line is scribbled over, and in a_20 the last digit can be read as 1 or 7; 67 would not give the correct S_20 = 650 that follows, but the reading itself is ambiguous, so the Submission is Held. Points assume the intended 61. Zad. 2 complete with a sketch of the parabola, which flags the Submission.",
+  "held": true,
+  "spot_check": ["niepewny odczyt", "rysunek"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "A"},
+    {
+      "number": 2,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "25 - 24 = 1\nx_1 = 2 \\quad x_2 = 3\n[rysunek: parabola z ramionami w górę przecinająca oś w 2 i 3, znak minus pod osią]\nx \\in [2, 3]"
+    },
+    {
+      "number": 3,
+      "reading": "unsure",
+      "points": 3,
+      "transcription": "10 = 4 + 2r\nr = 3\n[skreślone]\na_{20} = 61 [niepewne: 61 albo 67]\nS_{20} = 650"
+    }
+  ]
+}

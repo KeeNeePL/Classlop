@@ -1,0 +1,15 @@
+{
+  "notes": "Unfinished but readable. Zad. 2 stops at the roots and a sketch of the parabola, with no solution set; Zad. 3 stops at r = 3. One Rubric level each, nothing to doubt or dispute. The sketch flags the Submission for Spot-check without holding it; the small mark after \"Zad. 2\" is not work.",
+  "held": false,
+  "spot_check": ["rysunek"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "A"},
+    {
+      "number": 2,
+      "reading": "readable",
+      "points": 1,
+      "transcription": "\\Delta = 25 - 24 = 1\nx_1 = 2 \\quad x_2 = 3\n[rysunek: parabola z ramionami w górę, miejsca zerowe 2 i 3 zaznaczone na osi]"
+    },
+    {"number": 3, "reading": "readable", "points": 1, "transcription": "10 = 4 + 2r\nr = 3"}
+  ]
+}

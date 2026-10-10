@@ -1,0 +1,20 @@
+{
+  "notes": "Zad. 1: side work in the top margin (log_2 8 = 3, log_3 9 = 2, 2 + 3 = 5) next to the answer A; only the label counts and the side work is never disputed. Zad. 2 and 3 complete and correct; in Zad. 3 the multiplication sign in 4 + 19 · 3 is left out and the product is written on the same line after a gap.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "A"},
+    {
+      "number": 2,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "25 - 24 = 1\nx_1 = 2 \\quad x_2 = 3\nx \\in [2, 3]"
+    },
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 3,
+      "transcription": "10 = 4 + 2r \\Rightarrow r = 3\na_{20} = 4 + 19 \\quad 3 = 61\nS_{20} = 650"
+    }
+  ]
+}

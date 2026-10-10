@@ -1,0 +1,20 @@
+{
+  "notes": "Zad. 2 is copied legibly but wrongly, as the equation x^2 - 5x - 6 = 0, and solved consistently; the roots and the set are wrong for the task, so 0 points with no doubt and no dispute: the Transcription is what is written. Zad. 1 wrong. Zad. 3 complete and correct, the product split over two lines.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 0, "transcription": "B"},
+    {
+      "number": 2,
+      "reading": "readable",
+      "points": 0,
+      "transcription": "x^2 - 5x - 6 = 0\n\\Delta = 49 \\quad x_1 = -1 \\quad x_2 = 6\nx \\in [-1, 6]"
+    },
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 3,
+      "transcription": "10 = 4 + 2r\nr = 3\na_{20} = 4 + 19\n3 = 61\nS_{20} = 650"
+    }
+  ]
+}
