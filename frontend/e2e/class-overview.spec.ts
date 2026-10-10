@@ -9,7 +9,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByRole('heading', { name: 'Postęp' })).toBeVisible();
   await expect(page.getByText('Liczby rzeczywiste')).toBeVisible();
   await expect(page.getByText(/^\d+% z \d+ pkt$/).first()).toBeVisible();
-  await expect(page.getByText('brak danych').first()).toBeVisible();
+  await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
 
   const hint = page.getByRole('button', { name: 'Co to znaczy?' }).first();
   await expect(page.getByRole('tooltip').first()).toBeHidden();
