@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://classlop:classlop@localhost:5432/classlop"
     opensearch_url: str = "http://localhost:9200"
+    # The alias the Item bank is searched by.
+    items_index: str = "items"
 
     aws_region: str = "eu-central-1"
     aws_access_key_id: str | None = None

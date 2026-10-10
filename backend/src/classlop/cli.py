@@ -12,6 +12,7 @@ def main(argv: list[str] | None = None) -> None:
     commands.add_parser("ping", help="run a shared.ping job through the queue and the worker")
     commands.add_parser("whoami", help="read the Teacher's name from Graph in a worker job")
     commands.add_parser("openapi", help="print the API's OpenAPI schema")
+    commands.add_parser("rebuild-index", help="rebuild the items search index from Postgres")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO)
@@ -52,3 +53,9 @@ def main(argv: list[str] | None = None) -> None:
         from classlop.dashboard.app import create_app
 
         print(json.dumps(create_app().openapi(), indent=2))
+    elif args.command == "rebuild-index":
+        import asyncio
+
+        from classlop.items.index import rebuild
+
+        print(f"{asyncio.run(rebuild())} items indexed")

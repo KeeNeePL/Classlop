@@ -1,35 +1,61 @@
-import uuid
-from typing import Literal
+"""The `items` area: the Item bank. Other areas read Items and pin them when an Assignment is
+Given; `dashboard` routes call the use cases. Nothing else is exported."""
 
-from pydantic import BaseModel
+from classlop.items.index import count_items, search_items
+from classlop.items.records import (
+    dismiss_flag,
+    edit_item,
+    get_items,
+    get_versions,
+    give,
+    restore_item,
+    retag_item,
+    retire_item,
+    usage,
+)
+from classlop.items.types import (
+    Count,
+    CurriculumTopic,
+    Difficulty,
+    Flag,
+    GeneralRequirement,
+    Item,
+    ItemContent,
+    ItemFilters,
+    ItemFormat,
+    ItemVersion,
+    Origin,
+    RubricLevel,
+    SearchPage,
+    Tags,
+    Usage,
+)
 
-
-class RubricLevel(BaseModel):
-    points: int
-    description: str
-
-
-class CurriculumTopic(BaseModel):
-    id: str
-    # Polish, as the Student reads it under "Do powtórki".
-    name: str
-
-
-class ItemVersion(BaseModel):
-    """A frozen Item, as #31 defines the contract; only the fields grading reads so far."""
-
-    id: uuid.UUID
-    item_format: Literal["closed", "open"]
-    text: str
-    points: int
-    # Closed Items: option label (A-D, P/F) to its text, and the correct labels.
-    options: dict[str, str] = {}
-    correct_options: list[str] = []
-    model_solution: str | None = None
-    # Open Items: CKE levels, lowest first.
-    rubric: list[RubricLevel] = []
-    curriculum_topics: list[CurriculumTopic] = []
-
-
-async def get_versions(version_ids: list[uuid.UUID]) -> list[ItemVersion]:
-    raise NotImplementedError("Item records arrive with #31")
+__all__ = [
+    "Count",
+    "CurriculumTopic",
+    "Difficulty",
+    "Flag",
+    "GeneralRequirement",
+    "Item",
+    "ItemContent",
+    "ItemFilters",
+    "ItemFormat",
+    "ItemVersion",
+    "Origin",
+    "RubricLevel",
+    "SearchPage",
+    "Tags",
+    "Usage",
+    "count_items",
+    "dismiss_flag",
+    "edit_item",
+    "get_items",
+    "get_versions",
+    "give",
+    "restore_item",
+    "retag_item",
+    "retire_item",
+    "search_items",
+    "usage",
+]

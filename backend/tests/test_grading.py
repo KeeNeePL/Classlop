@@ -176,7 +176,9 @@ def read(number, reading="readable", chosen=None, transcription="", drawing=Fals
 def closed(points=1, correct="B") -> ItemVersion:
     return ItemVersion(
         id=uuid.uuid4(),
+        item_id=uuid.uuid4(),
         item_format="closed",
+        difficulty="medium",
         text="Wartość wyrażenia $2^3 - 6$ jest równa:",
         points=points,
         options={"A": "$1$", "B": "$2$", "C": "$4$", "D": "$8$"},
@@ -188,7 +190,9 @@ def closed(points=1, correct="B") -> ItemVersion:
 def open_item(text="Rozwiąż równanie $x^2 - 4x - 5 = 0$.", points=2) -> ItemVersion:
     return ItemVersion(
         id=uuid.uuid4(),
+        item_id=uuid.uuid4(),
         item_format="open",
+        difficulty="medium",
         text=text,
         points=points,
         model_solution=r"$\Delta = 36$, $x_1 = -1$, $x_2 = 5$",
