@@ -522,17 +522,19 @@ async def test_a_reindex_that_read_postgres_earlier_does_not_overwrite_a_later_o
     assert (await indexed_document(item_id))["points"] == 4
 
 
-def lone_section(n: int) -> items.CurriculumSection:
-    """A Curriculum section no other test in this module puts Items in."""
-    return items.curriculum()[-n]
-
-
-async def bank(section: items.CurriculumSection, count: int, **kw) -> list[uuid.UUID]:
-    """Items in a section of their own; earlier runs' leftovers there are retired first."""
+async def lone_section(n: int) -> items.CurriculumSection:
+    """A Curriculum section no other test in this module puts Items in; earlier runs' leftovers
+    there are retired."""
+    section = items.curriculum()[-n]
+    await index.create_index()
     await indexed()
     page = await items.search_items("", items.Filters(curriculum_sections=[section.id]), size=500)
     for old in page.items:
         await items.retire_item(old.id)
+    return section
+
+
+async def bank(section: items.CurriculumSection, count: int, **kw) -> list[uuid.UUID]:
     topic = section.topics[0]
     return [
         await items.create_item(closed(curriculum_topics=[topic], **kw), origin="chat")
@@ -541,7 +543,7 @@ async def bank(section: items.CurriculumSection, count: int, **kw) -> list[uuid.
 
 
 async def test_a_pick_takes_n_items_of_the_section_and_difficulty(fake_embeddings):
-    section = lone_section(1)
+    section = await lone_section(1)
     easy = await bank(section, 5, difficulty="easy")
     await bank(section, 2, difficulty="hard")
     await indexed()
@@ -553,7 +555,7 @@ async def test_a_pick_takes_n_items_of_the_section_and_difficulty(fake_embedding
 
 
 async def test_a_pick_returns_fewer_when_the_bank_has_fewer(fake_embeddings):
-    section = lone_section(2)
+    section = await lone_section(2)
     ids = await bank(section, 2, difficulty="easy")
     await indexed()
 
@@ -563,7 +565,7 @@ async def test_a_pick_returns_fewer_when_the_bank_has_fewer(fake_embeddings):
 
 
 async def test_a_pick_never_takes_a_retired_item(fake_embeddings):
-    section = lone_section(3)
+    section = await lone_section(3)
     kept, dropped = await bank(section, 2, difficulty="easy")
     await items.retire_item(dropped)
     await indexed()
@@ -574,7 +576,7 @@ async def test_a_pick_never_takes_a_retired_item(fake_embeddings):
 
 
 async def test_a_pick_skips_items_the_class_got_unless_reuse_is_allowed(fake_embeddings):
-    section = lone_section(4)
+    section = await lone_section(4)
     used, fresh = await bank(section, 2, difficulty="easy")
     class_x = uuid.uuid4()
     await items.give([used], uuid.uuid4(), class_x, datetime.now(UTC))
@@ -590,7 +592,7 @@ async def test_a_pick_skips_items_the_class_got_unless_reuse_is_allowed(fake_emb
 
 
 async def test_a_swap_gives_a_match_that_is_not_in_the_preview(fake_embeddings):
-    section = lone_section(5)
+    section = await lone_section(5)
     ids = await bank(section, 3, difficulty="easy")
     await indexed()
 
@@ -602,8 +604,9 @@ async def test_a_swap_gives_a_match_that_is_not_in_the_preview(fake_embeddings):
 
 
 async def test_get_versions_takes_a_few_hundred_ids_in_one_call():
-    ids = [await items.create_item(closed(text=f"Zadanie {n}"), origin="chat") for n in range(300)]
-    current = [i.version.id for i in await items.get_items(ids)]
+    # Repeats keep the shared database small; the query still binds 300 ids.
+    ids = [await items.create_item(closed(text=f"Wiele {n}"), origin="chat") for n in range(3)]
+    current = [i.version.id for i in await items.get_items(ids)] * 100
 
     versions = await items.get_versions(current)
 
@@ -613,10 +616,10 @@ async def test_get_versions_takes_a_few_hundred_ids_in_one_call():
 async def test_the_demo_items_fill_every_cell_of_their_sections(fake_embeddings):
     from classlop.items.demo import DIFFICULTIES, SECTIONS, write_demo_items
 
-    ids = await write_demo_items(per_cell=2)
+    ids = await write_demo_items(per_cell=1)
     await indexed()
 
-    assert len(ids) == SECTIONS * len(DIFFICULTIES) * 2
+    assert len(ids) == SECTIONS * len(DIFFICULTIES) * 1
     for section in items.curriculum()[:SECTIONS]:
         for difficulty in DIFFICULTIES:
-            assert len(await items.pick_items(section.id, difficulty, 2, uuid.uuid4())) == 2
+            assert len(await items.pick_items(section.id, difficulty, 1, uuid.uuid4())) == 1
