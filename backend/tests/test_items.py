@@ -24,7 +24,7 @@ from classlop.items import (
     tagging,
 )
 from classlop.items.index import DIMENSIONS
-from classlop.items.records import add_item, revise_item
+from classlop.items.records import add_item, retag_item, revise_item
 from classlop.shared import jobs, llm, queue, search, worker
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
@@ -209,7 +209,7 @@ async def test_tags_the_teacher_set_survive_a_retag_and_a_regeneration(tagger):
     await items.edit_item(item.id, open_item(), curriculum_topics=[POWERS])
     tagger.tags = tags("hard", topics=[QUADRATIC], requirements=["IV"])
 
-    retagged = await items.retag_item(item.id)
+    retagged = await retag_item(item.id)
     regenerated = await revise_item(
         item.id, open_item("Rozwiąż równanie $x^2 = 4$."), tags("easy", requirements=["I"])
     )

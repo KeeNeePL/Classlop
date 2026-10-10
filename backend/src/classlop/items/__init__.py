@@ -9,7 +9,6 @@ from classlop.items.records import (
     get_versions,
     give,
     restore_item,
-    retag_item,
     retire_item,
     usage,
 )
@@ -54,7 +53,6 @@ __all__ = [
     "get_versions",
     "give",
     "restore_item",
-    "retag_item",
     "retire_item",
     "search_items",
     "usage",

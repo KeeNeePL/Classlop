@@ -50,9 +50,7 @@ async def add_item(
         )
         await session.flush()
         session.add(_version(item_id, 1, content, tags, teacher_tags=[]))
-    await reindex_later(item_id)
-    (item,) = await get_items([item_id])
-    return item
+    return await _written(item_id)
 
 
 async def edit_item(
@@ -65,13 +63,15 @@ async def edit_item(
 ) -> Item:
     """The Teacher's edit: re-tagged, except for the tags the Teacher sets here or set before.
     Clears the flag."""
-    set_now = {
+    given = {
         "difficulty": difficulty,
         "curriculum_topics": curriculum_topics,
         "general_requirements": general_requirements,
     }
-    teacher = {k: v for k, v in set_now.items() if v is not None}
-    return await _add_version(item_id, content, await tagging.tag(content), teacher, unflag=True)
+    teacher_set = {k: v for k, v in given.items() if v is not None}
+    return await _add_version(
+        item_id, content, await tagging.tag(content), teacher_set, unflag=True
+    )
 
 
 async def retag_item(item_id: uuid.UUID) -> Item:
@@ -157,11 +157,12 @@ async def get_versions(version_ids: Iterable[uuid.UUID]) -> list[ItemVersion]:
     return [_contract(found[i]) for i in ids]
 
 
-async def all_items(batch: int = 100) -> AsyncIterator[list[Item]]:
+async def all_items() -> AsyncIterator[list[Item]]:
+    """Every Item, a hundred at a time."""
     async with sessions()() as session:
         ids = list(await session.scalars(select(ItemRecord.id).order_by(ItemRecord.created_at)))
-    for start in range(0, len(ids), batch):
-        yield await get_items(ids[start : start + batch])
+    for start in range(0, len(ids), 100):
+        yield await get_items(ids[start : start + 100])
 
 
 async def used_class_ids(item_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, set[str]]:
@@ -181,30 +182,32 @@ async def reindex_later(item_id: uuid.UUID) -> None:
     await jobs.enqueue("items.reindex", {"item_id": str(item_id)})
 
 
-async def _set_state(item_id: uuid.UUID, **values) -> Item:
-    async with sessions().begin() as session:
-        await session.execute(update(ItemRecord).where(ItemRecord.id == item_id).values(**values))
+async def _written(item_id: uuid.UUID) -> Item:
     await reindex_later(item_id)
     (item,) = await get_items([item_id])
     return item
 
 
+async def _set_state(item_id: uuid.UUID, **values) -> Item:
+    async with sessions().begin() as session:
+        await session.execute(update(ItemRecord).where(ItemRecord.id == item_id).values(**values))
+    return await _written(item_id)
+
+
 async def _add_version(
-    item_id: uuid.UUID, content: ItemContent, tags: Tags, teacher: dict, *, unflag: bool = False
+    item_id: uuid.UUID, content: ItemContent, tags: Tags, teacher_set: dict, *, unflag: bool = False
 ) -> Item:
     async with sessions().begin() as session:
         previous = (await _current_versions(session, [item_id]))[item_id]
-        kept = {f: getattr(previous, f) for f in previous.teacher_tags if f not in teacher}
-        tags = Tags.model_validate(tags.model_dump() | kept | teacher)
-        teacher_tags = sorted({*previous.teacher_tags, *teacher})
+        kept = {f: getattr(previous, f) for f in previous.teacher_tags if f not in teacher_set}
+        tags = Tags.model_validate(tags.model_dump() | kept | teacher_set)
+        teacher_tags = sorted({*previous.teacher_tags, *teacher_set})
         session.add(_version(item_id, previous.number + 1, content, tags, teacher_tags))
         if unflag:
             await session.execute(
                 update(ItemRecord).where(ItemRecord.id == item_id).values(flag=None)
             )
-    await reindex_later(item_id)
-    (item,) = await get_items([item_id])
-    return item
+    return await _written(item_id)
 
 
 async def _current_versions(
