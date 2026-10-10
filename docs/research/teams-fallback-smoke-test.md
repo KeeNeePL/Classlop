@@ -30,3 +30,11 @@ To run once mailboxes work: create a short recurring event with `isOnlineMeeting
 ## 3. Uploading from Teams: not yet run
 
 Needs a person with the Teams desktop and mobile apps: open the folder link as the Student from a 1:1 chat and upload a photo and a PDF.
+
+## Standalone meetings and attendance (2026-10-10)
+
+Because the mailboxes are not provisioned, a fallback was tried: `POST /me/onlineMeetings` (no calendar event).
+
+- Creating the meeting works without a mailbox (201, `joinWebUrl` returned), and `GET /me/onlineMeetings?$filter=JoinWebUrl eq '...'` finds it. `JoinWebUrl` and `joinMeetingId` are the only supported filter properties.
+- Teacher and Student both joined and left after about two minutes. The Student's browser asked for a name on joining despite being signed in there, i.e. the join was probably anonymous or as a guest; students must join from a signed-in Teams session for the report to name them.
+- `GET .../attendanceReports` returned 404 `SDS_ErrorInvalidUser`, both on `/me` and on `/users/{id}`. Cause not established; the missing Exchange mailbox is the leading suspect. Retry once mailboxes exist, or after a delay.
