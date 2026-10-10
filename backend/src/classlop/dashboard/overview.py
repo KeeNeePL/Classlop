@@ -17,6 +17,7 @@ from classlop.dashboard.reports import (
     Submission,
     class_overview,
 )
+from classlop.dashboard.reports.records import AssignmentType
 from classlop.items import curriculum
 
 router = APIRouter()
@@ -31,6 +32,7 @@ NAMES = [
     "Gosia W.",
     "Hubert Z.",
 ]
+TYPES: list[AssignmentType] = ["homework", "quiz", "exam", "quiz", "homework"]
 TITLES = ["Zbiory liczbowe", "Wzory skróconego mnożenia", "Równania", "Nierówności", "Funkcje"]
 
 
@@ -76,7 +78,7 @@ def invented(class_id: str, name: str, now: datetime) -> ClassData:
             Assignment(
                 id=f"{class_id}-{n}",
                 title=title,
-                type="exam" if n == 2 else "homework",
+                type=TYPES[n],
                 due=now + timedelta(days=7 * (n - len(TITLES) + 1) + 1),
                 state="open" if open_ else "closed",
                 submissions=tuple(submissions),

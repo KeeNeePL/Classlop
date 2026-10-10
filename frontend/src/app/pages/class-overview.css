@@ -37,23 +37,46 @@ h2 {
   color: var(--card);
 }
 
-.bar {
+.cols {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 2fr 130px;
+  grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(150px, 1fr));
   gap: 16px;
   align-items: center;
   padding: 4px 0;
-  font-variant-numeric: tabular-nums;
 }
 
-.bar.heading {
+.colhead {
+  color: var(--muted);
+  font-size: 12px;
+  padding-top: 12px;
+}
+
+.average {
+  font-weight: 700;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.cols.heading {
   margin-top: 12px;
   font-weight: 700;
 }
 
-.bar.topic {
+.cols.topic {
   font-size: 13px;
+}
+
+.cols.topic cl-math {
   padding-left: 16px;
+}
+
+.student {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2fr;
+  gap: 16px;
+  align-items: center;
+  padding: 4px 0;
 }
 
 ul,

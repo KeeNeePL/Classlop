@@ -15,12 +15,12 @@ def test_overview_is_ready_for_the_screen_and_marked_invented():
 
     assert view["name"] == "2C"
     assert view["invented"] is True
-    assert [s["name"] for s in view["sections"]][:2] == [
-        "Liczby rzeczywiste",
-        "Wyrażenia algebraiczne",
-    ]
-    assert any(s["percent"] is None for s in view["sections"])
-    assert any(s["percent"] is not None for s in view["sections"])
+    assert [c["type"] for c in view["progress"]] == ["quiz", "exam", "homework"]
+    assert all(c["average"] is not None for c in view["progress"])
+    sections = view["progress"][0]["sections"]
+    assert [s["name"] for s in sections][:2] == ["Liczby rzeczywiste", "Wyrażenia algebraiczne"]
+    assert any(s["percent"] is None for s in sections)
+    assert any(s["percent"] is not None for s in sections)
     assert view["assignments"] and view["average_line"] and view["students"]
     assert any(s["former"] for s in view["students"])
     assert 0 < len(view["attention"]) <= 5

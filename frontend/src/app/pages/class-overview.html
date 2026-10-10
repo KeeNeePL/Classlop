@@ -25,25 +25,31 @@
         </button>
       </div>
     </div>
-    @for (s of o.sections; track s.id) {
-      <div class="bar" [class.heading]="tab() === 'topics'">
-        <span>{{ s.name }}</span>
-        <cl-progress [value]="s.percent ?? 0" />
-        @if (s.percent == null) {
-          <span class="muted">brak danych</span>
-        } @else {
-          <span>{{ s.percent }}% z {{ s.available }} pkt</span>
+    <div class="cols colhead">
+      <span></span>
+      @for (c of o.progress; track c.type) {
+        <b>{{ kind[c.type] }}</b>
+      }
+    </div>
+    <div class="cols average">
+      <span>Średnia</span>
+      @for (c of o.progress; track c.type) {
+        <cl-percent [value]="c.average" />
+      }
+    </div>
+    @for (row of rows(); track row.id) {
+      <div class="cols" [class.heading]="tab() === 'topics'">
+        <span>{{ row.name }}</span>
+        @for (cell of row.cells; track $index) {
+          <cl-percent [value]="cell.percent" />
         }
       </div>
       @if (tab() === 'topics') {
-        @for (t of s.topics; track t.id) {
-          <div class="bar topic">
+        @for (t of row.topics; track t.id) {
+          <div class="cols topic">
             <cl-math [text]="t.name" />
-            <cl-progress [value]="t.percent ?? 0" />
-            @if (t.percent == null) {
-              <span class="muted">brak danych</span>
-            } @else {
-              <span>{{ t.percent }}% z {{ t.available }} pkt</span>
+            @for (cell of t.cells; track $index) {
+              <cl-percent [value]="cell.percent" />
             }
           </div>
         }
@@ -107,19 +113,14 @@
     <h2>Uczniowie<cl-hint [text]="hints.students" /></h2>
     <ul aria-label="Uczniowie">
       @for (s of o.students; track s.id) {
-        <li class="bar">
+        <li class="student">
           <span>
             <a [routerLink]="link(s.id)">{{ s.name }}</a>
             @if (s.former) {
               <cl-badge>były uczeń</cl-badge>
             }
           </span>
-          <cl-progress [value]="s.percent ?? 0" />
-          @if (s.percent == null) {
-            <span class="muted">brak danych</span>
-          } @else {
-            <span>{{ s.percent }}%</span>
-          }
+          <cl-percent [value]="s.percent" />
         </li>
       }
     </ul>

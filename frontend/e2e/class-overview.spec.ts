@@ -8,13 +8,18 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
 
   await expect(page.getByRole('heading', { name: 'Postęp' })).toBeVisible();
   await expect(page.getByText('Liczby rzeczywiste')).toBeVisible();
-  await expect(page.getByText(/^\d+% z \d+ pkt$/).first()).toBeVisible();
+  for (const kind of ['Kartkówki', 'Sprawdziany', 'Prace domowe']) {
+    await expect(page.getByText(kind, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText('Średnia', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
+  await expect(page.getByText(/pkt/)).toHaveCount(0);
   await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
 
   const hint = page.getByRole('button', { name: 'Co to znaczy?' }).first();
   await expect(page.getByRole('tooltip').first()).toBeHidden();
   await hint.hover();
-  await expect(page.getByRole('tooltip').first()).toContainText('Punkty zdobyte podzielone przez');
+  await expect(page.getByRole('tooltip').first()).toContainText('Procent punktów zdobytych');
 
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();

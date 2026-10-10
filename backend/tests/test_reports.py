@@ -57,12 +57,16 @@ def overview(*assignments: Assignment, students=("s1",), lessons=()):
     return class_overview(data, SECTIONS)
 
 
-def topic(view, topic_id: str):
-    return next(t for s in view.sections for t in s.topics if t.id == topic_id)
+def category(view, type: AssignmentType = "homework"):
+    return next(p for p in view.progress if p.type == type)
 
 
-def section(view, section_id: str):
-    return next(s for s in view.sections if s.id == section_id)
+def topic(view, topic_id: str, type: AssignmentType = "homework"):
+    return next(t for s in category(view, type).sections for t in s.topics if t.id == topic_id)
+
+
+def section(view, section_id: str, type: AssignmentType = "homework"):
+    return next(s for s in category(view, type).sections if s.id == section_id)
 
 
 def test_progress_is_points_earned_over_available_per_topic_and_section():
@@ -269,3 +273,43 @@ def test_the_thirty_percent_line_is_judged_on_the_real_ratio_not_the_rounded_one
     )
 
     assert attention(view) == [("s1", ["Wynik 30%"])]
+
+
+def test_progress_is_split_into_quizzes_exams_and_homework_each_with_its_average():
+    view = overview(
+        work(1, sub("s1", item(1, 2, A1)), type="quiz"),
+        work(2, sub("s1", item(3, 4, A1), item(1, 4, B1)), type="exam"),
+        work(3, sub("s1", item(2, 2, A1)), type="homework"),
+        work(4, sub("s1", item(0, 2, A1)), type="homework"),
+    )
+
+    assert [(c.type, c.average) for c in view.progress] == [
+        ("quiz", 50),
+        ("exam", 50),
+        ("homework", 50),
+    ]
+    assert topic(view, A1, "quiz").percent == 50
+    assert topic(view, A1, "exam").percent == 75
+    assert topic(view, B1, "exam").percent == 25
+    assert topic(view, A1, "homework").percent == 50
+    assert section(view, SECTIONS[1].id, "quiz").percent is None
+
+
+def test_a_category_without_graded_work_has_no_average_not_zero():
+    view = overview(work(1, sub("s1", item(2, 2, A1))))
+
+    assert [(c.type, c.average) for c in view.progress] == [
+        ("quiz", None),
+        ("exam", None),
+        ("homework", 100),
+    ]
+
+
+def test_a_students_result_pools_every_category():
+    view = overview(
+        work(1, sub("s1", item(1, 2, A1)), type="quiz"),
+        work(2, sub("s1", item(3, 6, A1)), type="exam"),
+        work(3, sub("s1", item(2, 2, A1)), type="homework"),
+    )
+
+    assert view.students[0].percent == 60

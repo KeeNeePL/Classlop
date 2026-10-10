@@ -409,12 +409,12 @@
             "type": "string",
             "title": "Name"
           },
-          "sections": {
+          "progress": {
             "items": {
-              "$ref": "#/components/schemas/SectionBar"
+              "$ref": "#/components/schemas/TypeProgress"
             },
             "type": "array",
-            "title": "Sections"
+            "title": "Progress"
           },
           "assignments": {
             "items": {
@@ -453,7 +453,7 @@
         "required": [
           "id",
           "name",
-          "sections",
+          "progress",
           "assignments",
           "average_line",
           "attention",
@@ -584,6 +584,45 @@
           "name"
         ],
         "title": "TopicBar"
+      },
+      "TypeProgress": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionBar"
+            },
+            "type": "array",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "average",
+          "sections"
+        ],
+        "title": "TypeProgress",
+        "description": "Progress on one Assignment type; `average` is its points earned over available."
       },
       "ValidationError": {
         "properties": {

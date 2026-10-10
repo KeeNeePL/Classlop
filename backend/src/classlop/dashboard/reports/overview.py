@@ -1,5 +1,5 @@
-"""The Class overview: Progress, the Assignments, the Class-average line, Wymagają uwagi and the
-Student list."""
+"""The Class overview: Progress by Assignment type, the Assignments, the Class-average line,
+Wymagają uwagi and the Student list."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -16,6 +16,8 @@ from classlop.dashboard.reports.records import (
 )
 from classlop.items import CurriculumSection
 
+# The order of the Progress columns.
+TYPES: tuple[AssignmentType, ...] = ("quiz", "exam", "homework")
 HANDED_IN = ("handed_in", "graded", "returned")
 # Wymagają uwagi: the fixed thresholds of #13.
 MISSING_OF, MISSING_AT = 5, 2
@@ -59,10 +61,18 @@ class Attention(BaseModel):
     percent: int | None
 
 
+class TypeProgress(BaseModel):
+    """Progress on one Assignment type; `average` is its points earned over available."""
+
+    type: AssignmentType
+    average: int | None
+    sections: list[SectionBar]
+
+
 class ClassOverview(BaseModel):
     id: str
     name: str
-    sections: list[SectionBar]
+    progress: list[TypeProgress]
     assignments: list[AssignmentRow]
     average_line: list[AveragePoint]
     attention: list[Attention]
@@ -110,6 +120,15 @@ def reasons(student: Student, data: ClassData, result: Bar) -> list[str]:
     return found
 
 
+def type_progress(
+    kind: AssignmentType, data: ClassData, sections: Sequence[CurriculumSection]
+) -> TypeProgress:
+    items = counted(s for a in data.assignments if a.type == kind for s in a.submissions)
+    return TypeProgress(
+        type=kind, average=overall(items).percent, sections=progress(items, sections)
+    )
+
+
 def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> ClassOverview:
     submissions = [s for a in data.assignments for s in a.submissions]
     rows = [row(a) for a in given(data)]
@@ -137,7 +156,7 @@ def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> Cl
     return ClassOverview(
         id=data.id,
         name=data.name,
-        sections=progress(counted(submissions), sections),
+        progress=[type_progress(kind, data, sections) for kind in TYPES],
         assignments=rows,
         average_line=[
             AveragePoint(id=r.id, title=r.title, due=r.due, percent=r.average) for r in rows
