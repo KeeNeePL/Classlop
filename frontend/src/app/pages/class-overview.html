@@ -5,7 +5,7 @@
 
   <cl-panel>
     <div class="head">
-      <h2>Postęp</h2>
+      <h2>Postęp<cl-hint [text]="hints.progress" /></h2>
       <div class="seg" role="tablist">
         <button
           role="tab"
@@ -52,7 +52,7 @@
   </cl-panel>
 
   <cl-panel>
-    <h2>Prace</h2>
+    <h2>Prace<cl-hint [text]="hints.assignments" /></h2>
     <cl-line-chart name="Średnia klasy" [points]="line()" />
     <table>
       <thead>
@@ -87,7 +87,7 @@
   </cl-panel>
 
   <cl-panel>
-    <h2>Wymagają uwagi</h2>
+    <h2>Wymagają uwagi<cl-hint [text]="hints.attention" /></h2>
     <ol aria-label="Wymagają uwagi">
       @for (a of o.attention; track a.student_id) {
         <li>
@@ -104,7 +104,7 @@
   </cl-panel>
 
   <cl-panel>
-    <h2>Uczniowie</h2>
+    <h2>Uczniowie<cl-hint [text]="hints.students" /></h2>
     <ul aria-label="Uczniowie">
       @for (s of o.students; track s.id) {
         <li class="bar">

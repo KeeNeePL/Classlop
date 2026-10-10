@@ -11,6 +11,11 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByText(/^\d+% z \d+ pkt$/).first()).toBeVisible();
   await expect(page.getByText('brak danych').first()).toBeVisible();
 
+  const hint = page.getByRole('button', { name: 'Co to znaczy?' }).first();
+  await expect(page.getByRole('tooltip').first()).toBeHidden();
+  await hint.hover();
+  await expect(page.getByRole('tooltip').first()).toContainText('Punkty zdobyte podzielone przez');
+
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();
 
