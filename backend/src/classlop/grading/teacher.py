@@ -10,6 +10,7 @@ from classlop.grading.common_mistakes import request_common_mistakes
 from classlop.grading.feedback import store_pdf, text_comment
 from classlop.grading.graph import announce
 from classlop.grading.models import GradedSubmission, Override
+from classlop.shared import jobs
 from classlop.shared.db import sessions
 
 
@@ -58,8 +59,20 @@ async def approve(submission_id: uuid.UUID, handed_in_at: datetime) -> None:
     """Zatwierdź: clears the Spot-check flag and releases a Held Submission as graded."""
     async with sessions().begin() as session:
         submission = await _submission(session, submission_id, handed_in_at)
+        # A failed result has no points to release; it is graded again instead.
+        if submission.status == "failed":
+            raise ValueError("a failed result is graded again, not approved")
         submission.approved_at = datetime.now(UTC)
     await _changed(submission)
+
+
+async def grade_again(submission_id: uuid.UUID, handed_in_at: datetime) -> None:
+    """Oceń ponownie: a successful run replaces the failed result."""
+    async with sessions()() as session:
+        submission = await _submission(session, submission_id, handed_in_at)
+    if submission.status != "failed":
+        raise ValueError("only a failed result is graded again")
+    await jobs.enqueue("grading.grade", submission.grade_job)
 
 
 async def _submission(
