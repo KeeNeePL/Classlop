@@ -1,0 +1,17 @@
+{
+  "notes": "No Item numbers, and the order is 2, 1, 4. Each piece copies its task (f(x) = -2x + 6, the power expression, the inequality), so the attribution is unambiguous and nothing is unsure. Zad. 1 and 2 answer with values that match option B. Zad. 4 is a full proof; a crossed-out mark next to the a is ignored. Zad. 3 and 5 are missing.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 3, "reading": "blank", "points": 0, "transcription": ""},
+    {
+      "number": 4,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "a^2 + 9 \\geq 6a\na^2 - 6a + 9 \\geq 0\n(a - 3)^2 \\geq 0 \\square"
+    },
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}

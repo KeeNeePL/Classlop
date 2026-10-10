@@ -1,0 +1,17 @@
+{
+  "notes": "Zad. 1 and 2 answer with the value instead of the option label (\"odp. 1\", \"odp. (3,0)\"); each value matches exactly one option, so it counts as that label. Zad. 3: sqrt(Delta) = 36 is wrong, and x_1 is written so that -1 and -7 are hard to tell apart: unsure, so the Submission is Held; either reading scores 1. Zad. 4 blank.",
+  "held": true,
+  "spot_check": ["niepewny odczyt"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {
+      "number": 3,
+      "reading": "unsure",
+      "points": 1,
+      "transcription": "x^2 - 4x - 5 = 0\n\\Delta = 16 + 20 = 36\n\\sqrt{\\Delta} = 36\nx_1 = -7 [niepewne: -1 albo -7]\nx_2 = 5"
+    },
+    {"number": 4, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 5, "reading": "readable", "points": 1, "transcription": "P = \\frac{6 \\cdot 8}{2} = \\frac{48}{2} = 24"}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "notes": "Two pages: Zad. 1-4 on page 1, Zad. 5 on page 2. Zad. 3: the b in b^2 - 4ac looks like a 6. Zad. 4: (a-3)^2 >= 0 with no link to the original inequality and the false justification \"większa niż 0\" (wrong at a = 3): grading doubt. Zad. 5: correct relation 24 = 10h/2, then the wrong step 24 = 5h/2, yet the final h = 24/5: grading doubt. Both doubts hold the Submission.",
+  "held": true,
+  "spot_check": ["wątpliwa ocena", "rysunek"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "x^2 - 4x - 5 = 0\n\\Delta = b^2 - 4ac = 36\nx_1 = -1 \\quad x_2 = 5"
+    },
+    {
+      "number": 4,
+      "reading": "readable",
+      "doubt": true,
+      "points": 1,
+      "transcription": "(a-3)^2 \\geq 0 \\square\nKwadratowa liczba większa niż 0."
+    },
+    {
+      "number": 5,
+      "reading": "readable",
+      "doubt": true,
+      "points": 2,
+      "transcription": "P_{\\triangle} = 24\nP_{\\triangle} = \\frac{ah}{2}\n24 = \\frac{10h}{2}\n24 = \\frac{5h}{2}\nh = \\frac{24}{5}\n[rysunek: trójkąt prostokątny, przyprostokątne 6 i 8, przeciwprostokątna 10]"
+    }
+  ]
+}

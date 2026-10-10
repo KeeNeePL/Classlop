@@ -1,0 +1,72 @@
+{
+  "items": [
+    {
+      "number": 1,
+      "format": "closed",
+      "max_points": 1,
+      "text": "Wartość wyrażenia $\\dfrac{2^5 \\cdot 4^{-1}}{8}$ jest równa:",
+      "options": {"A": "$\\tfrac{1}{2}$", "B": "$1$", "C": "$2$", "D": "$4$"},
+      "answer": "B",
+      "model_solution": "$\\dfrac{2^5 \\cdot 4^{-1}}{8} = \\dfrac{32 \\cdot \\tfrac{1}{4}}{8} = \\dfrac{8}{8} = 1$",
+      "rubric": null,
+      "curriculum_topics": [{"id": null, "name": "Potęgi o wykładniku całkowitym"}]
+    },
+    {
+      "number": 2,
+      "format": "closed",
+      "max_points": 1,
+      "text": "Wykres funkcji $f(x) = -2x + 6$ przecina oś $Ox$ w punkcie:",
+      "options": {"A": "$(-3, 0)$", "B": "$(3, 0)$", "C": "$(0, 6)$", "D": "$(6, 0)$"},
+      "answer": "B",
+      "model_solution": "$-2x + 6 = 0 \\Rightarrow x = 3$, więc punkt $(3, 0)$.",
+      "rubric": null,
+      "curriculum_topics": [{"id": null, "name": "Funkcja liniowa: miejsce zerowe"}]
+    },
+    {
+      "number": 3,
+      "format": "open",
+      "max_points": 2,
+      "text": "Rozwiąż równanie $x^2 - 4x - 5 = 0$.",
+      "options": null,
+      "answer": null,
+      "model_solution": "$\\Delta = 16 + 20 = 36$, $\\sqrt{\\Delta} = 6$, $x_1 = \\dfrac{4 - 6}{2} = -1$, $x_2 = \\dfrac{4 + 6}{2} = 5$.",
+      "rubric": [
+        {"points": 1, "description": "Poprawne obliczenie wyróżnika $\\Delta = 36$ albo rozkład na czynniki $(x+1)(x-5)$."},
+        {"points": 2, "description": "Oba pierwiastki: $x_1 = -1$, $x_2 = 5$."}
+      ],
+      "curriculum_topics": [{"id": null, "name": "Równania kwadratowe"}]
+    },
+    {
+      "number": 4,
+      "format": "open",
+      "max_points": 2,
+      "text": "Wykaż, że dla każdej liczby rzeczywistej $a$ prawdziwa jest nierówność $a^2 + 9 \\geq 6a$.",
+      "options": null,
+      "answer": null,
+      "model_solution": "$a^2 + 9 \\geq 6a \\iff a^2 - 6a + 9 \\geq 0 \\iff (a-3)^2 \\geq 0$, co jest prawdą dla każdego $a \\in \\mathbb{R}$, bo kwadrat liczby rzeczywistej jest nieujemny.",
+      "rubric": [
+        {"points": 1, "description": "Przekształcenie nierówności do postaci $a^2 - 6a + 9 \\geq 0$."},
+        {"points": 2, "description": "Pełny dowód z uzasadnieniem, np. $(a-3)^2 \\geq 0$ dla każdego $a$."}
+      ],
+      "curriculum_topics": [{"id": null, "name": "Dowodzenie nierówności algebraicznych"}]
+    },
+    {
+      "number": 5,
+      "format": "open",
+      "max_points": 3,
+      "text": "Przyprostokątne trójkąta prostokątnego $ABC$ mają długości $|AC| = 6$ i $|BC| = 8$. Oblicz długość wysokości $CD$ opuszczonej na przeciwprostokątną $AB$. Wykonaj rysunek pomocniczy.",
+      "options": null,
+      "answer": null,
+      "model_solution": "$|AB| = \\sqrt{6^2 + 8^2} = 10$, $P = \\dfrac{6 \\cdot 8}{2} = 24$, $\\dfrac{1}{2} \\cdot 10 \\cdot h = 24$, $5h = 24$, $h = \\dfrac{24}{5}$.",
+      "rubric": [
+        {"points": 1, "description": "Obliczenie $|AB| = 10$ albo pola $P = 24$."},
+        {"points": 2, "description": "Zapisanie zależności pozwalającej obliczyć $h$, np. $\\tfrac{1}{2} \\cdot 10 \\cdot h = 24$."},
+        {"points": 3, "description": "Wynik $h = \\dfrac{24}{5}$. Rysunek pomocniczy nie jest punktowany."}
+      ],
+      "curriculum_topics": [
+        {"id": null, "name": "Twierdzenie Pitagorasa"},
+        {"id": null, "name": "Pole trójkąta"}
+      ]
+    }
+  ]
+}

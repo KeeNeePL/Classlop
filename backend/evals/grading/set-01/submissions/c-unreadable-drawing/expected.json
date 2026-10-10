@@ -1,0 +1,17 @@
+{
+  "notes": "Zad. 1: side work with a miscopied expression and a crossed-out digit next to the answer C; only the label counts. Zad. 3 blank. Zad. 4 is crossed out and scribbled over: unreadable, so the Submission is Held. Zad. 5: wrong hypotenuse (121, x = 11, the 11 written over another digit on the drawing) but a correct area P = 24, which reaches the first Rubric level.",
+  "held": true,
+  "spot_check": ["nieczytelne", "rysunek"],
+  "items": [
+    {"number": 1, "reading": "readable", "points": 0, "transcription": "C"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 3, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 4, "reading": "unreadable", "points": 0, "transcription": "a^2 - [skreślone] \\geq 6a\n[nieczytelne]"},
+    {
+      "number": 5,
+      "reading": "readable",
+      "points": 1,
+      "transcription": "6^2 + 8^2 = 121\n121 = x^2\nx = 11\nP = \\frac{6 \\cdot 8}{2} = \\frac{48}{2} = 24\n[rysunek: trójkąt prostokątny, przyprostokątne 6 i 8, przeciwprostokątna 11 (poprawiona)]"
+    }
+  ]
+}

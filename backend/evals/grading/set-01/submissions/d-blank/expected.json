@@ -1,0 +1,12 @@
+{
+  "notes": "Only the Item numbers (written \"Z. 1\" to \"Z. 5\") and a remark \"nie wiem :(\" in the corner, which is not a solution. Blank Items score 0 and never hold the Submission.",
+  "held": false,
+  "spot_check": [],
+  "items": [
+    {"number": 1, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 2, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 3, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 4, "reading": "blank", "points": 0, "transcription": ""},
+    {"number": 5, "reading": "blank", "points": 0, "transcription": ""}
+  ]
+}
