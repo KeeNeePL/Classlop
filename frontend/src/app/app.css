@@ -1,16 +1,25 @@
-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid #ddd;
+.shell {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.brand {
+.lapsed {
+  background: var(--red-soft);
+  color: var(--ink);
+  border-bottom: 2px solid var(--red);
+  padding: 10px 40px;
   font-weight: 600;
-  margin-right: auto;
+}
+
+.lapsed a {
+  color: var(--red);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-left: 8px;
 }
 
 main {
-  padding: 1.5rem;
+  padding: 36px 40px 64px;
+  max-width: 1040px;
 }

@@ -1,0 +1,28 @@
+<nav>
+  <a class="logo" routerLink="/">Classlop</a>
+  @if (home(); as h) {
+    <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="name">Do zrobienia</span> <span class="count">{{ h.entries.length || '' }}</span>
+    </a>
+    <a routerLink="/ai" routerLinkActive="on"><span class="name">Classlop AI</span></a>
+    <a routerLink="/bank" routerLinkActive="on">
+      <span class="name">Bank zadań</span> <span class="count">{{ h.flagged_items || '' }}</span>
+    </a>
+    <div class="label">Klasy</div>
+    @for (c of h.classes; track c.id) {
+      <a [routerLink]="['/klasy', c.id]" routerLinkActive="on">
+        <span class="name">Klasa {{ c.name }}</span> <span class="count">{{ c.graded || '' }}</span>
+      </a>
+    }
+    <a class="new" routerLink="/klasy/nowa">+ Nowa klasa</a>
+  }
+  <div class="bottom">
+    <a routerLink="/ustawienia" routerLinkActive="on"><span class="name">Ustawienia</span></a>
+    @if (name(); as name) {
+      <div class="teacher">
+        <span>{{ name }}</span>
+        <a href="/auth/logout">Wyloguj</a>
+      </div>
+    }
+  </div>
+</nav>

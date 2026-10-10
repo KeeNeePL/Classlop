@@ -1,1 +1,99 @@
-/* You can add global styles to this file, and also import other style files */
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/public-sans';
+
+/* A maths exercise book: squared paper, the red margin line, blue pen, the teacher's red pen. */
+:root {
+  --paper: #fafbfd;
+  --grid: #edf1f7;
+  --card: #fff;
+  --ink: #16233f;
+  --muted: #5b6882;
+  --line: #d5dce8;
+  --pen: #2f55d4;
+  --red: #d93a2f;
+  --red-soft: #fdecea;
+  --marker: #fff0a0;
+  --tape: #ffd43b;
+  --cell: 24px;
+  --display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font:
+    15px/1.5 'Public Sans Variable',
+    system-ui,
+    sans-serif;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+}
+
+a {
+  color: var(--pen);
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pen);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+h1,
+h2 {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 24px 0 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.btn.ghost {
+  border-color: var(--line);
+  color: var(--pen);
+}
+
+.btn.ghost:hover {
+  border-color: var(--pen);
+  background: var(--pen);
+  color: #fff;
+}

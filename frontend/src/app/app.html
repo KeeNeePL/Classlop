@@ -1,10 +1,14 @@
-<header>
-  <span class="brand">Classlop</span>
-  @if (name(); as name) {
-    <span class="teacher">{{ name }}</span>
-    <a href="/auth/logout">Wyloguj</a>
-  }
-</header>
-<main>
-  <router-outlet />
-</main>
+<div class="shell">
+  <cl-sidebar [name]="name()" />
+  <div class="content">
+    @if (signInLapsed()) {
+      <div class="lapsed" role="alert">
+        Logowanie do Teams wygasło, część zadań czeka.
+        <a href="/auth/login">Zaloguj się ponownie</a>
+      </div>
+    }
+    <main>
+      <router-outlet />
+    </main>
+  </div>
+</div>
