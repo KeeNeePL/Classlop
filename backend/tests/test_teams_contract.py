@@ -72,7 +72,9 @@ def tenant(request, clock):
             raise jobs.SignInRequired
         return "token"
 
-    tenant.area = GraphTeams(GraphClient(token=token, transport=graph.transport), clock=clock)
+    tenant.area = GraphTeams(
+        GraphClient(token=token, transport=graph.transport, sleep=_ignore), clock=clock
+    )
     return tenant
 
 
@@ -83,6 +85,9 @@ class Tenant:
         self.graph, self.lapsed = graph, False
         self.add_team, self.add_member = graph.add_team, graph.add_member
         self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
+        self.add_user, self.rename_team = graph.add_user, graph.rename_team
+        self.team_members, self.team_name = graph.team_members, graph.team_name
+        self.team_is_private = graph.team_is_private
         self.event_of = graph.event_of
 
     def lapse_sign_in(self) -> None:
@@ -352,3 +357,87 @@ async def test_the_fake_backend_serves_the_interface(monkeypatch):
 
     assert linked.name == team.name
     assert await teams.list_students(linked.id)
+
+
+async def test_creating_a_class_creates_a_private_team_with_the_picked_students(tenant):
+    jan = tenant.add_user("Jan Kowalski")
+    ewa = tenant.add_user("Ewa Zielinska")
+
+    created = await tenant.create_class("2A matematyka", [jan, ewa])
+
+    assert created.name == "2A matematyka"
+    assert created.general_channel_id
+    assert await tenant.get_class(created.id) == created
+    assert sorted(s.display_name for s in await tenant.list_students(created.id)) == [
+        "Ewa Zielinska",
+        "Jan Kowalski",
+    ]
+    assert [t.id for t in await tenant.list_owned_teams()] == [created.team_id]
+    assert tenant.team_is_private(created.team_id)
+
+
+async def test_a_created_class_cannot_be_linked_again(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    with pytest.raises(teams.AlreadyLinked):
+        await tenant.link_team(created.team_id)
+
+
+async def test_searching_tenant_users_finds_candidates_by_name(tenant):
+    jan = tenant.add_user("Jan Kowalski")
+    tenant.add_user("Ewa Zielinska")
+    tenant.add_user("Janina Nowicka")
+
+    found = await tenant.search_users("kowal")
+    assert [(c.user_id, c.display_name) for c in found] == [(jan, "Jan Kowalski")]
+    assert found[0].upn == "jan.kowalski@example.org"
+    assert [c.display_name for c in await tenant.search_users("jan")] == [
+        "Jan Kowalski",
+        "Janina Nowicka",
+    ]
+
+
+async def test_adding_a_student_adds_them_to_the_team(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+    jan = tenant.add_user("Jan Kowalski")
+
+    student = await tenant.add_student(created.id, jan)
+
+    assert (student.display_name, student.former_since) == ("Jan Kowalski", None)
+    assert [s.id for s in await tenant.list_students(created.id)] == [student.id]
+    assert jan in tenant.team_members(created.team_id)
+
+
+async def test_removing_a_student_removes_them_from_the_team_and_keeps_a_former_student(
+    tenant, clock
+):
+    jan = tenant.add_user("Jan Kowalski")
+    ewa = tenant.add_user("Ewa Zielinska")
+    created = await tenant.create_class("2A matematyka", [jan, ewa])
+
+    await tenant.remove_student(created.id, jan)
+
+    assert jan not in tenant.team_members(created.team_id)
+    by_name = {s.display_name: s for s in await tenant.list_students(created.id)}
+    assert by_name["Jan Kowalski"].former_since == clock.now
+    assert by_name["Ewa Zielinska"].former_since is None
+
+
+async def test_renaming_a_class_renames_its_team(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    renamed = await tenant.rename_class(created.id, "2A mat-fiz")
+
+    assert renamed.name == "2A mat-fiz"
+    assert (await tenant.get_class(created.id)).name == "2A mat-fiz"
+    assert tenant.team_name(created.team_id) == "2A mat-fiz"
+
+
+async def test_a_team_renamed_in_teams_renames_the_class_on_the_next_sync(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    tenant.rename_team(created.team_id, "2B matematyka")
+    assert (await tenant.get_class(created.id)).name == "2A matematyka"
+    await tenant.sync_roster(created.id)
+
+    assert (await tenant.get_class(created.id)).name == "2B matematyka"
