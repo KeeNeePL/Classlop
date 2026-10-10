@@ -291,11 +291,15 @@ pause
 stage "Grant Graph permissions"
 step "In Classlop dev: API permissions > Add a permission > Microsoft Graph > Delegated permissions."
 step "Add: User.Read, OnlineMeetings.ReadWrite, OnlineMeetingArtifact.Read.All, Calendars.ReadWrite, Files.Read.All"
+step "and, for the teams area: Group.ReadWrite.All, TeamMember.ReadWrite.All, Channel.ReadBasic.All,"
+step "Team.Create, User.ReadBasic.All"
 if [[ "$M365_TENANT_KIND" == edu ]]; then
   step "and: EduRoster.ReadBasic, EduAssignments.ReadWrite"
 else
   step "and: GroupMember.Read.All, Team.ReadBasic.All"
 fi
+step "Then: Add a permission > Microsoft Graph > Application permissions > CallRecords.Read.All"
+step "(Attendance is read from call records with the app's own token, ADR 0005)."
 step "Select 'Grant admin consent for <tenant>' > Yes > Refresh."
 step "Every row must show 'Granted for <tenant>'."
 pause "Press Enter once consent shows as granted."

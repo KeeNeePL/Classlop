@@ -6,7 +6,9 @@ import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
+import respx
 from sqlalchemy import func, select
 
 from classlop.shared import jobs, queue, schedule, worker
@@ -14,6 +16,7 @@ from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
 from classlop.shared.models import Job, Schedule
 from classlop.shared.settings import get_settings
+from classlop.teams.graph import BASE, MAX_TRIES, GraphClient
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -263,3 +266,53 @@ async def test_prod_schedules_go_to_eventbridge_with_the_queue_as_target(monkeyp
     assert json.loads(at_call["Target"]["Input"])["kind"] == "k"
     assert update_call["ScheduleExpression"] == "rate(5 minutes)"
     assert delete_call == {"Name": "close-7", "GroupName": "classlop"}
+
+
+async def _no_sleep(seconds: float) -> None:
+    pass
+
+
+async def _token() -> str:
+    return "token"
+
+
+@respx.mock
+async def test_a_job_throttled_out_of_its_tries_goes_back_to_the_queue_and_then_succeeds():
+    kind, route = new_kind(), respx.get(f"{BASE}/me")
+    route.mock(side_effect=[httpx.Response(429)] * MAX_TRIES + [httpx.Response(200, json={})])
+
+    @jobs.handler(kind)
+    async def whoami(job, progress):
+        await GraphClient(token=_token, sleep=_no_sleep).get("/me")
+        return {"ok": True}
+
+    job_id = await jobs.enqueue(kind)
+
+    async def succeeded():
+        return (await job_of(job_id)).status == "succeeded"
+
+    await until(succeeded)
+    job = await job_of(job_id)
+    assert (job.attempts, route.call_count) == (2, MAX_TRIES + 1)
+
+
+@respx.mock
+async def test_a_graph_call_the_teacher_must_sign_in_for_waits_and_resumes():
+    kind, route = new_kind(), respx.get(f"{BASE}/me")
+    route.mock(side_effect=[httpx.Response(401), httpx.Response(200, json={})])
+
+    @jobs.handler(kind)
+    async def whoami(job, progress):
+        await GraphClient(token=_token, sleep=_no_sleep).get("/me")
+
+    job_id = await jobs.enqueue(kind)
+
+    async def waiting():
+        return (await job_of(job_id)).status == "waiting_for_sign_in"
+
+    async def succeeded():
+        return (await job_of(job_id)).status == "succeeded"
+
+    await until(waiting)
+    assert await jobs.resume_waiting() >= 1
+    await until(succeeded)

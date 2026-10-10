@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
+from classlop import teams
 from classlop.dashboard.app import create_app
 from classlop.shared import auth, jobs
 from classlop.shared.db import sessions
@@ -42,7 +43,7 @@ def stubbed(monkeypatch):
         return {"auth_uri": "https://login.example/authorize", "state": "s1", "scope": scopes}
 
     async def complete_sign_in(flow, params):
-        assert flow == {"state": "s1", "scope": ["User.Read"]}
+        assert flow == {"state": "s1", "scope": teams.GRAPH_SCOPES}
         if params["code"] == "other":
             raise auth.NotAdmitted("someone@example.org")
         if params["code"] == "bad":
