@@ -21,7 +21,10 @@ export const routes: Routes = [
     path: 'klasy/:klasa',
     component: ClassPage,
     children: [
-      empty('', 'Przegląd', true),
+      {
+        path: '',
+        loadComponent: () => import('./pages/class-overview').then((m) => m.ClassOverview),
+      },
       empty('lekcje', 'Lekcje', true),
       empty('lekcje/:lekcja', 'Lekcja', true),
       empty('ustawienia', 'Ustawienia klasy', true),

@@ -19,3 +19,7 @@ const day = new Intl.DateTimeFormat('pl-PL', {
 export const warsaw = (iso: string): string => moment.format(new Date(iso));
 
 export const today = (): string => day.format(new Date());
+
+const short = new Intl.DateTimeFormat('pl-PL', { timeZone: ZONE, day: 'numeric', month: 'short' });
+
+export const shortDate = (at: string | number): string => short.format(new Date(at));
