@@ -43,6 +43,7 @@ class Grader:
                 "status": "graded",
                 "held_reasons": [],
                 "spot_check_reasons": [],
+                "summary": "Dobrze, jeden błąd w znaku.",
                 "comment": COMMENT,
                 "pdf_key": key,
                 "items": [],
