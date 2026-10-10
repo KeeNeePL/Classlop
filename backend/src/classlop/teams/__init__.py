@@ -2,12 +2,16 @@
 are served by the real area over Graph, or by FakeTeams when TEAMS_BACKEND=fake. `dashboard`
 passes GRAPH_SCOPES to sign-in, so the Teacher consents to what `teams` uses."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
+from classlop.shared.auth import app_token
 from classlop.shared.settings import get_settings
 from classlop.teams.graph import GRAPH_SCOPES, GraphClient
 from classlop.teams.types import (
     AlreadyLinked,
+    Attendance,
+    AttendanceEntry,
+    AttendanceState,
     Candidate,
     Class,
     Lesson,
@@ -17,11 +21,15 @@ from classlop.teams.types import (
     Team,
     Teams,
     TimetableExists,
+    UnmatchedAttendee,
 )
 
 __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
+    "Attendance",
+    "AttendanceEntry",
+    "AttendanceState",
     "Candidate",
     "Class",
     "Lesson",
@@ -31,15 +39,23 @@ __all__ = [
     "Team",
     "Teams",
     "TimetableExists",
+    "UnmatchedAttendee",
     "add_lesson",
     "add_student",
     "add_timetable",
     "backend",
-    "create_class",
     "cancel_lessons",
     "change_slot",
+    "create_class",
+    "fetch_due_attendance",
+    "get_attendance",
     "get_class",
+    "lateness_threshold",
+    "link_attendee",
     "link_team",
+    "override_attendance",
+    "refresh_attendance",
+    "set_lateness_threshold",
     "list_lessons",
     "list_classes",
     "list_owned_teams",
@@ -64,7 +80,7 @@ def backend() -> Teams:
         else:
             from classlop.teams.service import GraphTeams
 
-            _backend = GraphTeams(GraphClient())
+            _backend = GraphTeams(GraphClient(), records=GraphClient(token=app_token))
     return _backend
 
 
@@ -132,6 +148,42 @@ async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) 
 
 async def list_lessons(class_id: str) -> list[Lesson]:
     return await backend().list_lessons(class_id)
+
+
+async def get_attendance(class_id: str, lesson_id: str) -> Attendance:
+    """Each Student Present, Late or Absent with minutes, overrides applied, plus Unmatched
+    attendees. States are None until the first fetch."""
+    return await backend().get_attendance(class_id, lesson_id)
+
+
+async def refresh_attendance(class_id: str, lesson_id: str) -> Attendance:
+    """Fetch the Lesson's Attendance from Teams now."""
+    return await backend().refresh_attendance(class_id, lesson_id)
+
+
+async def fetch_due_attendance() -> int:
+    return await backend().fetch_due_attendance()
+
+
+async def override_attendance(
+    class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
+) -> None:
+    """The Teacher's state for a Student; it survives every later fetch. None removes it."""
+    await backend().override_attendance(class_id, lesson_id, student_id, state)
+
+
+async def link_attendee(class_id: str, key: str, student_id: str) -> None:
+    """Link an Unmatched attendee (by its `key`) to a Student, for this and later Lessons."""
+    await backend().link_attendee(class_id, key, student_id)
+
+
+async def lateness_threshold() -> timedelta:
+    return await backend().lateness_threshold()
+
+
+async def set_lateness_threshold(threshold: timedelta) -> None:
+    """How long after a Lesson's start a first join still counts as on time, for all Classes."""
+    await backend().set_lateness_threshold(threshold)
 
 
 async def cancel_lessons(class_id: str, first: date, last: date) -> None:

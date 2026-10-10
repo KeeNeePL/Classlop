@@ -3,16 +3,30 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from ulid import ULID
 
 from classlop.shared.db import sessions
 from classlop.shared.settings import get_settings
+from classlop.teams import attendance
 from classlop.teams.graph import BASE, GraphClient
-from classlop.teams.models import ClassRecord, LessonRecord, SlotRecord, StudentRecord
+from classlop.teams.models import (
+    AttendeeRecord,
+    ClassRecord,
+    FetchRecord,
+    LessonRecord,
+    LinkRecord,
+    OverrideRecord,
+    SettingRecord,
+    SlotRecord,
+    StudentRecord,
+)
 from classlop.teams.types import (
     AlreadyLinked,
+    Attendance,
+    AttendanceState,
+    Attendee,
     Candidate,
     Class,
     Lesson,
@@ -27,8 +41,33 @@ WARSAW = ZoneInfo("Europe/Warsaw")
 _DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
+LATENESS = "lateness_seconds"
+DEFAULT_LATENESS = timedelta(minutes=5)
+# Call records of a Lesson start within this window around it. A record appears about 27
+# minutes after the meeting ends (ADR 0005), so the first fetch waits 45.
+BEFORE, AFTER = timedelta(minutes=30), timedelta(hours=2)
+FIRST_FETCH, SECOND_FETCH, GIVE_UP = timedelta(minutes=45), timedelta(hours=2), timedelta(days=3)
+
+
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+def attendance_due(end: datetime, fetched_at: datetime | None, at: datetime) -> bool:
+    """The first fetch at the end + 45 minutes, a second at + 2 hours, none after 3 days."""
+    if at - end > GIVE_UP:
+        return False
+    if fetched_at is None:
+        return at >= end + FIRST_FETCH
+    return at >= end + SECOND_FETCH and fetched_at < end + SECOND_FETCH
+
+
+def _z(when: datetime) -> str:
+    return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse(when: str) -> datetime:
+    return datetime.fromisoformat(when)
 
 
 def _class(row: ClassRecord) -> Class:
@@ -54,8 +93,14 @@ def _attendees(upns: list[str]) -> list[dict]:
 class GraphTeams:
     """The real area: Postgres records kept in step with the team through Graph."""
 
-    def __init__(self, graph: GraphClient, clock: Callable[[], datetime] = now):
-        self._graph, self._clock = graph, clock
+    def __init__(
+        self,
+        graph: GraphClient,
+        clock: Callable[[], datetime] = now,
+        records: GraphClient | None = None,
+    ):
+        """`records` reads call records with the app's own token (ADR 0005)."""
+        self._graph, self._clock, self._records = graph, clock, records or graph
 
     async def list_owned_teams(self) -> list[Team]:
         groups = await self._graph.get_all("/me/ownedObjects/microsoft.graph.group")
@@ -239,6 +284,141 @@ class GraphTeams:
                 event = await self._graph.get(f"/me/events/{record.id}")
                 lessons.append(self._lesson(class_id, event, record.topic))
         return sorted(lessons, key=lambda lesson: lesson.start)
+
+    async def _lesson_of(self, class_id: str, lesson_id: str) -> Lesson:
+        lesson = next((x for x in await self.list_lessons(class_id) if x.id == lesson_id), None)
+        if lesson is None:
+            raise ValueError(f"no Lesson {lesson_id} in class {class_id}")
+        return lesson
+
+    async def _sessions(self, lesson: Lesson) -> list[attendance.Session]:
+        """Every session of every call record of the Lesson's meeting that began in its window."""
+        since, until = _z(lesson.start - BEFORE), _z(lesson.end + AFTER)
+        records = await self._records.get_all(
+            "/communications/callRecords",
+            **{"$filter": f"startDateTime ge {since} and startDateTime lt {until}"},
+        )
+        out: list[attendance.Session] = []
+        for record in records:
+            if record.get("joinWebUrl") != lesson.join_url:
+                continue
+            for s in await self._records.get_all(
+                f"/communications/callRecords/{record['id']}/sessions"
+            ):
+                who = s["caller"]["identity"]
+                person = who.get("user") or who["guest"]
+                out.append(
+                    (
+                        person.get("id") if "user" in who else None,
+                        person["displayName"],
+                        _parse(s["startDateTime"]),
+                        _parse(s["endDateTime"]),
+                    )
+                )
+        return out
+
+    async def refresh_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        lesson = await self._lesson_of(class_id, lesson_id)
+        found = attendance.collect(await self._sessions(lesson), get_settings().m365_teacher_oid)
+        async with sessions().begin() as session:
+            await session.execute(
+                delete(AttendeeRecord).where(AttendeeRecord.lesson_id == lesson_id)
+            )
+            session.add_all(
+                AttendeeRecord(lesson_id=lesson_id, class_id=class_id, **a.model_dump())
+                for a in found
+            )
+            await session.merge(
+                FetchRecord(
+                    lesson_id=lesson_id,
+                    class_id=class_id,
+                    start=lesson.start,
+                    fetched_at=self._clock(),
+                )
+            )
+        return await self.get_attendance(class_id, lesson_id)
+
+    async def get_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        students = await self.list_students(class_id)
+        threshold = await self.lateness_threshold()
+        async with sessions()() as session:
+            fetch = await session.get(FetchRecord, lesson_id)
+            rows = await session.scalars(
+                select(AttendeeRecord).where(AttendeeRecord.lesson_id == lesson_id)
+            )
+            found = [Attendee.model_validate(r, from_attributes=True) for r in rows]
+            links = {
+                r.key: r.student_id
+                for r in await session.scalars(
+                    select(LinkRecord).where(LinkRecord.class_id == class_id)
+                )
+            }
+            overrides = {
+                r.student_id: r.state
+                for r in await session.scalars(
+                    select(OverrideRecord).where(OverrideRecord.lesson_id == lesson_id)
+                )
+            }
+        return attendance.derive(
+            lesson_id,
+            students,
+            found,
+            links,
+            overrides,
+            fetch and fetch.start,
+            threshold,
+            fetch and fetch.fetched_at,
+        )
+
+    async def fetch_due_attendance(self) -> int:
+        now = self._clock()
+        fetched = 0
+        for klass in await self.list_classes():
+            async with sessions()() as session:
+                done = {
+                    r.lesson_id: r.fetched_at
+                    for r in await session.scalars(
+                        select(FetchRecord).where(FetchRecord.class_id == klass.id)
+                    )
+                }
+            for lesson in await self.list_lessons(klass.id):
+                if not lesson.cancelled and attendance_due(lesson.end, done.get(lesson.id), now):
+                    await self.refresh_attendance(klass.id, lesson.id)
+                    fetched += 1
+        return fetched
+
+    async def override_attendance(
+        self, class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
+    ) -> None:
+        async with sessions().begin() as session:
+            if state is None:
+                await session.execute(
+                    delete(OverrideRecord).where(
+                        OverrideRecord.lesson_id == lesson_id,
+                        OverrideRecord.student_id == student_id,
+                    )
+                )
+            else:
+                await session.merge(
+                    OverrideRecord(
+                        lesson_id=lesson_id, student_id=student_id, class_id=class_id, state=state
+                    )
+                )
+
+    async def link_attendee(self, class_id: str, key: str, student_id: str) -> None:
+        async with sessions().begin() as session:
+            await session.merge(LinkRecord(class_id=class_id, key=key, student_id=student_id))
+
+    async def lateness_threshold(self) -> timedelta:
+        async with sessions()() as session:
+            row = await session.get(SettingRecord, LATENESS)
+        return timedelta(seconds=int(row.value)) if row else DEFAULT_LATENESS
+
+    async def set_lateness_threshold(self, threshold: timedelta) -> None:
+        async with sessions().begin() as session:
+            await session.merge(
+                SettingRecord(key=LATENESS, value=str(int(threshold.total_seconds())))
+            )
 
     @staticmethod
     def _event_body(subject: str, upns: list[str]) -> dict:

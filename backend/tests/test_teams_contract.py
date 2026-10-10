@@ -19,7 +19,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams import handlers
 from classlop.teams.fake import FakeTeams
 from classlop.teams.graph import GraphClient
-from classlop.teams.models import ClassRecord
+from classlop.teams.models import ClassRecord, SettingRecord
 from classlop.teams.service import GraphTeams
 
 TEACHER = "teacher-oid"
@@ -52,6 +52,7 @@ async def teacher(monkeypatch):
     monkeypatch.setattr(get_settings(), "m365_teacher_oid", TEACHER)
     async with sessions().begin() as session:
         await session.execute(delete(ClassRecord))
+        await session.execute(delete(SettingRecord))
 
 
 @pytest.fixture
@@ -72,9 +73,8 @@ def tenant(request, clock):
             raise jobs.SignInRequired
         return "token"
 
-    tenant.area = GraphTeams(
-        GraphClient(token=token, transport=graph.transport, sleep=_ignore), clock=clock
-    )
+    client = GraphClient(token=token, transport=graph.transport, sleep=_ignore)
+    tenant.area = GraphTeams(client, clock=clock, records=client)
     return tenant
 
 
@@ -88,7 +88,7 @@ class Tenant:
         self.add_user, self.rename_team = graph.add_user, graph.rename_team
         self.team_members, self.team_name = graph.team_members, graph.team_name
         self.team_is_private = graph.team_is_private
-        self.event_of = graph.event_of
+        self.event_of, self.attend = graph.event_of, graph.attend
 
     def lapse_sign_in(self) -> None:
         self.lapsed = True
@@ -454,6 +454,235 @@ async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypat
 
 async def _ignore(_):
     pass
+
+
+LESSON_START = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+DAY = 24 * 60
+
+
+def _at(minute: int) -> datetime:
+    return LESSON_START + timedelta(minutes=minute)
+
+
+async def _lesson(tenant, linked):
+    return await tenant.add_lesson(linked.id, LESSON_START, _at(45), "Funkcje liniowe")
+
+
+async def _held(tenant, names=("Jan Kowalski", "Ewa Zielinska", "Adam Lis")):
+    team = tenant.add_team("2A matematyka")
+    ids = {n: tenant.add_member(team, n) for n in names}
+    linked = await tenant.link_team(team)
+    students = {s.display_name: s for s in await tenant.list_students(linked.id)}
+    return linked, ids, students, await _lesson(tenant, linked)
+
+
+def _states(attendance, students):
+    by_id = {e.student_id: e for e in attendance.entries}
+    return {n: (by_id[s.id].state, by_id[s.id].minutes) for n, s in students.items()}
+
+
+async def test_attendance_shows_present_late_and_absent_with_minutes(tenant):
+    linked, ids, students, lesson = await _held(tenant)
+    before = await tenant.get_attendance(linked.id, lesson.id)
+    assert before.fetched_at is None
+    assert all(e.state is None for e in before.entries)
+    tenant.attend(
+        lesson.join_url,
+        [
+            (TEACHER, "Anna Nowak", _at(-2), _at(45)),
+            (ids["Jan Kowalski"], "Jan Kowalski", _at(2), _at(10)),
+            (ids["Ewa Zielinska"], "Ewa Zielinska", _at(7), _at(30)),
+        ],
+    )
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {
+        "Jan Kowalski": ("present", 8),
+        "Ewa Zielinska": ("late", 23),
+        "Adam Lis": ("absent", 0),
+    }
+    assert got.unmatched == []
+    assert not any(e.overridden for e in got.entries)
+    assert await tenant.get_attendance(linked.id, lesson.id) == got
+
+
+async def test_a_first_join_exactly_at_the_threshold_is_not_late(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(5), _at(40))])
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {"Jan Kowalski": ("present", 35)}
+
+
+async def test_the_lateness_threshold_is_one_setting_defaulting_to_five_minutes(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Ewa Zielinska",))
+    tenant.attend(lesson.join_url, [(ids["Ewa Zielinska"], "Ewa Zielinska", _at(7), _at(45))])
+    assert await tenant.lateness_threshold() == timedelta(minutes=5)
+    assert _states(await tenant.refresh_attendance(linked.id, lesson.id), students) == {
+        "Ewa Zielinska": ("late", 38)
+    }
+
+    await tenant.set_lateness_threshold(timedelta(minutes=10))
+
+    assert await tenant.lateness_threshold() == timedelta(minutes=10)
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Ewa Zielinska": ("present", 38)
+    }
+
+
+async def test_every_record_of_the_meeting_is_merged_and_rejoins_count_once(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = ids["Jan Kowalski"]
+    tenant.attend(
+        lesson.join_url,
+        [(jan, "Jan Kowalski", _at(1), _at(10)), (jan, "Jan Kowalski", _at(8), _at(15))],
+    )
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(30), _at(40))])
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert _states(got, students) == {"Jan Kowalski": ("present", 24)}
+
+
+async def test_a_series_shares_one_join_link_but_each_lesson_keeps_its_own_records(tenant):
+    _, linked = await _class_with_jan(tenant)
+    [jan] = await tenant.list_students(linked.id)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first, second = (await tenant.list_lessons(linked.id))[:2]
+    assert first.join_url == second.join_url
+    tenant.attend(
+        first.join_url,
+        [(jan.user_id, "Jan Kowalski", first.start + timedelta(minutes=1), first.end)],
+    )
+
+    one = await tenant.refresh_attendance(linked.id, first.id)
+    two = await tenant.refresh_attendance(linked.id, second.id)
+
+    assert [(e.state, e.minutes) for e in one.entries] == [("present", 44)]
+    assert [(e.state, e.minutes) for e in two.entries] == [("absent", 0)]
+
+
+async def test_an_override_is_marked_and_survives_every_later_fetch(tenant):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = students["Jan Kowalski"]
+
+    await tenant.override_attendance(linked.id, lesson.id, jan.id, "present")
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(20), _at(40))])
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    [entry] = got.entries
+    assert (entry.state, entry.overridden, entry.minutes) == ("present", True, 20)
+
+    await tenant.override_attendance(linked.id, lesson.id, jan.id, None)
+
+    [entry] = (await tenant.get_attendance(linked.id, lesson.id)).entries
+    assert (entry.state, entry.overridden) == ("late", False)
+
+
+async def test_attendees_not_linked_to_a_student_are_unmatched_and_a_link_is_remembered(tenant):
+    linked, _, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    later = await tenant.add_lesson(linked.id, _at(DAY), _at(DAY + 45), "Wzory")
+    tenant.attend(
+        lesson.join_url,
+        [("stranger-oid", "Telefon Janka", _at(1), _at(41)), (None, "Ola", _at(2), _at(32))],
+    )
+    tenant.attend(later.join_url, [("stranger-oid", "Telefon Janka", _at(DAY + 1), _at(DAY + 21))])
+    jan = students["Jan Kowalski"]
+
+    got = await tenant.refresh_attendance(linked.id, lesson.id)
+
+    assert sorted((u.display_name, u.minutes) for u in got.unmatched) == [
+        ("Ola", 30),
+        ("Telefon Janka", 40),
+    ]
+    assert _states(got, students) == {"Jan Kowalski": ("absent", 0)}
+
+    phone = next(u for u in got.unmatched if u.display_name == "Telefon Janka")
+    await tenant.link_attendee(linked.id, phone.key, jan.id)
+
+    now = await tenant.get_attendance(linked.id, lesson.id)
+    assert _states(now, students) == {"Jan Kowalski": ("present", 40)}
+    assert [u.display_name for u in now.unmatched] == ["Ola"]
+    ahead = await tenant.refresh_attendance(linked.id, later.id)
+    assert _states(ahead, students) == {"Jan Kowalski": ("present", 20)}
+    assert ahead.unmatched == []
+
+
+async def test_a_guest_is_linked_by_display_name_within_the_class(tenant):
+    linked, _, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    other = await tenant.link_team(tenant.add_team("3B matematyka"))
+    other_lesson = await _lesson(tenant, other)
+    later = await tenant.add_lesson(linked.id, _at(2 * DAY), _at(2 * DAY + 45), "Wzory")
+    tenant.attend(lesson.join_url, [(None, "Ola", _at(1), _at(41))])
+    tenant.attend(later.join_url, [(None, "Ola", _at(2 * DAY + 3), _at(2 * DAY + 20))])
+    tenant.attend(other_lesson.join_url, [(None, "Ola", _at(1), _at(41))])
+    [guest] = (await tenant.refresh_attendance(linked.id, lesson.id)).unmatched
+
+    await tenant.link_attendee(linked.id, guest.key, students["Jan Kowalski"].id)
+
+    assert _states(await tenant.refresh_attendance(linked.id, later.id), students) == {
+        "Jan Kowalski": ("present", 17)
+    }
+    assert len((await tenant.refresh_attendance(other.id, other_lesson.id)).unmatched) == 1
+
+
+async def test_attendance_is_fetched_at_the_end_plus_45_minutes_and_again_at_2_hours(tenant, clock):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    jan = ids["Jan Kowalski"]
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(1), _at(20))])
+
+    clock.now = lesson.end + timedelta(minutes=44)
+    assert await tenant.fetch_due_attendance() == 0
+    assert (await tenant.get_attendance(linked.id, lesson.id)).fetched_at is None
+
+    clock.now = lesson.end + timedelta(minutes=45)
+    assert await tenant.fetch_due_attendance() == 1
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 19)
+    }
+    assert await tenant.fetch_due_attendance() == 0
+
+    tenant.attend(lesson.join_url, [(jan, "Jan Kowalski", _at(30), _at(40))])
+    clock.now = lesson.end + timedelta(hours=2)
+    assert await tenant.fetch_due_attendance() == 1
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 29)
+    }
+    clock.now = lesson.end + timedelta(days=1)
+    assert await tenant.fetch_due_attendance() == 0
+
+
+async def test_a_cancelled_lesson_has_no_attendance_fetched(tenant, clock):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first = (await tenant.list_lessons(linked.id))[0]
+    await tenant.cancel_lessons(linked.id, first.start.date(), first.start.date())
+
+    clock.now = first.end + timedelta(hours=1)
+
+    assert await tenant.fetch_due_attendance() == 0
+    assert (await tenant.get_attendance(linked.id, first.id)).fetched_at is None
+
+
+async def test_the_attendance_fetch_is_a_job_that_runs_every_five_minutes(
+    tenant, clock, monkeypatch
+):
+    linked, ids, students, lesson = await _held(tenant, ("Jan Kowalski",))
+    tenant.attend(lesson.join_url, [(ids["Jan Kowalski"], "Jan Kowalski", _at(1), _at(40))])
+    clock.now = lesson.end + timedelta(hours=1)
+    monkeypatch.setattr(teams, "backend", lambda: tenant)
+
+    await handlers.fetch_attendance(Job(kind="teams.fetch_attendance", payload={}), _ignore)
+
+    assert _states(await tenant.get_attendance(linked.id, lesson.id), students) == {
+        "Jan Kowalski": ("present", 39)
+    }
+    await schedule.sync_declared()
+    async with sessions()() as session:
+        row = await session.get(Schedule, "teams.fetch-attendance")
+    assert (row.kind, row.every_seconds) == ("teams.fetch_attendance", 5 * 60)
 
 
 async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant):
