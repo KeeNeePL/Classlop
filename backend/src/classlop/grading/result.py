@@ -25,7 +25,9 @@ class ItemResult(BaseModel):
     drawing: bool
     doubt: bool
     ai_transcription: str
+    fixed_transcription: str | None
     feedback: str
+    edited_feedback: str | None
     mistake: str | None
     verification_note: str | None
     override: int | None

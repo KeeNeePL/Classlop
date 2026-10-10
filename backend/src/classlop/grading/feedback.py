@@ -54,7 +54,10 @@ def to_revise(items: list[GradedItem]) -> list[str]:
 
 
 def fitting_feedback(item: GradedItem) -> str | None:
-    """The Feedback that fits the effective points: the Teacher's points may contradict the AI's."""
+    """The Teacher's wording, or the AI Feedback that fits the effective points: the Teacher's
+    points may contradict the AI's."""
+    if item.edited_feedback is not None:
+        return item.edited_feedback
     if item.effective_points == item.max_points:
         return CORRECT
     return None if item.feedback == CORRECT else item.feedback
@@ -83,6 +86,11 @@ async def typesets(feedback: str) -> bool:
     except TypesetError:
         return False
     return True
+
+
+async def feedback_typesets(item: GradedItem) -> bool:
+    feedback = fitting_feedback(item)
+    return not feedback or feedback in FIXED_FEEDBACK or await typesets(feedback)
 
 
 def document(items: list[GradedItem]) -> list[Heading | Paragraph]:
