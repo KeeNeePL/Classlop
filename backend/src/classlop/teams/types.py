@@ -364,6 +364,24 @@ class Teams(Protocol):
         A team restored in Teams does the same on the next roster sync."""
         ...
 
+    async def set_reminder(self, assignment_id: str, on: bool) -> Assignment:
+        """Switch the Assignment's Reminder on or off (it is on by default, `reminder_on` in the
+        spec). Raises ValueError for a closed Assignment."""
+        ...
+
+    async def reschedule_reminder(self, assignment_id: str) -> None:
+        """Put the Reminder where the Assignment's due time says (a day before it), or remove it
+        if the Reminder is off, the Assignment was Given a day or less before the due time or
+        that moment has passed. Whatever moves the due time calls this; it is safe to repeat."""
+        ...
+
+    async def post_reminder(self, assignment_id: str) -> bool:
+        """What the Reminder's schedule runs: post in General how many Students have not handed in
+        (a count, never names). Returns whether it posted; it does not when the count is zero,
+        the Reminder is off, the Assignment is no longer Open or Scheduled or it is not yet or no
+        longer the day before the due time."""
+        ...
+
     async def poll_handins(self) -> int:
         """Read what Students uploaded into their folders: a set unchanged for 3 minutes becomes
         the Submission's hand-in (Handed in, Late if after the due time, graded on its own), a

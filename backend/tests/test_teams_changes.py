@@ -94,19 +94,31 @@ async def test_a_late_submission_is_late_against_the_due_time_as_it_now_stands(t
     assert on_time.late is False
 
 
-async def test_the_reminder_and_the_return_follow_the_new_due_time(tenant, gave, monkeypatch):
+async def test_the_reminder_follows_the_new_due_time(tenant, gave):
+    _, _, given = await _given(tenant, "Jan Kowalski")
+    async with sessions()() as session:
+        before = (await session.get(Schedule, f"teams.remind:{given.id}")).next_at
+    assert before == DUE - timedelta(hours=24)
+
+    await tenant.change_times(given.id, due_at=DUE + timedelta(days=1))
+
+    async with sessions()() as session:
+        after = (await session.get(Schedule, f"teams.remind:{given.id}")).next_at
+    assert after == DUE
+
+
+async def test_the_due_time_return_follows_the_new_due_time(tenant, gave, monkeypatch):
     _, _, given = await _given(tenant, "Jan Kowalski")
     seen = []
 
     async def record(a):
         seen.append(a.due_at)
 
-    monkeypatch.setattr(amendments, "reschedule_reminder", record)
     monkeypatch.setattr(amendments, "reschedule_return", record)
 
     await tenant.change_times(given.id, due_at=DUE + timedelta(days=1))
 
-    assert seen == [DUE + timedelta(days=1)] * 2
+    assert seen == [DUE + timedelta(days=1)]
 
 
 @pytest.mark.parametrize(
@@ -364,13 +376,14 @@ async def test_deleting_removes_the_post_and_folders_and_tells_each_recipient(te
 async def test_deleting_a_scheduled_assignment_cancels_its_schedule(tenant, gave, clock):
     klass, users = await make_class(tenant, "Jan Kowalski")
     given = await tenant.give_assignment(klass.id, _spec(), PDF, clock.now + timedelta(days=2))
+    names = [f"teams.give:{given.id}", f"teams.remind:{given.id}"]
     async with sessions()() as session:
-        assert await session.get(Schedule, f"teams.give:{given.id}")
+        assert all([await session.get(Schedule, name) for name in names])
 
     await tenant.delete_assignment(given.id)
 
     async with sessions()() as session:
-        assert await session.get(Schedule, f"teams.give:{given.id}") is None
+        assert [await session.get(Schedule, name) for name in names] == [None, None]
     assert await tenant.list_assignments(klass.id) == []
     assert tenant.chat_messages(users["Jan Kowalski"]) == []
 

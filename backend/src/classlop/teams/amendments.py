@@ -55,10 +55,6 @@ def cancelled_html(title: str) -> str:
     return f"<p>Praca «{escape(title)}» została anulowana.</p>"
 
 
-async def reschedule_reminder(a: Assignment) -> None:
-    """Moves the Reminder schedule to the Assignment's new due time. A no-op until the Reminder
-    exists; its ticket fills this in."""
-
-
 async def reschedule_return(a: Assignment) -> None:
-    """Moves the due-time return job, likewise a hook for the ticket that adds it."""
+    """Moves the due-time return job to the Assignment's new due time. A no-op until that job
+    exists; the ticket that adds it fills this in."""

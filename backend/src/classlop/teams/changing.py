@@ -32,6 +32,7 @@ class Changing:
     if TYPE_CHECKING:
 
         async def get_class(self, class_id: str) -> Class: ...
+        async def reschedule_reminder(self, assignment_id: str) -> None: ...
         async def _read_delta(self) -> None: ...
         async def _discard(self, url: str) -> None: ...
         async def list_students(self, class_id: str) -> list[Student]: ...
@@ -51,7 +52,7 @@ class Changing:
             await self._amend_post(after)
         await self._save_assignment(assignment_id, due_at=due, close_at=close)
         await self._recompute_late(after)
-        await amendments.reschedule_reminder(after)
+        await self.reschedule_reminder(assignment_id)
         await amendments.reschedule_return(after)
         return after
 

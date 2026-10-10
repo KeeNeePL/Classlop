@@ -79,6 +79,15 @@ async def give_assignment(job: Job, progress: Progress) -> None:
         return
 
 
+@handler("teams.remind_assignment")
+async def remind_assignment(job: Job, progress: Progress) -> dict:
+    """A day before the due time: how many Students have not handed in, in General."""
+    try:
+        return {"posted": await teams.post_reminder(job.payload["assignment_id"])}
+    except LookupError:  # its Class was deleted
+        return {"posted": False}
+
+
 @handler("teams.poll_handins")
 async def poll_handins(job: Job, progress: Progress) -> dict:
     """Students' uploads into Submissions, and the close of Assignments past their close time."""

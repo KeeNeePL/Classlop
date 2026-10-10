@@ -30,6 +30,7 @@ from classlop.teams.models import (
     SlotRecord,
     StudentRecord,
 )
+from classlop.teams.reminding import GraphReminding
 from classlop.teams.types import (
     LESSON,
     PENDING,
@@ -112,7 +113,7 @@ def _attendees(upns: list[str]) -> list[dict]:
     return [{"emailAddress": {"address": u}, "type": "required"} for u in upns]
 
 
-class GraphTeams(Giving, HandIns, Lifecycle, Changing):
+class GraphTeams(Giving, HandIns, Lifecycle, GraphReminding, Changing):
     """The real area: Postgres records kept in step with the team through Graph."""
 
     def __init__(
