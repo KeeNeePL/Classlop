@@ -321,3 +321,19 @@ def test_recent_sections_are_the_assessed_ones_newest_given_first():
     )
 
     assert view.recent_sections == [SECTIONS[0].id, SECTIONS[1].id, SECTIONS[2].id]
+
+
+def test_an_open_assignment_counts_what_is_graded_so_far():
+    view = overview(
+        work(
+            1,
+            sub("s1", item(1, 2, A1)),
+            sub("s2", item(2, 2, A1)),
+            sub("s3", state="not_handed_in"),
+            state="open",
+        ),
+        students=("s1", "s2", "s3"),
+    )
+
+    assert (view.assignments[0].average, view.assignments[0].handed_in) == (75, 2)
+    assert topic(view, A1).percent == 75

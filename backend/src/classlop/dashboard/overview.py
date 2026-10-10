@@ -59,10 +59,10 @@ def invented(class_id: str, name: str, now: datetime) -> ClassData:
         open_ = n == len(TITLES) - 1
         submissions = []
         for s, a in zip(students, ability, strict=True):
-            if open_:
-                state = "handed_in" if rng.random() < 0.6 else "not_handed_in"
-                scored = ()
-            elif s.id.endswith("-1") and n >= len(TITLES) - 3:
+            # AI grades each Submission as it comes in, so an open Assignment has results too.
+            if open_ and rng.random() >= 0.6:
+                state, scored = "not_handed_in", ()
+            elif not open_ and s.id.endswith("-1") and n >= len(TITLES) - 3:
                 state, scored = "missing", ()
             else:
                 state = "graded"

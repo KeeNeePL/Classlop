@@ -22,14 +22,16 @@ def test_overview_is_ready_for_the_screen_and_marked_invented():
     assert any(s["percent"] is None for s in sections)
     assert any(s["percent"] is not None for s in sections)
     assert view["assignments"] and view["students"]
-    # The newest graded Assignment covers sections IV and V; the oldest, I.
+    # The newest Assignment, still open, covers sections V and VI; the oldest, I.
     assert view["recent_sections"] == [
-        "lo2024:IV",
         "lo2024:V",
+        "lo2024:VI",
+        "lo2024:IV",
         "lo2024:III",
         "lo2024:II",
         "lo2024:I",
     ]
+    assert all(a["average"] is not None for a in view["assignments"])
     given = [a["given_at"] for a in view["assignments"]]
     assert given == sorted(given, reverse=True)
     assert any(s["former"] for s in view["students"])
