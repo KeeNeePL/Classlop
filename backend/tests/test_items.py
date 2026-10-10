@@ -512,10 +512,11 @@ async def test_a_reindex_that_read_postgres_earlier_does_not_overwrite_a_later_o
     await indexed()
     await items.edit_item(item_id, points=4)
 
+    real_clock = index._clock
     monkeypatch.setattr(index, "_clock", lambda: 1)  # a job whose read came first
     await index.reindex(item_id)
     assert (await indexed_document(item_id))["points"] == 1
 
-    monkeypatch.undo()
+    monkeypatch.setattr(index, "_clock", real_clock)
     await index.reindex(item_id)
     assert (await indexed_document(item_id))["points"] == 4
