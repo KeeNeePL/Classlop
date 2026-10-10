@@ -1,0 +1,12 @@
+{
+  "notes": "Both closed Items wrong. Zad. 3 stops after the discriminant, Zad. 4 after the transformation with no conclusion, Zad. 5 after the hypotenuse: one Rubric level each. No drawing.",
+  "held": false,
+  "spot_check": null,
+  "items": [
+    {"number": 1, "reading": "readable", "points": 0, "transcription": "D"},
+    {"number": 2, "reading": "readable", "points": 0, "transcription": "C"},
+    {"number": 3, "reading": "readable", "points": 1, "transcription": "\\Delta = 16 + 20 = 36\n\\sqrt{\\Delta} = 6"},
+    {"number": 4, "reading": "readable", "points": 1, "transcription": "a^2 - 6a + 9 \\geq 0\n\\Delta = 36 - 36 = 0"},
+    {"number": 5, "reading": "readable", "points": 1, "transcription": "6^2 + 8^2 = x^2\n36 + 64 = x^2\n100 = x^2\n10 = x"}
+  ]
+}

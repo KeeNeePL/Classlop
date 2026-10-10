@@ -19,6 +19,8 @@ htmlcov/
 # Private data: student work and textbooks never leave this machine
 /data/
 *.pdf
+# Invented evaluation hand-ins may be PDFs
+!backend/evals/**/*.pdf
 
 # LangGraph
 .langgraph_api/

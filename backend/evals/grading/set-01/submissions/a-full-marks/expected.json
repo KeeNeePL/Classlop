@@ -1,0 +1,27 @@
+{
+  "notes": "Every Item correct. Zad. 3: the b in b^2 - 4ac looks like a 6; reading it as 6^2 is a misread. Zad. 5: a scribble next to the 8 is crossed out and must be ignored; the drawing flags the Submission for Spot-check without holding it.",
+  "held": false,
+  "spot_check": "rysunek",
+  "items": [
+    {"number": 1, "reading": "readable", "points": 1, "transcription": "B"},
+    {"number": 2, "reading": "readable", "points": 1, "transcription": "B"},
+    {
+      "number": 3,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "x^2 - 4x - 5 = 0\n\\Delta = b^2 - 4ac = 16 + 20 = 36\n\\sqrt{\\Delta} = 6\nx_1 = \\frac{-b - \\sqrt{\\Delta}}{2a} = \\frac{4 - 6}{2} = -1 \\quad x_2 = \\frac{-b + \\sqrt{\\Delta}}{2a} = \\frac{4 + 6}{2} = 5"
+    },
+    {
+      "number": 4,
+      "reading": "readable",
+      "points": 2,
+      "transcription": "a \\in \\mathbb{R}\na^2 - 6a + 9 = (a-3)^2 \\geq 0 \\square\nUzasadnienie: liczba do kwadratu zawsze większa lub równa zero."
+    },
+    {
+      "number": 5,
+      "reading": "readable",
+      "points": 3,
+      "transcription": "P = \\frac{a \\cdot b}{2} = \\frac{48}{2} = 24\n6^2 + 8^2 = x^2 \\Rightarrow 36 + 64 = x^2\n100 = x^2\nx = 10\n5h = 24\nh = \\frac{24}{5}\n[rysunek: trójkąt prostokątny ACB z kątem prostym przy C, |AC| = 6, |CB| = 8, przeciwprostokątna AB = x]"
+    }
+  ]
+}
