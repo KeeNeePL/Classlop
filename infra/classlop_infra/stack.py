@@ -224,6 +224,8 @@ class ClasslopStack(Stack):
             "SCHEDULE_GROUP": "classlop",
             "SCHEDULE_ROLE_ARN": self.schedule_role.role_arn,
             "PUBLIC_URL": public_url,
+            # Traces from AWS stay apart from dev and evaluation runs.
+            "LANGSMITH_PROJECT": "classlop-aws",
         }
         secrets = {
             "DB_PASSWORD": ecs.Secret.from_secrets_manager(self.database.secret, "password"),

@@ -13,12 +13,14 @@ from classlop.grading.graph import announce, grade_fixed_item, rebuild_feedback
 from classlop.grading.models import GradedItem, GradedSubmission, Override
 from classlop.shared import jobs
 from classlop.shared.db import sessions
+from classlop.shared.llm import traced
 
 
 class TooEarly(Exception):
     """A change before the due time; a Late submission's can be changed once graded."""
 
 
+@traced("grading.override")
 async def override(
     submission_id: uuid.UUID, handed_in_at: datetime, item_id: uuid.UUID, points: int
 ) -> None:
@@ -47,6 +49,7 @@ async def override(
     await _changed(submission)
 
 
+@traced("grading.fix_transcription")
 async def fix_transcription(
     submission_id: uuid.UUID, handed_in_at: datetime, item_id: uuid.UUID, transcription: str
 ) -> None:
@@ -70,6 +73,7 @@ async def fix_transcription(
     await _changed(submission)
 
 
+@traced("grading.edit_feedback")
 async def edit_feedback(
     submission_id: uuid.UUID, handed_in_at: datetime, item_id: uuid.UUID, feedback: str
 ) -> None:
