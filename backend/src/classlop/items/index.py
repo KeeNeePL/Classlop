@@ -3,7 +3,7 @@
 import re
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from contextlib import suppress
 
 from opensearchpy import ConflictError, NotFoundError, RequestError
@@ -13,7 +13,14 @@ from sqlalchemy import select
 from classlop.items import embedding
 from classlop.items.models import ItemRow, UsageRow
 from classlop.items.records import get_items
-from classlop.items.types import Filters, Item, SearchPage, SectionCount
+from classlop.items.types import (
+    Difficulty,
+    Filters,
+    Item,
+    ItemContent,
+    SearchPage,
+    SectionCount,
+)
 from classlop.shared.db import sessions
 from classlop.shared.search import client
 from classlop.shared.settings import get_settings
@@ -81,9 +88,8 @@ def section_of(topic_id: str) -> str:
     return topic_id.rsplit(".", 1)[0]
 
 
-def searchable_text(item: Item) -> str:
+def searchable_text(v: ItemContent) -> str:
     """The text, options and Curriculum topic wording with the LaTeX markup stripped."""
-    v = item.version
     parts = [v.text, *v.options.values(), *(t.name for t in v.curriculum_topics)]
     return re.sub(r"[\s$\\{}^_]+", " ", " ".join(parts)).strip()
 
@@ -104,7 +110,7 @@ async def _class_ids(item_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[str]]:
 async def _documents(item_ids: list[uuid.UUID]) -> list[dict]:
     items = await get_items(item_ids)
     used = await _class_ids(item_ids)
-    texts = [searchable_text(i) for i in items]
+    texts = [searchable_text(i.version) for i in items]
     vectors = await embedding.embed(texts)
     return [
         {
@@ -276,3 +282,36 @@ def _counts(sections: list[dict]) -> Iterator[SectionCount]:
             yield SectionCount(
                 section=section["key"], difficulty=difficulty["key"], count=difficulty["doc_count"]
             )
+
+
+async def pick_items(
+    section: str,
+    difficulty: Difficulty,
+    n: int,
+    class_id: uuid.UUID,
+    *,
+    allow_reuse: bool = False,
+    exclude: Collection[uuid.UUID] = (),
+) -> list[Item]:
+    """Up to `n` random Items of a Curriculum section and Difficulty for Nowa praca, never
+    Retired, skipping those the Class got unless `allow_reuse`. A swap is a pick of one with the
+    previewed Items in `exclude`."""
+    await create_index()
+    clauses = _clauses(
+        Filters(
+            curriculum_sections=[section],
+            difficulty=[difficulty],
+            never_used_with_class=None if allow_reuse else class_id,
+        )
+    )
+    clauses["must_not"].append({"terms": {"item_id": [str(i) for i in exclude]}})
+    result = await client().search(
+        index=get_settings().items_index,
+        body={
+            "query": {"function_score": {"query": {"bool": clauses}, "random_score": {}}},
+            "size": n,
+            "_source": ["item_id"],
+        },
+    )
+    ids = [uuid.UUID(hit["_source"]["item_id"]) for hit in result["hits"]["hits"]]
+    return await get_items(ids)
