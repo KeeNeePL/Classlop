@@ -1,9 +1,12 @@
 """The Graph client's failure shapes: throttling and the retry limit."""
 
+import asyncio
+
 import httpx
 import pytest
 import respx
 
+from classlop.shared.jobs import SignInRequired
 from classlop.teams.graph import BASE, MAX_TRIES, GraphClient, GraphError
 
 
@@ -67,3 +70,56 @@ async def test_other_errors_are_not_retried(graph):
         await graph.get("/me")
 
     assert route.call_count == 1
+
+
+@respx.mock
+async def test_at_most_four_calls_run_at_once():
+    running = peak = 0
+    release = asyncio.Event()
+
+    async def respond(request):
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await release.wait()
+        running -= 1
+        return httpx.Response(200, json={})
+
+    respx.get(f"{BASE}/me").mock(side_effect=respond)
+    graph = GraphClient(token=_token)
+
+    calls = asyncio.gather(*(graph.get("/me") for _ in range(10)))
+    await asyncio.sleep(0.1)
+    assert running == 4
+    release.set()
+    await calls
+
+    assert peak == 4
+
+
+@respx.mock
+async def test_a_throttled_call_does_not_hold_a_slot_while_it_waits():
+    entered = asyncio.Event()
+
+    async def sleep(seconds: float) -> None:
+        entered.set()
+        await asyncio.sleep(10)
+
+    respx.get(f"{BASE}/slow").mock(return_value=httpx.Response(429))
+    respx.get(f"{BASE}/me").mock(return_value=httpx.Response(200, json={"id": "u1"}))
+    graph = GraphClient(token=_token, sleep=sleep)
+
+    waiting = [asyncio.create_task(graph.get("/slow")) for _ in range(4)]
+    await entered.wait()
+
+    assert await asyncio.wait_for(graph.get("/me"), 1) == {"id": "u1"}
+    for task in waiting:
+        task.cancel()
+
+
+@respx.mock
+async def test_a_rejected_token_means_the_teacher_must_sign_in_again(graph):
+    respx.get(f"{BASE}/me").mock(return_value=httpx.Response(401))
+
+    with pytest.raises(SignInRequired):
+        await graph.get("/me")

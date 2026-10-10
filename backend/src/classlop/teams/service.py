@@ -1,15 +1,16 @@
+import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from zoneinfo import ZoneInfo
-
 from urllib.parse import unquote
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from ulid import ULID
 
 from classlop.shared.db import sessions
-from classlop.teams.graph import GraphClient, GraphError
+from classlop.shared.settings import get_settings
+from classlop.teams.graph import BASE, GraphClient, GraphError
 from classlop.teams.models import (
     CalendarCursor,
     CalendarEventRecord,
@@ -22,6 +23,7 @@ from classlop.teams.models import (
 from classlop.teams.types import (
     AlreadyLinked,
     CalendarQuestion,
+    Candidate,
     Class,
     Lesson,
     NotOwner,
@@ -83,12 +85,12 @@ class GraphTeams:
         team = next((t for t in await self.list_owned_teams() if t.id == team_id), None)
         if team is None:
             raise NotOwner(team_id)
+        return await self._link(team_id, team.name)
+
+    async def _link(self, team_id: str, name: str) -> Class:
         channel = await self._graph.get(f"/teams/{team_id}/primaryChannel")
         row = ClassRecord(
-            id=str(ULID()),
-            team_id=team_id,
-            general_channel_id=channel["id"],
-            name=team.name,
+            id=str(ULID()), team_id=team_id, general_channel_id=channel["id"], name=name
         )
         try:
             async with sessions().begin() as session:
@@ -105,44 +107,103 @@ class GraphTeams:
                 raise TimetableExists(class_id)
         today = self._clock().astimezone(WARSAW).date()
         upns = await self._invitees(class_id)
-        rows = []
-        for slot in slots:
-            first = today + timedelta(days=(slot.weekday - today.weekday()) % 7)
-            event = await self._graph.send(
-                "POST",
-                "/me/events",
-                {
-                    **self._event_body(klass.name, upns),
-                    "start": _local(datetime.combine(first, slot.start, WARSAW)),
-                    "end": _local(datetime.combine(first, slot.end, WARSAW)),
-                    "recurrence": {
-                        "pattern": {
-                            "type": "weekly",
-                            "interval": 1,
-                            "daysOfWeek": [_DAYS[slot.weekday]],
-                        },
-                        "range": {
-                            "type": "endDate",
-                            "startDate": first.isoformat(),
-                            "endDate": school_year_end.isoformat(),
-                        },
-                    },
-                },
-            )
-            rows.append(
-                SlotRecord(
-                    id=str(ULID()),
-                    class_id=class_id,
-                    event_id=event["id"],
-                    weekday=slot.weekday,
-                    start_time=slot.start,
-                    end_time=slot.end,
-                    first_on=first,
-                )
-            )
+        rows = [
+            await self._start_series(klass, slot, today, upns, school_year_end) for slot in slots
+        ]
         async with sessions().begin() as session:
             session.add_all(rows)
             (await session.get_one(ClassRecord, class_id)).school_year_end = school_year_end
+
+    async def _start_series(
+        self, klass: Class, slot: Slot, from_day: date, upns: list[str], year_end: date
+    ) -> SlotRecord:
+        first = from_day + timedelta(days=(slot.weekday - from_day.weekday()) % 7)
+        event = await self._graph.send(
+            "POST",
+            "/me/events",
+            {
+                **self._event_body(klass.name, upns),
+                "start": _local(datetime.combine(first, slot.start, WARSAW)),
+                "end": _local(datetime.combine(first, slot.end, WARSAW)),
+                "recurrence": {
+                    "pattern": {
+                        "type": "weekly",
+                        "interval": 1,
+                        "daysOfWeek": [_DAYS[slot.weekday]],
+                    },
+                    "range": {
+                        "type": "endDate",
+                        "startDate": first.isoformat(),
+                        "endDate": year_end.isoformat(),
+                    },
+                },
+            },
+        )
+        return SlotRecord(
+            id=str(ULID()),
+            class_id=klass.id,
+            event_id=event["id"],
+            weekday=slot.weekday,
+            start_time=slot.start,
+            end_time=slot.end,
+            first_on=first,
+        )
+
+    async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+        klass = await self.get_class(class_id)
+        async with sessions()() as session:
+            current = await session.scalar(
+                select(SlotRecord).where(
+                    SlotRecord.class_id == class_id,
+                    SlotRecord.last_on.is_(None),
+                    SlotRecord.weekday == old.weekday,
+                    SlotRecord.start_time == old.start,
+                    SlotRecord.end_time == old.end,
+                )
+            )
+        if current is None:
+            raise LookupError(old)
+        if from_date <= current.first_on:
+            raise ValueError("a slot changes from after its first Lesson")
+        last_on = from_date - timedelta(days=1)
+        series = await self._graph.get(f"/me/events/{current.event_id}")
+        recurrence = series["recurrence"]
+        recurrence["range"]["endDate"] = last_on.isoformat()
+        await self._graph.send(
+            "PATCH", f"/me/events/{current.event_id}", {"recurrence": recurrence}
+        )
+        row = await self._start_series(
+            klass, new, from_date, await self._invitees(class_id), klass.school_year_end
+        )
+        async with sessions().begin() as session:
+            (await session.get_one(SlotRecord, current.id)).last_on = last_on
+            session.add(row)
+
+    async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        for lesson in await self.list_lessons(class_id):
+            if not lesson.cancelled and first <= lesson.start.astimezone(WARSAW).date() <= last:
+                await self._graph.send("POST", f"/me/events/{lesson.id}/cancel", {})
+
+    async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
+        topic = topic.strip()
+        if not topic:
+            raise ValueError("a Lesson topic cannot be empty")
+        lesson = next((x for x in await self.list_lessons(class_id) if x.id == lesson_id), None)
+        if lesson is None:
+            raise LookupError(lesson_id)
+        klass = await self.get_class(class_id)
+        await self._graph.send(
+            "PATCH", f"/me/events/{lesson_id}", {"subject": f"{klass.name}: {topic}"}
+        )
+        async with sessions().begin() as session:
+            row = await session.get(LessonRecord, lesson_id)
+            if row is None:
+                session.add(
+                    LessonRecord(id=lesson_id, class_id=class_id, topic=topic, single=False)
+                )
+            else:
+                row.topic = topic
+        return lesson.model_copy(update={"topic": topic})
 
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         topic = topic.strip()
@@ -168,17 +229,19 @@ class GraphTeams:
             slots = list(
                 await session.scalars(select(SlotRecord).where(SlotRecord.class_id == class_id))
             )
-            singles = list(
+            records = list(
                 await session.scalars(select(LessonRecord).where(LessonRecord.class_id == class_id))
             )
+        topics = {r.id: r.topic for r in records}
         lessons: dict[str, Lesson] = {}
         for slot in slots:
+            last = slot.last_on or klass.school_year_end
             window = {
                 "startDateTime": datetime.combine(slot.first_on, datetime.min.time(), WARSAW)
                 .astimezone(UTC)
                 .isoformat(),
                 "endDateTime": datetime.combine(
-                    klass.school_year_end + timedelta(days=1), datetime.min.time(), WARSAW
+                    last + timedelta(days=1), datetime.min.time(), WARSAW
                 )
                 .astimezone(UTC)
                 .isoformat(),
@@ -186,16 +249,17 @@ class GraphTeams:
             for event in await self._graph.get_all(
                 f"/me/events/{slot.event_id}/instances", **window
             ):
-                lessons[event["id"]] = self._lesson(class_id, event, None)
-        for single in singles:
+                lessons[event["id"]] = self._lesson(class_id, event, topics.get(event["id"]))
+        for record in records:
+            if not record.single:
+                continue
             try:
-                event = await self._graph.get(f"/me/events/{single.id}")
+                event = await self._graph.get(f"/me/events/{record.id}")
             except GraphError as error:
                 if error.status != 404:
                     raise
                 continue
-            lessons[single.id] = self._lesson(class_id, event, single.topic)
-        topics = {s.id: s.topic for s in singles}
+            lessons[record.id] = self._lesson(class_id, event, record.topic)
         # Teams-made meetings, and what Teams has cancelled, are known from the calendar sync.
         async with sessions()() as session:
             rows = await session.scalars(
@@ -212,7 +276,7 @@ class GraphTeams:
                         start=row.starts_at.astimezone(WARSAW),
                         end=row.ends_at.astimezone(WARSAW),
                         join_url=row.join_url,
-                        topic=topics.get(row.series_id),
+                        topic=topics.get(row.id),
                         cancelled=row.cancelled,
                     )
         return sorted(lessons.values(), key=lambda lesson: lesson.start)
@@ -345,6 +409,7 @@ class GraphTeams:
             end=_utc(event["end"]),
             join_url=event["onlineMeeting"]["joinUrl"],
             topic=topic,
+            cancelled=event.get("isCancelled", False),
         )
 
     async def _invitees(self, class_id: str) -> list[str]:
@@ -355,11 +420,15 @@ class GraphTeams:
         async with sessions()() as session:
             ids = list(
                 await session.scalars(
-                    select(SlotRecord.event_id).where(SlotRecord.class_id == class_id)
+                    select(SlotRecord.event_id).where(
+                        SlotRecord.class_id == class_id, SlotRecord.last_on.is_(None)
+                    )
                 )
             ) + list(
                 await session.scalars(
-                    select(LessonRecord.id).where(LessonRecord.class_id == class_id)
+                    select(LessonRecord.id).where(
+                        LessonRecord.class_id == class_id, LessonRecord.single
+                    )
                 )
             )
         attendees = _attendees(await self._invitees(class_id))
@@ -387,10 +456,12 @@ class GraphTeams:
     async def sync_roster(self, class_id: str) -> None:
         """Members who are not owners are Students; anyone else becomes a Former student."""
         klass = await self.get_class(class_id)
+        name = (await self._graph.get(f"/teams/{klass.team_id}"))["displayName"]
         invited = await self._invitees(class_id)
         members = await self._graph.get_all(f"/teams/{klass.team_id}/members")
         present = {m["userId"]: m for m in members if "owner" not in m["roles"]}
         async with sessions().begin() as session:
+            (await session.get_one(ClassRecord, class_id)).name = name
             known = {
                 r.user_id: r
                 for r in await session.scalars(
@@ -410,3 +481,63 @@ class GraphTeams:
                     row.former_since = self._clock()
         if sorted(invited) != sorted(await self._invitees(class_id)):
             await self._invite_all(class_id)
+
+    async def search_users(self, query: str) -> list[Candidate]:
+        users = await self._graph.get_all(
+            "/users",
+            **{"$search": f'"displayName:{query}"', "$select": "id,displayName,userPrincipalName"},
+            headers={"ConsistencyLevel": "eventual"},
+        )
+        return [
+            Candidate(user_id=u["id"], display_name=u["displayName"], upn=u["userPrincipalName"])
+            for u in users
+        ]
+
+    async def create_class(self, name: str, student_user_ids: list[str]) -> Class:
+        owner = get_settings().m365_teacher_oid
+        response = await self._graph.request(
+            "POST",
+            "/teams",
+            json={
+                "template@odata.bind": f"{BASE}/teamsTemplates('standard')",
+                "displayName": name,
+                "visibility": "Private",
+                "members": [_member(owner, "owner"), *(_member(u) for u in student_user_ids)],
+            },
+        )
+        team_id = re.search(r"'([^']+)'", response.headers["Content-Location"])[1]
+        operation = re.search(r"operations\('([^']+)'\)", response.headers["Location"])[1]
+        await self._graph.wait_for(f"/teams/{team_id}/operations/{operation}")
+        return await self._link(team_id, name)
+
+    async def add_student(self, class_id: str, user_id: str) -> Student:
+        klass = await self.get_class(class_id)
+        await self._graph.request("POST", f"/teams/{klass.team_id}/members", json=_member(user_id))
+        await self.sync_roster(class_id)
+        return next(s for s in await self.list_students(class_id) if s.user_id == user_id)
+
+    async def remove_student(self, class_id: str, user_id: str) -> None:
+        klass = await self.get_class(class_id)
+        members = await self._graph.get_all(f"/teams/{klass.team_id}/members")
+        for member in members:
+            if member["userId"] == user_id:
+                await self._graph.request(
+                    "DELETE", f"/teams/{klass.team_id}/members/{member['id']}"
+                )
+        await self.sync_roster(class_id)
+
+    async def rename_class(self, class_id: str, name: str) -> Class:
+        klass = await self.get_class(class_id)
+        await self._graph.request("PATCH", f"/teams/{klass.team_id}", json={"displayName": name})
+        async with sessions().begin() as session:
+            row = await session.get_one(ClassRecord, class_id)
+            row.name = name
+        return klass.model_copy(update={"name": name})
+
+
+def _member(user_id: str, *roles: str) -> dict:
+    return {
+        "@odata.type": "#microsoft.graph.aadUserConversationMember",
+        "roles": list(roles),
+        "user@odata.bind": f"{BASE}/users('{user_id}')",
+    }

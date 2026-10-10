@@ -9,6 +9,7 @@ from classlop.teams.graph import GRAPH_SCOPES, GraphClient
 from classlop.teams.types import (
     AlreadyLinked,
     CalendarQuestion,
+    Candidate,
     Class,
     Lesson,
     NotOwner,
@@ -23,6 +24,7 @@ __all__ = [
     "GRAPH_SCOPES",
     "AlreadyLinked",
     "CalendarQuestion",
+    "Candidate",
     "Class",
     "Lesson",
     "NotOwner",
@@ -32,9 +34,13 @@ __all__ = [
     "Teams",
     "TimetableExists",
     "add_lesson",
+    "add_student",
     "add_timetable",
     "answer_calendar_question",
     "backend",
+    "create_class",
+    "cancel_lessons",
+    "change_slot",
     "get_class",
     "link_team",
     "list_calendar_questions",
@@ -43,6 +49,10 @@ __all__ = [
     "list_owned_teams",
     "list_students",
     "sync_calendar",
+    "remove_student",
+    "rename_class",
+    "search_users",
+    "set_lesson_topic",
     "sync_roster",
 ]
 
@@ -91,6 +101,30 @@ async def sync_roster(class_id: str) -> None:
     await backend().sync_roster(class_id)
 
 
+async def search_users(query: str) -> list[Candidate]:
+    """Tenant users to pick as Students, by name."""
+    return await backend().search_users(query)
+
+
+async def create_class(name: str, student_user_ids: list[str]) -> Class:
+    """Create a Private team (the Teacher as owner, the users as members) and link it."""
+    return await backend().create_class(name, student_user_ids)
+
+
+async def add_student(class_id: str, user_id: str) -> Student:
+    return await backend().add_student(class_id, user_id)
+
+
+async def remove_student(class_id: str, user_id: str) -> None:
+    """Removes them from the team; they become a Former student."""
+    await backend().remove_student(class_id, user_id)
+
+
+async def rename_class(class_id: str, name: str) -> Class:
+    """Renames the Class and its team."""
+    return await backend().rename_class(class_id, name)
+
+
 async def add_timetable(class_id: str, slots: list[Slot], school_year_end: date) -> None:
     """Enter the Class's Timetable: each slot becomes a recurring Teams event."""
     await backend().add_timetable(class_id, slots, school_year_end)
@@ -116,3 +150,18 @@ async def list_calendar_questions() -> list[CalendarQuestion]:
 
 async def answer_calendar_question(question_id: str, answer: str) -> None:
     await backend().answer_calendar_question(question_id, answer)
+
+
+async def cancel_lessons(class_id: str, first: date, last: date) -> None:
+    """Cancel every Lesson from `first` to `last` (a break); they keep their Lesson topic."""
+    await backend().cancel_lessons(class_id, first, last)
+
+
+async def change_slot(class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+    """Change a Timetable slot from a date: the old series ends the day before."""
+    await backend().change_slot(class_id, old, new, from_date)
+
+
+async def set_lesson_topic(class_id: str, lesson_id: str, topic: str) -> Lesson:
+    """Set a Lesson's topic, which also becomes its Teams event title."""
+    return await backend().set_lesson_topic(class_id, lesson_id, topic)

@@ -11,28 +11,42 @@ from zoneinfo import ZoneInfo
 import httpx
 
 PAGE_SIZE = 2
+# A new team is not ready on the first poll, as in Graph.
+CREATION_POLLS = 2
 _DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
 class FakeGraph:
     def __init__(self, teacher_id: str):
         self.teacher_id = teacher_id
+        self.users: dict[str, tuple[str, str]] = {}
         self.teams: dict[str, dict] = {}
+        self._operations: dict[str, int] = {}
         self.events: dict[str, dict] = {}
-        # What calendarView delta reports: (kind, event or occurrence id), in order.
-        self.changes: list[tuple[str, str]] = []
+        # The events calendarView delta reports as changed, in order.
+        self.changes: list[str] = []
         self.transport = httpx.MockTransport(self._handle)
 
+    def add_user(self, name: str) -> str:
+        user_id = str(uuid.uuid4())
+        self.users[user_id] = (name, _upn(name))
+        return user_id
+
     def add_team(self, name: str, *, owner: str | None = None) -> str:
+        team_id = self._new_team(name, "public")
+        self._join(team_id, owner or self.teacher_id, "Anna Nowak", owner=True)
+        return team_id
+
+    def _new_team(self, name: str, visibility: str) -> str:
         team_id = str(uuid.uuid4())
         general = self._channel_id()
         self.teams[team_id] = {
             "name": name,
             "channel": general,
             "channels": [general],
+            "visibility": visibility,
             "members": {},
         }
-        self._join(team_id, owner or self.teacher_id, "Anna Nowak", owner=True)
         return team_id
 
     def add_member(
@@ -47,6 +61,18 @@ class FakeGraph:
 
     def make_owner(self, team_id: str, user_id: str) -> None:
         self.teams[team_id]["members"][user_id]["roles"] = ["owner"]
+
+    def rename_team(self, team_id: str, name: str) -> None:
+        self.teams[team_id]["name"] = name
+
+    def team_name(self, team_id: str) -> str:
+        return self.teams[team_id]["name"]
+
+    def team_members(self, team_id: str) -> set[str]:
+        return set(self.teams[team_id]["members"])
+
+    def team_is_private(self, team_id: str) -> bool:
+        return self.teams[team_id]["visibility"] == "private"
 
     @staticmethod
     def _channel_id() -> str:
@@ -92,22 +118,20 @@ class FakeGraph:
 
     def reschedule(self, event_id: str, start: datetime, end: datetime) -> None:
         """A time change made in Teams, of an event or of one occurrence of a series."""
-        master, _, day = event_id.partition("@")
-        event = self.events[master]
-        if day:
-            event.setdefault("moved", {})[day] = (start, end)
-        else:
-            event["start"], event["end"] = self._local(start), self._local(end)
-        self.changes.append(("changed", master))
+        self._edit(event_id, {"start": self._local(start), "end": self._local(end)})
 
     def cancel(self, event_id: str) -> None:
-        """A cancellation made in Teams: the event leaves the Teacher's calendar."""
-        master, _, day = event_id.partition("@")
+        """A cancellation made in Teams: the event stays, cancelled."""
+        self._edit(event_id, {"isCancelled": True})
+
+    def _edit(self, event_id: str, body: dict) -> None:
+        base, _, day = event_id.partition("@")
+        event = self.events[base]
         if day:
-            self.events[master].setdefault("cancelled", set()).add(day)
+            event.setdefault("exceptions", {}).setdefault(day, {}).update(body)
         else:
-            del self.events[master]
-        self.changes.append(("removed", event_id))
+            event.update(body)
+        self.changes.append(base)
 
     @staticmethod
     def _local(when: datetime) -> dict:
@@ -117,19 +141,23 @@ class FakeGraph:
     def event_of(self, event_id: str) -> tuple[str, set[str]]:
         """The subject and invitee addresses of an event or of an occurrence of a series."""
         event = self.events[event_id.split("@")[0]]
-        return event["subject"], {a["emailAddress"]["address"] for a in event["attendees"]}
+        subject = event.get("exceptions", {}).get(event_id.partition("@")[2], {}).get("subject")
+        return subject or event["subject"], {
+            a["emailAddress"]["address"] for a in event["attendees"]
+        }
 
     def _join(self, team_id: str, user_id: str, name: str, *, owner: bool) -> None:
-        upn = name.lower().replace(" ", ".") + "@example.org"
         self.teams[team_id]["members"][user_id] = {
+            "id": str(uuid.uuid4()),
             "userId": user_id,
             "displayName": name,
-            "email": upn,
+            "email": _upn(name),
             "roles": ["owner"] if owner else [],
         }
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path.removeprefix("/v1.0")
+        method = request.method
         if path == "/me/ownedObjects/microsoft.graph.group":
             mine = [
                 {"id": i, "displayName": t["name"], "resourceProvisioningOptions": ["Team"]}
@@ -138,13 +166,42 @@ class FakeGraph:
                 and "owner" in t["members"][self.teacher_id]["roles"]
             ]
             return self._page(request, mine)
+        if path == "/users":
+            return self._search_users(request)
+        if path == "/teams" and method == "POST":
+            return self._create_team(json.loads(request.content))
+        if match := re.fullmatch(r"/teams/([^/]+)/operations/([^/]+)", path):
+            polls = self._operations[match[2]] = self._operations[match[2]] + 1
+            status = "succeeded" if polls >= CREATION_POLLS else "inProgress"
+            return httpx.Response(200, json={"id": match[2], "status": status})
+        if match := re.fullmatch(r"/teams/([^/]+)", path):
+            if (team := self.teams.get(match[1])) is None:
+                return _not_found()
+            if method == "PATCH":
+                team["name"] = json.loads(request.content)["displayName"]
+                return httpx.Response(204)
+            return httpx.Response(200, json={"id": match[1], "displayName": team["name"]})
         if match := re.fullmatch(r"/teams/([^/]+)/members", path):
             if (team := self.teams.get(match[1])) is None:
-                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+                return _not_found()
+            if method == "POST":
+                body = json.loads(request.content)
+                user_id = _bound_user(body)
+                name = self._name(user_id)
+                self._join(match[1], user_id, name, owner="owner" in body.get("roles", []))
+                return httpx.Response(201, json=team["members"][user_id])
             return self._page(request, list(team["members"].values()))
+        if match := re.fullmatch(r"/teams/([^/]+)/members/([^/]+)", path):
+            if (team := self.teams.get(match[1])) is None:
+                return _not_found()
+            for user_id, member in team["members"].items():
+                if member["id"] == match[2]:
+                    del team["members"][user_id]
+                    return httpx.Response(204)
+            return _not_found()
         if match := re.fullmatch(r"/teams/([^/]+)/primaryChannel", path):
             if (team := self.teams.get(match[1])) is None:
-                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+                return _not_found()
             return httpx.Response(200, json={"id": team["channel"], "displayName": "General"})
         if path == "/me/events" and request.method == "POST":
             return self._create_event(json.loads(request.content))
@@ -152,20 +209,61 @@ class FakeGraph:
             return self._delta(request)
         if match := re.fullmatch(r"/teams/([^/]+)/channels", path):
             if (team := self.teams.get(match[1])) is None:
-                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+                return _not_found()
             return self._page(request, [{"id": c} for c in team["channels"]])
+        if match := re.fullmatch(r"/me/events/([^/]+)/cancel", path):
+            return self._change(match[1], {"isCancelled": True}, request)
         if match := re.fullmatch(r"/me/events/([^/]+)", path):
-            if (event := self.events.get(match[1])) is None:
-                return httpx.Response(404, json={"error": {"code": "NotFound"}})
-            if request.method == "PATCH":
-                event.update(json.loads(request.content))
-                self.changes.append(("changed", event["id"]))
-            return httpx.Response(200, json=self._shown(event))
+            return self._change(match[1], json.loads(request.content or b"{}"), request)
         if match := re.fullmatch(r"/me/events/([^/]+)/instances", path):
             if (event := self.events.get(match[1])) is None:
                 return httpx.Response(404, json={"error": {"code": "NotFound"}})
             return self._page(request, self._instances(event, request.url.params))
         return httpx.Response(404, json={"error": {"code": "UnknownRoute", "message": path}})
+
+    def _name(self, user_id: str) -> str:
+        return self.users[user_id][0] if user_id in self.users else "Anna Nowak"
+
+    def _create_team(self, body: dict) -> httpx.Response:
+        team_id = self._new_team(body["displayName"], body["visibility"].lower())
+        for member in body["members"]:
+            user_id = _bound_user(member)
+            self._join(team_id, user_id, self._name(user_id), owner="owner" in member["roles"])
+        operation = str(uuid.uuid4())
+        self._operations[operation] = 0
+        return httpx.Response(
+            202,
+            headers={
+                "Location": f"/teams('{team_id}')/operations('{operation}')",
+                "Content-Location": f"/teams('{team_id}')",
+            },
+        )
+
+    def _search_users(self, request: httpx.Request) -> httpx.Response:
+        if request.headers.get("ConsistencyLevel") != "eventual":
+            return httpx.Response(400, json={"error": {"code": "Request_UnsupportedQuery"}})
+        term = request.url.params["$search"].strip('"').removeprefix("displayName:").lower()
+        found = [
+            {"id": i, "displayName": name, "userPrincipalName": upn}
+            for i, (name, upn) in self.users.items()
+            if any(word.startswith(term) for word in name.lower().split())
+        ]
+        return self._page(request, found)
+
+    def _change(self, event_id: str, body: dict, request: httpx.Request) -> httpx.Response:
+        """Read or change an event, or one occurrence of a series (an exception to it)."""
+        base, _, day = event_id.partition("@")
+        if (event := self.events.get(base)) is None:
+            return httpx.Response(404, json={"error": {"code": "NotFound"}})
+        if request.method != "GET":
+            if day:
+                event.setdefault("exceptions", {}).setdefault(day, {}).update(body)
+            else:
+                event.update(body)
+            self.changes.append(base)
+        if day:
+            return httpx.Response(200, json=self._occurrence(event, date.fromisoformat(day)))
+        return httpx.Response(200, json=self._shown(event))
 
     def _create_event(self, body: dict) -> httpx.Response:
         event_id = str(uuid.uuid4())
@@ -174,7 +272,7 @@ class FakeGraph:
             "id": event_id,
             "onlineMeeting": {"joinUrl": f"https://teams.example.org/l/{event_id}"},
         }
-        self.changes.append(("changed", event_id))
+        self.changes.append(event_id)
         return httpx.Response(201, json=self._shown(self.events[event_id]))
 
     @staticmethod
@@ -186,38 +284,34 @@ class FakeGraph:
         }
 
     def _shown(self, event: dict) -> dict:
-        plain = {k: v for k, v in event.items() if k not in ("moved", "cancelled")}
-        return {**plain, "start": self._utc(event["start"]), "end": self._utc(event["end"])}
+        return {**event, "start": self._utc(event["start"]), "end": self._utc(event["end"])}
+
+    def _occurrence(self, event: dict, day: date) -> dict:
+        start = datetime.fromisoformat(event["start"]["dateTime"])
+        length = datetime.fromisoformat(event["end"]["dateTime"]) - start
+        start = datetime.combine(day, start.time())
+        zone = event["start"]["timeZone"]
+        return self._shown(
+            {
+                **event,
+                "id": f"{event['id']}@{day}",
+                "start": {"dateTime": start.isoformat(), "timeZone": zone},
+                "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
+                **event.get("exceptions", {}).get(str(day), {}),
+            }
+        )
 
     def _instances(self, event: dict, params) -> list[dict]:
-        window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
         if "recurrence" not in event:
-            shown = self._shown(event)
-            begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
-            return [shown] if window[0] <= begins < window[1] else []
+            return [self._shown(event)]
+        window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
         rng = event["recurrence"]["range"]
         day, last = date.fromisoformat(rng["startDate"]), date.fromisoformat(rng["endDate"])
         weekday = _DAYS.index(event["recurrence"]["pattern"]["daysOfWeek"][0])
-        first = datetime.fromisoformat(event["start"]["dateTime"]).time()
-        length = datetime.fromisoformat(event["end"]["dateTime"]) - datetime.fromisoformat(
-            event["start"]["dateTime"]
-        )
         out = []
         while day <= last:
-            if day.weekday() == weekday and str(day) not in event.get("cancelled", ()):
-                start = datetime.combine(day, first)
-                zone = event["start"]["timeZone"]
-                occurrence = {
-                    **event,
-                    "id": f"{event['id']}@{day}",
-                    "start": {"dateTime": start.isoformat(), "timeZone": zone},
-                    "end": {"dateTime": (start + length).isoformat(), "timeZone": zone},
-                }
-                if str(day) in event.get("moved", ()):
-                    occurrence["start"], occurrence["end"] = map(
-                        self._local, event["moved"][str(day)]
-                    )
-                shown = self._shown(occurrence)
+            if day.weekday() == weekday:
+                shown = self._occurrence(event, day)
                 begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
                 if window[0] <= begins < window[1]:
                     out.append(shown)
@@ -226,16 +320,16 @@ class FakeGraph:
 
     def _delta(self, request: httpx.Request) -> httpx.Response:
         params = request.url.params
-        rows: dict[str, dict] = {}
-        for kind, event_id in self.changes[int(params.get("$deltatoken", 0)) :]:
-            if kind == "removed":
-                rows[event_id] = {"id": event_id, "@removed": {"reason": "deleted"}}
-            elif event := self.events.get(event_id):
-                series = event_id if "recurrence" in event else None
-                for shown in self._instances(event, params):
-                    rows[shown["id"]] = {**shown, "seriesMasterId": series}
-        response = self._page(request, list(rows.values()))
-        body = json.loads(response.content)
+        window = [datetime.fromisoformat(params[k]) for k in ("startDateTime", "endDateTime")]
+        rows = []
+        for event_id in dict.fromkeys(self.changes[int(params.get("$deltatoken", 0)) :]):
+            event = self.events[event_id]
+            series = event_id if "recurrence" in event else None
+            for shown in self._instances(event, params):
+                begins = datetime.fromisoformat(shown["start"]["dateTime"]).replace(tzinfo=UTC)
+                if window[0] <= begins < window[1]:
+                    rows.append({**shown, "seriesMasterId": series})
+        body = json.loads(self._page(request, rows).content)
         if "@odata.nextLink" not in body:
             link = request.url.copy_remove_param("skip")
             body["@odata.deltaLink"] = str(link.copy_set_param("$deltatoken", len(self.changes)))
@@ -247,3 +341,15 @@ class FakeGraph:
         if start + PAGE_SIZE < len(rows):
             body["@odata.nextLink"] = str(request.url.copy_set_param("skip", start + PAGE_SIZE))
         return httpx.Response(200, json=body)
+
+
+def _upn(name: str) -> str:
+    return name.lower().replace(" ", ".") + "@example.org"
+
+
+def _bound_user(member: dict) -> str:
+    return re.search(r"users\('([^']+)'\)", member["user@odata.bind"])[1]
+
+
+def _not_found() -> httpx.Response:
+    return httpx.Response(404, json={"error": {"code": "NotFound"}})

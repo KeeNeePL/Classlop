@@ -66,24 +66,35 @@ def tenant(request, clock):
     if request.param == "fake":
         return FakeTeams(clock=clock)
     graph = FakeGraph(TEACHER)
-    area = GraphTeams(GraphClient(token=lambda: _token(), transport=graph.transport), clock=clock)
-    return Tenant(area, graph)
+    tenant = Tenant(graph)
 
+    async def token() -> str:
+        if tenant.lapsed:
+            raise jobs.SignInRequired
+        return "token"
 
-async def _token() -> str:
-    return "token"
+    tenant.area = GraphTeams(
+        GraphClient(token=token, transport=graph.transport, sleep=_ignore), clock=clock
+    )
+    return tenant
 
 
 class Tenant:
     """The real area plus the fake Microsoft behind it."""
 
-    def __init__(self, area: GraphTeams, graph: FakeGraph):
-        self.area, self.graph = area, graph
+    def __init__(self, graph: FakeGraph):
+        self.graph, self.lapsed = graph, False
         self.add_team, self.add_member = graph.add_team, graph.add_member
         self.remove_member, self.make_owner = graph.remove_member, graph.make_owner
+        self.add_user, self.rename_team = graph.add_user, graph.rename_team
+        self.team_members, self.team_name = graph.team_members, graph.team_name
+        self.team_is_private = graph.team_is_private
         self.event_of = graph.event_of
         self.add_channel, self.add_meeting = graph.add_channel, graph.add_meeting
         self.reschedule, self.cancel = graph.reschedule, graph.cancel
+
+    def lapse_sign_in(self) -> None:
+        self.lapsed = True
 
     def __getattr__(self, name):
         return getattr(self.area, name)
@@ -301,6 +312,134 @@ async def test_a_single_lesson_follows_the_roster_too(tenant):
     assert len(tenant.event_of(lesson.id)[1]) == 2
 
 
+def _days(lessons):
+    return [x.start.day for x in lessons]
+
+
+async def test_cancelling_a_date_range_cancels_every_occurrence_in_it(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8, WEDNESDAY_9], YEAR_END)
+    start = datetime(2026, 9, 15, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 21))
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert len(lessons) == 10
+    assert _days([x for x in lessons if x.cancelled]) == [14, 15, 16, 21]
+    cancelled_single = next(x for x in lessons if x.id == single.id)
+    assert (cancelled_single.cancelled, cancelled_single.topic) == (True, "Wzory")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 21))
+    assert len([x for x in await tenant.list_lessons(linked.id) if x.cancelled]) == 4
+
+
+async def test_a_cancelled_lesson_keeps_its_topic(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    monday = (await tenant.list_lessons(linked.id))[1]
+    await tenant.set_lesson_topic(linked.id, monday.id, "Wzory skroconego mnozenia")
+
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 14))
+
+    cancelled = (await tenant.list_lessons(linked.id))[1]
+    assert (cancelled.cancelled, cancelled.topic) == (True, "Wzory skroconego mnozenia")
+
+
+async def test_changing_a_slot_ends_the_old_series_and_starts_a_new_one(tenant):
+    team, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    past = (await tenant.list_lessons(linked.id))[0]
+    await tenant.set_lesson_topic(linked.id, past.id, "Potegi")
+    tuesday = teams.Slot(weekday=1, start=time(10, 0), end=time(10, 45))
+
+    await tenant.change_slot(linked.id, MONDAY_8, tuesday, date(2026, 9, 21))
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert [(x.start.weekday(), x.start.day) for x in lessons] == [
+        (0, 7),
+        (0, 14),
+        (1, 22),
+        (1, 29),
+    ]
+    assert lessons[0].topic == "Potegi"
+    assert lessons[2].start == datetime(2026, 9, 22, 10, 0, tzinfo=WARSAW)
+    assert lessons[2].join_url != lessons[0].join_url
+    assert tenant.event_of(lessons[2].id) == ("2A matematyka", {"jan.kowalski@example.org"})
+
+    tenant.add_member(team, "Ewa Zielinska")
+    await tenant.sync_roster(linked.id)
+    assert len(tenant.event_of(lessons[2].id)[1]) == 2
+
+
+async def test_a_slot_changes_only_from_after_its_first_lesson(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+
+    with pytest.raises(ValueError):
+        await tenant.change_slot(linked.id, MONDAY_8, WEDNESDAY_9, date(2026, 9, 7))
+    with pytest.raises(LookupError):
+        await tenant.change_slot(linked.id, WEDNESDAY_9, MONDAY_8, date(2026, 9, 21))
+    assert len(await tenant.list_lessons(linked.id)) == 4
+
+
+async def test_a_slot_can_change_twice(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    await tenant.change_slot(linked.id, MONDAY_8, WEDNESDAY_9, date(2026, 9, 14))
+    await tenant.change_slot(linked.id, WEDNESDAY_9, MONDAY_8, date(2026, 9, 24))
+
+    assert _days(await tenant.list_lessons(linked.id)) == [7, 16, 23, 28]
+
+
+async def test_a_lesson_topic_goes_into_the_occurrence_title(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    first, second = (await tenant.list_lessons(linked.id))[:2]
+
+    set_topic = await tenant.set_lesson_topic(linked.id, first.id, "Funkcje liniowe")
+
+    assert set_topic.topic == "Funkcje liniowe"
+    assert tenant.event_of(first.id)[0] == "2A matematyka: Funkcje liniowe"
+    assert tenant.event_of(second.id)[0] == "2A matematyka"
+    lessons = await tenant.list_lessons(linked.id)
+    assert [x.topic for x in lessons[:2]] == ["Funkcje liniowe", None]
+
+    await tenant.set_lesson_topic(linked.id, first.id, " Funkcje kwadratowe ")
+    assert (await tenant.list_lessons(linked.id))[0].topic == "Funkcje kwadratowe"
+    assert tenant.event_of(first.id)[0] == "2A matematyka: Funkcje kwadratowe"
+
+
+async def test_a_topic_cannot_be_cleared_to_empty(tenant):
+    _, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    occurrence = (await tenant.list_lessons(linked.id))[0]
+    await tenant.set_lesson_topic(linked.id, occurrence.id, "Potegi")
+
+    for lesson in (single, occurrence):
+        with pytest.raises(ValueError):
+            await tenant.set_lesson_topic(linked.id, lesson.id, "  ")
+
+    assert tenant.event_of(single.id)[0] == "2A matematyka: Wzory"
+    assert tenant.event_of(occurrence.id)[0] == "2A matematyka: Potegi"
+    assert {x.topic for x in await tenant.list_lessons(linked.id)} >= {"Wzory", "Potegi"}
+
+
+async def test_a_single_lessons_topic_can_change(tenant):
+    _, linked = await _class_with_jan(tenant)
+    start = datetime(2026, 9, 12, 10, 0, tzinfo=WARSAW)
+    single = await tenant.add_lesson(linked.id, start, start + timedelta(minutes=45), "Wzory")
+
+    await tenant.set_lesson_topic(linked.id, single.id, "Ulamki")
+
+    assert (await tenant.list_lessons(linked.id))[0].topic == "Ulamki"
+    assert tenant.event_of(single.id)[0] == "2A matematyka: Ulamki"
+    with pytest.raises(LookupError):
+        await tenant.set_lesson_topic(linked.id, "no-such-lesson", "Ulamki")
+
+
 async def test_roster_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeypatch):
     team = tenant.add_team("2A matematyka")
     linked = await tenant.link_team(team)
@@ -513,14 +652,25 @@ async def test_calendar_sync_is_a_job_that_runs_every_15_minutes(tenant, monkeyp
     assert (row.kind, row.every_seconds) == ("teams.sync_calendar", 15 * 60)
 
 
-async def test_a_lapsed_sign_in_raises_what_parks_a_job(monkeypatch):
-    async def lapsed(scopes):
-        raise jobs.SignInRequired
+async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant):
+    team = tenant.add_team("2A matematyka")
+    linked = await tenant.link_team(team)
+    tenant.lapse_sign_in()
 
-    monkeypatch.setattr("classlop.teams.graph.graph_token", lapsed)
-    monkeypatch.setattr(teams, "_backend", GraphTeams(GraphClient()))
-    with pytest.raises(jobs.SignInRequired):
-        await teams.list_owned_teams()
+    for call in (
+        tenant.list_owned_teams(),
+        tenant.link_team(team),
+        tenant.sync_roster(linked.id),
+        tenant.sync_calendar(),
+        tenant.add_lesson(
+            linked.id,
+            datetime(2026, 9, 2, 8, tzinfo=UTC),
+            datetime(2026, 9, 2, 8, 45, tzinfo=UTC),
+            "Funkcje",
+        ),
+    ):
+        with pytest.raises(jobs.SignInRequired):
+            await call
 
 
 async def test_the_fake_backend_serves_the_interface(monkeypatch):
@@ -532,3 +682,87 @@ async def test_the_fake_backend_serves_the_interface(monkeypatch):
 
     assert linked.name == team.name
     assert await teams.list_students(linked.id)
+
+
+async def test_creating_a_class_creates_a_private_team_with_the_picked_students(tenant):
+    jan = tenant.add_user("Jan Kowalski")
+    ewa = tenant.add_user("Ewa Zielinska")
+
+    created = await tenant.create_class("2A matematyka", [jan, ewa])
+
+    assert created.name == "2A matematyka"
+    assert created.general_channel_id
+    assert await tenant.get_class(created.id) == created
+    assert sorted(s.display_name for s in await tenant.list_students(created.id)) == [
+        "Ewa Zielinska",
+        "Jan Kowalski",
+    ]
+    assert [t.id for t in await tenant.list_owned_teams()] == [created.team_id]
+    assert tenant.team_is_private(created.team_id)
+
+
+async def test_a_created_class_cannot_be_linked_again(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    with pytest.raises(teams.AlreadyLinked):
+        await tenant.link_team(created.team_id)
+
+
+async def test_searching_tenant_users_finds_candidates_by_name(tenant):
+    jan = tenant.add_user("Jan Kowalski")
+    tenant.add_user("Ewa Zielinska")
+    tenant.add_user("Janina Nowicka")
+
+    found = await tenant.search_users("kowal")
+    assert [(c.user_id, c.display_name) for c in found] == [(jan, "Jan Kowalski")]
+    assert found[0].upn == "jan.kowalski@example.org"
+    assert [c.display_name for c in await tenant.search_users("jan")] == [
+        "Jan Kowalski",
+        "Janina Nowicka",
+    ]
+
+
+async def test_adding_a_student_adds_them_to_the_team(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+    jan = tenant.add_user("Jan Kowalski")
+
+    student = await tenant.add_student(created.id, jan)
+
+    assert (student.display_name, student.former_since) == ("Jan Kowalski", None)
+    assert [s.id for s in await tenant.list_students(created.id)] == [student.id]
+    assert jan in tenant.team_members(created.team_id)
+
+
+async def test_removing_a_student_removes_them_from_the_team_and_keeps_a_former_student(
+    tenant, clock
+):
+    jan = tenant.add_user("Jan Kowalski")
+    ewa = tenant.add_user("Ewa Zielinska")
+    created = await tenant.create_class("2A matematyka", [jan, ewa])
+
+    await tenant.remove_student(created.id, jan)
+
+    assert jan not in tenant.team_members(created.team_id)
+    by_name = {s.display_name: s for s in await tenant.list_students(created.id)}
+    assert by_name["Jan Kowalski"].former_since == clock.now
+    assert by_name["Ewa Zielinska"].former_since is None
+
+
+async def test_renaming_a_class_renames_its_team(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    renamed = await tenant.rename_class(created.id, "2A mat-fiz")
+
+    assert renamed.name == "2A mat-fiz"
+    assert (await tenant.get_class(created.id)).name == "2A mat-fiz"
+    assert tenant.team_name(created.team_id) == "2A mat-fiz"
+
+
+async def test_a_team_renamed_in_teams_renames_the_class_on_the_next_sync(tenant):
+    created = await tenant.create_class("2A matematyka", [])
+
+    tenant.rename_team(created.team_id, "2B matematyka")
+    assert (await tenant.get_class(created.id)).name == "2A matematyka"
+    await tenant.sync_roster(created.id)
+
+    assert (await tenant.get_class(created.id)).name == "2B matematyka"

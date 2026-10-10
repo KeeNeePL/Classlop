@@ -1,7 +1,7 @@
 """teams calendar sync: series, occurrences and the delta cursor
 
 Revision ID: teams_calendar
-Revises: teams_timetable
+Revises: teams_timetable_edits
 """
 
 from collections.abc import Sequence
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "teams_calendar"
-down_revision: str | Sequence[str] | None = "teams_timetable"
+down_revision: str | Sequence[str] | None = "teams_timetable_edits"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

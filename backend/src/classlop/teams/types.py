@@ -21,6 +21,14 @@ class Team(BaseModel):
     name: str
 
 
+class Candidate(BaseModel):
+    """A tenant user the Teacher may pick as a Student."""
+
+    user_id: str
+    display_name: str
+    upn: str
+
+
 class Class(BaseModel):
     id: str
     team_id: str
@@ -83,7 +91,27 @@ class Teams(Protocol):
         """Every Student, Former students included (`former_since` set)."""
         ...
 
-    async def sync_roster(self, class_id: str) -> None: ...
+    async def sync_roster(self, class_id: str) -> None:
+        """Also renames the Class to match its team."""
+        ...
+
+    async def search_users(self, query: str) -> list[Candidate]:
+        """Tenant users whose name has a word starting with `query`."""
+        ...
+
+    async def create_class(self, name: str, student_user_ids: list[str]) -> Class:
+        """A new Private team named `name`, the Teacher as owner and the users as members."""
+        ...
+
+    async def add_student(self, class_id: str, user_id: str) -> Student: ...
+
+    async def remove_student(self, class_id: str, user_id: str) -> None:
+        """Removes them from the team; they become a Former student."""
+        ...
+
+    async def rename_class(self, class_id: str, name: str) -> Class:
+        """Renames the team too."""
+        ...
 
     async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
         """One recurring online-meeting event per slot, from the next such weekday to the
@@ -110,4 +138,20 @@ class Teams(Protocol):
     async def answer_calendar_question(self, question_id: str, answer: str) -> None:
         """`answer` is one of the question's candidate Class ids, or "keep" or "hide"; it covers
         every occurrence of the series. Raises ValueError for anything else."""
+        ...
+
+    async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        """Cancel every Lesson on the dates first..last (Warsaw, inclusive). A cancelled Lesson
+        stays listed with its Lesson topic."""
+        ...
+
+    async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
+        """End the series of `old` the day before `from_date` and start one of `new` on or after
+        it, to the school-year end. Raises LookupError if `old` is not a current slot and
+        ValueError if `from_date` is not after its first Lesson."""
+        ...
+
+    async def set_lesson_topic(self, class_id: str, lesson_id: str, topic: str) -> Lesson:
+        """Set the Lesson topic and the occurrence title to "<Class>: <Lesson topic>". Raises
+        ValueError for an empty topic and LookupError for a Lesson not in the Class."""
         ...
