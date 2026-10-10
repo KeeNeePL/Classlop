@@ -14,6 +14,7 @@ from classlop.teams.fake_giving import FakeGiving
 from classlop.teams.fake_handins import FakeHandIns
 from classlop.teams.fake_lifecycle import FakeLifecycle
 from classlop.teams.fake_reminding import FakeReminding
+from classlop.teams.fake_returning import FakeReturning
 from classlop.teams.lifecycle import writable
 from classlop.teams.service import (
     AFTER,
@@ -45,12 +46,13 @@ from classlop.teams.types import (
 )
 
 
-class FakeTeams(FakeGiving, FakeHandIns, FakeLifecycle, FakeReminding):
+class FakeTeams(FakeGiving, FakeHandIns, FakeReturning, FakeLifecycle, FakeReminding):
     def __init__(self, clock: Callable[[], datetime] = now):
         self._clock = clock
         self._signed_in = True
         self._init_giving()
         self._init_handins()
+        self._init_returning()
         self._init_lifecycle()
         self._users: dict[str, tuple[str, str]] = {}
         self._teams: dict[str, dict] = {}

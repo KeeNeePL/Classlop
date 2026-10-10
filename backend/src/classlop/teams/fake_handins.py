@@ -60,7 +60,7 @@ class FakeHandIns:
 
     # What a test does as a Student, as FakeGraph's.
     def upload(self, user_id: str, name: str, content: bytes, folder: str | None = None) -> None:
-        shares = self._shares.get(user_id, [])
+        shares = [s for s in self._shares.get(user_id, []) if not s.file]
         share = [s for s in shares if folder in (None, s.path)][-1]
         if share.role != "write":
             raise PermissionError(f"{share.path} is read-only")
@@ -70,7 +70,8 @@ class FakeHandIns:
         )
 
     def delete_file(self, user_id: str, name: str, folder: str | None = None) -> None:
-        share = [s for s in self._shares.get(user_id, []) if folder in (None, s.path)][-1]
+        shares = [s for s in self._shares.get(user_id, []) if not s.file]
+        share = [s for s in shares if folder in (None, s.path)][-1]
         del self._drive[share.path][name]
 
     async def poll_handins(self) -> int:
@@ -188,14 +189,13 @@ class FakeHandIns:
 
     def _lock_folders(self) -> None:
         for assignment in self._assignments.values():
-            if assignment.state != "closed":
-                continue
             for submission in self._submissions[assignment.id].values():
                 hand = self._hand(submission)
-                if submission.permission_id and not hand.locked:
+                over = assignment.state == "closed" or submission.state == "returned"
+                if over and submission.permission_id and not hand.locked:
                     for shares in self._shares.values():
                         shares[:] = [
-                            Share(s.path, "read", s.url) if s.path == submission.folder_id else s
+                            s._replace(role="read") if s.path == submission.folder_id else s
                             for s in shares
                         ]
                     hand.locked = True

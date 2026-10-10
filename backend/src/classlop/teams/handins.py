@@ -9,7 +9,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from classlop.shared import jobs, storage
 from classlop.shared.db import sessions
@@ -194,15 +194,18 @@ class HandIns:
         return changed
 
     async def _lock_folders(self) -> None:
-        """Make the sharing permission of every closed Assignment's folders read, so Students can
-        still see what they handed in but cannot add to it. A failure is tried again."""
+        """Make the sharing permission of the folders of every closed Assignment, and of every
+        returned Submission, read, so Students can still see what they handed in but cannot add to
+        it. A failure is tried again."""
         async with sessions()() as session:
             unlocked = list(
                 await session.scalars(
                     select(SubmissionRecord.id)
                     .join(AssignmentRecord, AssignmentRecord.id == SubmissionRecord.assignment_id)
                     .where(
-                        AssignmentRecord.state == "closed",
+                        or_(
+                            AssignmentRecord.state == "closed", SubmissionRecord.state == "returned"
+                        ),
                         SubmissionRecord.permission_id.is_not(None),
                         SubmissionRecord.locked.is_(False),
                     )
