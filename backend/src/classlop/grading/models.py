@@ -23,6 +23,8 @@ class GradedSubmission(Base):
 
     submission_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     handed_in_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    # Nullable only for results graded before Common mistakes existed.
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     status: Mapped[str] = mapped_column(Text)
     held_reasons: Mapped[list] = mapped_column(JSONB)
     spot_check_reasons: Mapped[list] = mapped_column(JSONB)
@@ -61,3 +63,28 @@ class GradedItem(Base):
     mistake: Mapped[str | None] = mapped_column(Text)
     # What the verification read disputed in the Transcription, or that it skipped the Item.
     verification_note: Mapped[str | None] = mapped_column(Text)
+
+
+class CommonMistake(Base):
+    """One Common mistake on one Item of one Assignment, kept per Item so a later view across
+    Assignments is only a query."""
+
+    __tablename__ = "common_mistake"
+    __table_args__ = {"schema": "grading"}
+
+    assignment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    rank: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(Text)
+    submission_ids: Mapped[list] = mapped_column(JSONB)
+
+
+class CommonMistakesRequest(Base):
+    """The latest recompute request per Assignment; older delayed jobs see it and stand down."""
+
+    __tablename__ = "common_mistakes_request"
+    __table_args__ = {"schema": "grading"}
+
+    assignment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

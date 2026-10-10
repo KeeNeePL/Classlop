@@ -10,6 +10,7 @@ from langgraph.types import Send
 from pydantic import BaseModel
 
 from classlop import items as items_area
+from classlop.grading.common_mistakes import request_common_mistakes
 from classlop.grading.models import GradedItem, GradedSubmission, Reading
 from classlop.grading.pages import pages_of, prepare
 from classlop.grading.scoring import Score, score
@@ -48,6 +49,9 @@ class GradeJob(BaseModel):
     handed_in_at: datetime
     items: list[AssignedItem]
     files: list[str]
+    assignment_id: uuid.UUID
+    # Handed in after the due time: Common mistakes are recomputed once it is graded.
+    late: bool = False
 
 
 class Input(TypedDict):
@@ -92,6 +96,7 @@ async def hold(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held,
@@ -225,6 +230,7 @@ async def assess(state: State) -> dict:
         "graded": GradedSubmission(
             submission_id=job.submission_id,
             handed_in_at=job.handed_in_at,
+            assignment_id=job.assignment_id,
             status="graded",
             held_reasons=held,
             spot_check_reasons=held + _reasons(graded, FLAG_REASONS),
@@ -238,6 +244,8 @@ async def persist(state: State) -> dict:
     async with sessions().begin() as session:
         session.add(state["graded"])
     await announce(state["job"])
+    if state["job"].late:
+        await request_common_mistakes(state["job"].assignment_id)
     return {}
 
 

@@ -32,8 +32,11 @@ def handler(kind: str) -> Callable[[Handler], Handler]:
     return register
 
 
-async def enqueue(kind: str, payload: dict | None = None, *, key: str | None = None) -> uuid.UUID:
-    """Write the job row, then send its id; the same key makes one job."""
+async def enqueue(
+    kind: str, payload: dict | None = None, *, key: str | None = None, delay: int = 0
+) -> uuid.UUID:
+    """Write the job row, then send its id, run no sooner than `delay` seconds (at most 900,
+    SQS's limit); the same key makes one job."""
     async with sessions().begin() as session:
         created = await session.scalar(
             insert(Job)
@@ -43,7 +46,7 @@ async def enqueue(kind: str, payload: dict | None = None, *, key: str | None = N
         )
         if created is None:
             return await session.scalar(select(Job.id).where(Job.key == key))  # type: ignore[return-value]
-    await queue.send({"job_id": str(created)})
+    await queue.send({"job_id": str(created)}, delay)
     return created
 
 
