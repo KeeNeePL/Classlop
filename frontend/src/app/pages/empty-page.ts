@@ -9,7 +9,7 @@ import { ActivatedRoute } from '@angular/router';
     } @else {
       <h1>{{ data.title }}</h1>
     }
-    <p class="muted">Ta strona jest jeszcze pusta.</p>
+    <p class="muted">Tu jeszcze nic nie ma.</p>
   `,
 })
 export class EmptyPage {

@@ -20,17 +20,20 @@ import { HomeStore } from '../shell/home-store';
   styles: `
     .tabs {
       display: flex;
-      gap: 6px;
-      margin: 14px 0;
+      gap: 24px;
+      margin: 20px 0 24px;
+      border-bottom: 1.5px solid var(--ink);
     }
     .tabs a {
-      padding: 4px 12px;
-      border: 1px solid var(--line);
-      border-radius: 99px;
-      background: var(--panel);
+      padding: 6px 0;
+      margin-bottom: -1.5px;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
     }
     .tabs a.on {
-      border-color: var(--accent);
+      color: var(--ink);
+      border-bottom-color: var(--pen);
     }
   `,
 })

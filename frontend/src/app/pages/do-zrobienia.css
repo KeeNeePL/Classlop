@@ -1,48 +1,100 @@
+header {
+  margin-bottom: 20px;
+}
+
 .head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+}
+
+header p {
+  margin: 6px 0 0;
 }
 
 ol {
   list-style: none;
   padding: 0;
-  margin: 14px 0;
+  margin: 0;
 }
 
 .q {
   display: grid;
-  grid-template-columns: 34px 1fr auto;
-  gap: 12px;
+  grid-template-columns: 40px 1fr auto auto;
+  gap: 16px;
   align-items: center;
-  padding: 12px 14px;
-  background: var(--panel);
+  padding: 12px 16px;
+  background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  margin-bottom: 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
 }
 
 .ico {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
   display: grid;
   place-items: center;
+  font-family: var(--display);
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
 }
 
-.ico.live {
-  background: #ffedd5;
-  color: var(--live);
+.at {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
-.ico.work {
-  background: var(--soft);
-  color: var(--accent);
+/* the teacher's red pen: what needs attention is marked in the margin */
+.problem {
+  border-left: 4px solid var(--red);
+  background: linear-gradient(90deg, var(--red-soft), var(--card) 40%);
 }
 
-.ico.problem {
-  background: #fee2e2;
-  color: #991b1b;
+.problem .ico {
+  border-color: var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  font-size: 18px;
+}
+
+.live {
+  border-color: var(--ink);
+}
+
+.live .ico {
+  position: relative;
+  background: var(--ink);
+  color: var(--card);
+}
+
+.live .ico::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1.6s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(217 58 47 / 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgb(217 58 47 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live .ico::after {
+    animation: none;
+  }
 }

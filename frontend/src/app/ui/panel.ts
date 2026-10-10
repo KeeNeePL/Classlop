@@ -8,7 +8,7 @@ import { Component } from '@angular/core';
       display: block;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 10px;
+      border-radius: 4px;
       padding: 14px 16px;
     }
   `,

@@ -56,7 +56,7 @@ def invented(now: datetime) -> Home:
         Entry(
             kind="deadline",
             title="Termin: Wzory skróconego mnożenia (1A)",
-            detail="Praca domowa · oddane 17/26",
+            detail="Praca domowa, oddane 17/26",
             at=now + timedelta(hours=9),
             link="/klasy/1a/prace/wzory",
             action="Otwórz pracę",
@@ -64,7 +64,7 @@ def invented(now: datetime) -> Home:
         Entry(
             kind="graded",
             title="Ocenione przez AI: Funkcja kwadratowa (2C)",
-            detail="Sprawdzian · średnio 64% · oddane 24/24",
+            detail="Sprawdzian, średnio 64%, oddane 24/24",
             link="/klasy/2c/prace/funkcja-kwadratowa",
             action="Zobacz",
         ),
@@ -86,7 +86,7 @@ def invented(now: datetime) -> Home:
         Entry(
             kind="graded",
             title="Ocenione przez AI: Graniastosłupy (3B)",
-            detail="Praca domowa · średnio 71% · oddane 20/22 · 2 do sprawdzenia",
+            detail="Praca domowa, średnio 71%, oddane 20/22, 2 do sprawdzenia",
             link="/klasy/3b/prace/graniastoslupy",
             action="Zobacz",
         ),

@@ -1,26 +1,22 @@
-<div class="head">
-  <h1>Do zrobienia</h1>
-  @if (home()?.entries_invented) {
-    <cl-invented />
-  }
-</div>
-<div class="muted">
-  {{ today }} · {{ count() }} {{ count() === 1 ? 'rzecz' : 'rzeczy' }} do zrobienia
-</div>
+<header>
+  <div class="head">
+    <h1>Do zrobienia</h1>
+    @if (home()?.entries_invented) {
+      <cl-invented />
+    }
+  </div>
+  <p class="muted">{{ today }}</p>
+</header>
 @if (home(); as h) {
   <ol aria-label="Do zrobienia">
     @for (e of h.entries; track $index) {
-      <li class="q">
-        <span class="ico {{ mark(e).tone }}">{{ mark(e).icon }}</span>
+      <li class="q {{ mark(e).tone }}">
+        <span class="ico">{{ mark(e).icon }}</span>
         <div>
           <b class="title">{{ e.title }}</b>
-          <div class="muted">
-            {{ e.detail }}
-            @if (e.at) {
-              · {{ at(e) }}
-            }
-          </div>
+          <div class="muted">{{ e.detail }}</div>
         </div>
+        <time class="at">{{ at(e) }}</time>
         @if (external(e)) {
           <a class="btn ghost" [href]="e.link">{{ e.action }}</a>
         } @else {
@@ -28,7 +24,7 @@
         }
       </li>
     } @empty {
-      <li class="muted">Pusto. Wszystko zrobione.</li>
+      <li class="muted">Wszystko zrobione.</li>
     }
   </ol>
 }

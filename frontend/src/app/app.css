@@ -1,24 +1,25 @@
 .shell {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .lapsed {
-  background: #fef3c7;
-  color: #92400e;
-  border-bottom: 1px solid #f5d98b;
-  padding: 8px 32px;
+  background: var(--red-soft);
+  color: var(--ink);
+  border-bottom: 2px solid var(--red);
+  padding: 10px 40px;
+  font-weight: 600;
 }
 
 .lapsed a {
-  color: inherit;
-  font-weight: 600;
+  color: var(--red);
   text-decoration: underline;
-  margin-left: 6px;
+  text-underline-offset: 3px;
+  margin-left: 8px;
 }
 
 main {
-  padding: 24px 32px 48px;
-  max-width: 1080px;
+  padding: 36px 40px 64px;
+  max-width: 1040px;
 }

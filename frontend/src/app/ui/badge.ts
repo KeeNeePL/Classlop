@@ -9,26 +9,26 @@ import { Component, input } from '@angular/core';
       display: inline-block;
       font-size: 11px;
       padding: 1px 7px;
-      border-radius: 99px;
-      background: #eceff3;
-      color: #374151;
+      border-radius: 3px;
+      background: var(--grid);
+      color: var(--ink);
       white-space: nowrap;
     }
     :host(.live) {
-      background: #ffedd5;
-      color: var(--live);
+      background: var(--red-soft);
+      color: var(--red);
     }
     :host(.warn) {
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--marker);
+      color: var(--ink);
     }
     :host(.danger) {
-      background: #fee2e2;
-      color: #991b1b;
+      background: var(--red-soft);
+      color: var(--red);
     }
     :host(.ok) {
-      background: #dcfce7;
-      color: #166534;
+      background: #e1f4e8;
+      color: #1d6b3c;
     }
   `,
 })

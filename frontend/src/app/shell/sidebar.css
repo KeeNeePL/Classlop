@@ -2,9 +2,10 @@ nav {
   position: sticky;
   top: 0;
   height: 100vh;
-  background: var(--side);
-  color: #d6dbe3;
-  padding: 16px 10px;
+  background: var(--paper);
+  /* the margin line of an exercise book */
+  border-right: 2px solid var(--red);
+  padding: 20px 14px 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -13,44 +14,56 @@ nav {
 a {
   display: flex;
   justify-content: space-between;
-  padding: 7px 10px;
-  border-radius: 6px;
-  color: inherit;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--ink);
 }
 
-a.on {
-  background: #334155;
-  color: #fff;
+a:hover {
+  background: var(--grid);
+}
+
+/* the active entry is marked with a highlighter */
+a.on .name {
+  background: linear-gradient(transparent 55%, var(--marker) 55%);
+  font-weight: 700;
 }
 
 .logo {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  padding: 4px 10px 14px;
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  padding: 0 8px 14px;
 }
 
 .invented {
-  padding: 0 10px 8px;
+  padding: 0 8px 10px;
 }
 
 .label {
-  padding: 16px 10px 4px;
-  font-size: 11px;
-  text-transform: uppercase;
-  color: #8a94a6;
+  padding: 18px 8px 4px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .new {
-  color: #93b4ff;
+  color: var(--pen);
+  font-weight: 600;
 }
 
+/* circled with the red pen */
 .count {
-  background: var(--danger);
-  color: #fff;
-  border-radius: 99px;
-  font-size: 11px;
-  padding: 0 7px;
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--red);
+  border-radius: 50%;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .count:empty {
@@ -59,19 +72,25 @@ a.on {
 
 .bottom {
   margin-top: auto;
-  border-top: 1px solid #334155;
+  border-top: 1px solid var(--line);
   padding-top: 8px;
 }
 
 .teacher {
   display: flex;
   justify-content: space-between;
-  padding: 7px 10px;
-  font-size: 12px;
-  color: #8a94a6;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .teacher a {
+  display: inline;
   padding: 0;
-  color: #93b4ff;
+  color: var(--pen);
+}
+
+.teacher a:hover {
+  background: none;
+  text-decoration: underline;
 }

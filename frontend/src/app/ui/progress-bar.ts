@@ -7,8 +7,8 @@ import { Component, computed, input } from '@angular/core';
     :host {
       display: block;
       height: 8px;
-      border-radius: 99px;
-      background: #eceff3;
+      border-radius: 2px;
+      background: var(--grid);
       overflow: hidden;
     }
     i {

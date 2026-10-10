@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Entry } from '../api/models';
 import { HomeStore } from '../shell/home-store';
@@ -23,7 +23,6 @@ const MARK: Record<Entry['kind'], { icon: string; tone: string }> = {
 export class DoZrobienia {
   protected readonly home = inject(HomeStore).home;
   protected readonly today = today();
-  protected readonly count = computed(() => this.home()?.entries.length ?? 0);
   protected readonly mark = (entry: Entry) => MARK[entry.kind];
 
   protected external(entry: Entry): boolean {

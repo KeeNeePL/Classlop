@@ -5,22 +5,22 @@
       <div class="invented"><cl-invented /></div>
     }
     <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }">
-      Do zrobienia <span class="count">{{ h.entries.length || '' }}</span>
+      <span class="name">Do zrobienia</span> <span class="count">{{ h.entries.length || '' }}</span>
     </a>
-    <a routerLink="/ai" routerLinkActive="on">Classlop AI</a>
+    <a routerLink="/ai" routerLinkActive="on"><span class="name">Classlop AI</span></a>
     <a routerLink="/bank" routerLinkActive="on">
-      Bank zadań <span class="count">{{ h.flagged_items || '' }}</span>
+      <span class="name">Bank zadań</span> <span class="count">{{ h.flagged_items || '' }}</span>
     </a>
     <div class="label">Klasy</div>
     @for (c of h.classes; track c.id) {
       <a [routerLink]="['/klasy', c.id]" routerLinkActive="on">
-        Klasa {{ c.name }} <span class="count">{{ c.graded || '' }}</span>
+        <span class="name">Klasa {{ c.name }}</span> <span class="count">{{ c.graded || '' }}</span>
       </a>
     }
     <a class="new" routerLink="/klasy/nowa">+ Nowa klasa</a>
   }
   <div class="bottom">
-    <a routerLink="/ustawienia" routerLinkActive="on">Ustawienia</a>
+    <a routerLink="/ustawienia" routerLinkActive="on"><span class="name">Ustawienia</span></a>
     @if (name(); as name) {
       <div class="teacher">
         <span>{{ name }}</span>

@@ -1,15 +1,21 @@
-/* The look of both prototypes (prototypes/12-home-and-class-tab, prototypes/17-ai-tab). */
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/public-sans';
+
+/* A maths exercise book: squared paper, the red margin line, blue pen, the teacher's red pen. */
 :root {
-  --bg: #f5f6f8;
-  --panel: #fff;
-  --ink: #1c2128;
-  --muted: #6b7280;
-  --line: #e3e6ea;
-  --accent: #2457d6;
-  --live: #c2410c;
-  --soft: #eef3ff;
-  --danger: #ef4444;
-  --side: #1f2633;
+  --paper: #fafbfd;
+  --grid: #dce4f0;
+  --card: #fff;
+  --ink: #16233f;
+  --muted: #5b6882;
+  --line: #cbd5e5;
+  --pen: #2f55d4;
+  --red: #d93a2f;
+  --red-soft: #fdecea;
+  --marker: #fff0a0;
+  --tape: #ffd43b;
+  --cell: 24px;
+  --display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
 }
 
 * {
@@ -19,28 +25,45 @@
 body {
   margin: 0;
   font:
-    14px/1.45 system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
+    15px/1.5 'Public Sans Variable',
+    system-ui,
     sans-serif;
   color: var(--ink);
-  background: var(--bg);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
 }
 
 a {
-  color: var(--accent);
+  color: var(--pen);
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--pen);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+h1,
+h2 {
+  font-family: var(--display);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
 h1 {
-  font-size: 22px;
+  font-size: 40px;
+  font-weight: 700;
   margin: 0;
 }
 
 h2 {
-  font-size: 15px;
-  margin: 18px 0 10px;
+  font-size: 20px;
+  font-weight: 650;
+  margin: 24px 0 12px;
 }
 
 .muted {
@@ -50,15 +73,27 @@ h2 {
 .btn {
   display: inline-block;
   font: inherit;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  border-radius: 6px;
-  padding: 5px 12px;
+  font-weight: 600;
+  border: 1.5px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 4px 12px;
   cursor: pointer;
 }
 
+.btn:hover {
+  background: var(--ink);
+  color: var(--card);
+}
+
 .btn.ghost {
-  background: none;
-  color: var(--accent);
+  border-color: var(--line);
+  color: var(--pen);
+}
+
+.btn.ghost:hover {
+  border-color: var(--pen);
+  background: var(--pen);
+  color: #fff;
 }
