@@ -7,9 +7,21 @@ from datetime import date, datetime, timedelta
 
 from ulid import ULID
 
-from classlop.teams.service import WARSAW, now
+from classlop.shared.settings import get_settings
+from classlop.teams import attendance
+from classlop.teams.service import (
+    AFTER,
+    BEFORE,
+    DEFAULT_LATENESS,
+    WARSAW,
+    attendance_due,
+    now,
+)
 from classlop.teams.types import (
     AlreadyLinked,
+    Attendance,
+    AttendanceState,
+    Attendee,
     Class,
     Lesson,
     NotOwner,
@@ -29,6 +41,12 @@ class FakeTeams:
         self._series: dict[str, list[tuple[str, Slot, date]]] = {}
         self._singles: dict[str, list[Lesson]] = {}
         self._events: dict[str, dict] = {}
+        self._records: list[tuple[str, list[attendance.Session]]] = []
+        self._attendees: dict[str, list[Attendee]] = {}
+        self._fetched: dict[str, tuple[datetime, datetime]] = {}
+        self._links: dict[str, dict[str, str]] = {}
+        self._overrides: dict[str, dict[str, str]] = {}
+        self._threshold = DEFAULT_LATENESS
 
     def add_team(self, name: str, *, owner: str | None = None) -> str:
         team_id = str(uuid.uuid4())
@@ -141,6 +159,64 @@ class FakeTeams:
                     )
                 day += timedelta(days=1)
         return sorted(lessons, key=lambda lesson: lesson.start)
+
+    def attend(self, join_url: str, sessions: list[attendance.Session]) -> None:
+        """A call record of the meeting at `join_url`, as FakeGraph's."""
+        self._records.append((join_url, sessions))
+
+    async def refresh_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        lesson = next(x for x in await self.list_lessons(class_id) if x.id == lesson_id)
+        found = [
+            s
+            for join_url, sessions in self._records
+            if join_url == lesson.join_url
+            and lesson.start - BEFORE <= min(s[2] for s in sessions) < lesson.end + AFTER
+            for s in sessions
+        ]
+        self._attendees[lesson_id] = attendance.collect(found, get_settings().m365_teacher_oid)
+        self._fetched[lesson_id] = (lesson.start, self._clock())
+        return await self.get_attendance(class_id, lesson_id)
+
+    async def get_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        start, fetched_at = self._fetched.get(lesson_id, (None, None))
+        return attendance.derive(
+            lesson_id,
+            await self.list_students(class_id),
+            self._attendees.get(lesson_id, []),
+            self._links.get(class_id, {}),
+            self._overrides.get(lesson_id, {}),
+            start,
+            self._threshold,
+            fetched_at,
+        )
+
+    async def fetch_due_attendance(self) -> int:
+        fetched = 0
+        for klass in await self.list_classes():
+            for lesson in await self.list_lessons(klass.id):
+                done = self._fetched.get(lesson.id, (None, None))[1]
+                if attendance_due(lesson.end, done, self._clock()):
+                    await self.refresh_attendance(klass.id, lesson.id)
+                    fetched += 1
+        return fetched
+
+    async def override_attendance(
+        self, class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
+    ) -> None:
+        overrides = self._overrides.setdefault(lesson_id, {})
+        if state is None:
+            overrides.pop(student_id, None)
+        else:
+            overrides[student_id] = state
+
+    async def link_attendee(self, class_id: str, key: str, student_id: str) -> None:
+        self._links.setdefault(class_id, {})[key] = student_id
+
+    async def lateness_threshold(self) -> timedelta:
+        return self._threshold
+
+    async def set_lateness_threshold(self, threshold: timedelta) -> None:
+        self._threshold = threshold
 
     async def sync_roster(self, class_id: str) -> None:
         students = self._students[class_id]

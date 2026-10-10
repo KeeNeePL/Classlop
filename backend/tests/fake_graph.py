@@ -13,11 +13,25 @@ PAGE_SIZE = 2
 _DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
+def _z(when: datetime) -> str:
+    return when.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _session(user_id: str | None, name: str, joined: datetime, left: datetime) -> dict:
+    who = (
+        {"user": {"id": user_id, "displayName": name}}
+        if user_id
+        else {"guest": {"displayName": name}}
+    )
+    return {"caller": {"identity": who}, "startDateTime": _z(joined), "endDateTime": _z(left)}
+
+
 class FakeGraph:
     def __init__(self, teacher_id: str):
         self.teacher_id = teacher_id
         self.teams: dict[str, dict] = {}
         self.events: dict[str, dict] = {}
+        self.call_records: list[dict] = []
         self.transport = httpx.MockTransport(self._handle)
 
     def add_team(self, name: str, *, owner: str | None = None) -> str:
@@ -43,6 +57,19 @@ class FakeGraph:
         """The subject and invitee addresses of an event or of an occurrence of a series."""
         event = self.events[event_id.split("@")[0]]
         return event["subject"], {a["emailAddress"]["address"] for a in event["attendees"]}
+
+    def attend(self, join_url: str, sessions: list[tuple[str | None, str, datetime, datetime]]):
+        """A call record of the meeting at `join_url`; each session is (user id or None for a
+        guest, display name, joined, left)."""
+        self.call_records.append(
+            {
+                "id": str(uuid.uuid4()),
+                "joinWebUrl": join_url,
+                "startDateTime": _z(min(s[2] for s in sessions)),
+                "endDateTime": _z(max(s[3] for s in sessions)),
+                "sessions": [_session(*s) for s in sessions],
+            }
+        )
 
     def _join(self, team_id: str, user_id: str, name: str, *, owner: bool) -> None:
         upn = name.lower().replace(" ", ".") + "@example.org"
@@ -83,6 +110,20 @@ class FakeGraph:
             if (event := self.events.get(match[1])) is None:
                 return httpx.Response(404, json={"error": {"code": "NotFound"}})
             return self._page(request, self._instances(event, request.url.params))
+        if path == "/communications/callRecords":
+            bounds = dict(re.findall(r"startDateTime (ge|lt) (\S+)", request.url.params["$filter"]))
+            lo, hi = (datetime.fromisoformat(bounds[k]) for k in ("ge", "lt"))
+            found = [
+                {k: v for k, v in r.items() if k != "sessions"}
+                for r in self.call_records
+                if lo <= datetime.fromisoformat(r["startDateTime"]) < hi
+            ]
+            return self._page(request, found)
+        if match := re.fullmatch(r"/communications/callRecords/([^/]+)/sessions", path):
+            record = next((r for r in self.call_records if r["id"] == match[1]), None)
+            if record is None:
+                return httpx.Response(404, json={"error": {"code": "NotFound"}})
+            return self._page(request, record["sessions"])
         return httpx.Response(404, json={"error": {"code": "UnknownRoute", "message": path}})
 
     def _create_event(self, body: dict) -> httpx.Response:

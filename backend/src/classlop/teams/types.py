@@ -1,5 +1,5 @@
-from datetime import date, datetime, time
-from typing import Protocol
+from datetime import date, datetime, time, timedelta
+from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -55,6 +55,41 @@ class Student(BaseModel):
     former_since: datetime | None = None
 
 
+AttendanceState = Literal["present", "late", "absent"]
+
+
+class Attendee(BaseModel):
+    """Someone Teams reported at a Lesson. `key` is their account, or for a guest their name."""
+
+    key: str
+    user_id: str | None
+    display_name: str
+    first_join: datetime
+    seconds: int
+
+
+class AttendanceEntry(BaseModel):
+    student_id: str
+    state: AttendanceState | None
+    minutes: int
+    overridden: bool
+
+
+class UnmatchedAttendee(BaseModel):
+    key: str
+    display_name: str
+    minutes: int
+
+
+class Attendance(BaseModel):
+    """`fetched_at` is None until the first fetch, when every `state` is unknown (None)."""
+
+    lesson_id: str
+    fetched_at: datetime | None
+    entries: list[AttendanceEntry]
+    unmatched: list[UnmatchedAttendee]
+
+
 class Teams(Protocol):
     """The `teams` area's interface: the real area and FakeTeams both implement it."""
 
@@ -86,3 +121,29 @@ class Teams(Protocol):
     async def list_lessons(self, class_id: str) -> list[Lesson]:
         """Every Lesson of the Class by start: series occurrences and single Lessons."""
         ...
+
+    async def get_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        """What is known now: Students' states, overrides applied, and Unmatched attendees."""
+        ...
+
+    async def refresh_attendance(self, class_id: str, lesson_id: str) -> Attendance:
+        """Fetch the Lesson's Attendance from Teams now, merging every record in its window."""
+        ...
+
+    async def fetch_due_attendance(self) -> int:
+        """Fetch for each Lesson ended 45 minutes ago and again at 2 hours; returns how many."""
+        ...
+
+    async def override_attendance(
+        self, class_id: str, lesson_id: str, student_id: str, state: AttendanceState | None
+    ) -> None:
+        """Set the Teacher's state, kept through every fetch; None removes the override."""
+        ...
+
+    async def link_attendee(self, class_id: str, key: str, student_id: str) -> None:
+        """Remember an Unmatched attendee as a Student, for this and later Lessons."""
+        ...
+
+    async def lateness_threshold(self) -> timedelta: ...
+
+    async def set_lateness_threshold(self, threshold: timedelta) -> None: ...
