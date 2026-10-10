@@ -274,6 +274,9 @@ class FakeGraph(FilesRoutes, LifecycleRoutes):
         return self.users[user_id][0] if user_id in self.users else "Anna Nowak"
 
     def _create_team(self, body: dict) -> httpx.Response:
+        if len(body["members"]) > 1:  # Graph takes the owner alone; the rest are added after.
+            message = "Adding more than one member is not supported."
+            return httpx.Response(400, json={"error": {"code": "BadRequest", "message": message}})
         team_id = self._new_team(body["displayName"], body["visibility"].lower())
         for member in body["members"]:
             user_id = _bound_user(member)
@@ -291,11 +294,11 @@ class FakeGraph(FilesRoutes, LifecycleRoutes):
     def _search_users(self, request: httpx.Request) -> httpx.Response:
         if request.headers.get("ConsistencyLevel") != "eventual":
             return httpx.Response(400, json={"error": {"code": "Request_UnsupportedQuery"}})
-        term = request.url.params["$search"].strip('"').removeprefix("displayName:").lower()
+        term = re.search(r'displayName:([^"]*)"', request.url.params["$search"])[1].lower()
         found = [
             {"id": i, "displayName": name, "userPrincipalName": upn}
             for i, (name, upn) in self.users.items()
-            if any(word.startswith(term) for word in name.lower().split())
+            if upn.lower().startswith(term) or any(w.startswith(term) for w in name.lower().split())
         ]
         return self._page(request, found)
 

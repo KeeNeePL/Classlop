@@ -22,8 +22,8 @@ pytestmark = pytest.mark.live
 
 def _students() -> list[tuple[str, str]]:
     env = {**dotenv_values("../.env"), **dotenv_values(".env")}
-    upns = (env.get("M365_STUDENT_UPNS") or "").split(",")
-    passwords = (env.get("M365_STUDENT_PASSWORDS") or "").split(",")
+    upns = [u.strip() for u in (env.get("M365_STUDENT_UPNS") or "").split(",")]
+    passwords = [p.strip() for p in (env.get("M365_STUDENT_PASSWORDS") or "").split(",")]
     if len(upns) < 2 or len(passwords) < 2 or not upns[0]:
         pytest.skip("M365_STUDENT_UPNS and M365_STUDENT_PASSWORDS name no two Students")
     return list(zip(upns, passwords, strict=False))[:2]
@@ -57,7 +57,11 @@ async def test_a_student_sees_only_their_own_folder(monkeypatch):
     monkeypatch.setattr(items, "give", no_items)
     area = GraphTeams(GraphClient())
     try:
-        users = {u.upn.lower(): u for q in (jan_upn, ewa_upn) for u in await area.search_users(q)}
+        users = {
+            u.upn.lower(): u
+            for q in (jan_upn, ewa_upn)
+            for u in await area.search_users(q.split("@")[0])
+        }
     except SignInRequired:
         pytest.skip("the Teacher has not signed in to Classlop with the current scopes")
     suffix = uuid.uuid4().hex[:6]

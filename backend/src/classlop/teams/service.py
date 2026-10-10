@@ -682,7 +682,10 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing
     async def search_users(self, query: str) -> list[Candidate]:
         users = await self._graph.get_all(
             "/users",
-            **{"$search": f'"displayName:{query}"', "$select": "id,displayName,userPrincipalName"},
+            **{
+                "$search": f'"displayName:{query}" OR "userPrincipalName:{query}"',
+                "$select": "id,displayName,userPrincipalName",
+            },
             headers={"ConsistencyLevel": "eventual"},
         )
         return [
@@ -699,12 +702,15 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing
                 "template@odata.bind": f"{BASE}/teamsTemplates('standard')",
                 "displayName": name,
                 "visibility": "Private",
-                "members": [_member(owner, "owner"), *(_member(u) for u in student_user_ids)],
+                "members": [_member(owner, "owner")],
             },
         )
         team_id = re.search(r"'([^']+)'", response.headers["Content-Location"])[1]
         operation = re.search(r"operations\('([^']+)'\)", response.headers["Location"])[1]
         await self._graph.wait_for(f"/teams/{team_id}/operations/{operation}")
+        # Creating a team takes the owner alone; the Students join once it exists.
+        for user_id in student_user_ids:
+            await self._graph.request("POST", f"/teams/{team_id}/members", json=_member(user_id))
         return await self._link(team_id, name)
 
     @writable
