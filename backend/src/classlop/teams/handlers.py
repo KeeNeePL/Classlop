@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 declare_every("teams.sync-rosters", "rate(15 minutes)", "teams.sync_rosters")
 declare_every("teams.sync-calendar", "rate(15 minutes)", "teams.sync_calendar")
 declare_every("teams.fetch-attendance", "rate(5 minutes)", "teams.fetch_attendance")
+declare_every("teams.poll-handins", "rate(2 minutes)", "teams.poll_handins")
 
 
 @handler("teams.whoami")
@@ -76,3 +77,9 @@ async def give_assignment(job: Job, progress: Progress) -> None:
         await teams.publish_scheduled(job.payload["assignment_id"], last_try=job.final_attempt)
     except LookupError:  # its Class was deleted
         return
+
+
+@handler("teams.poll_handins")
+async def poll_handins(job: Job, progress: Progress) -> dict:
+    """Students' uploads into Submissions, and the close of Assignments past their close time."""
+    return {"changed": await teams.poll_handins()}

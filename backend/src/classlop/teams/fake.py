@@ -11,6 +11,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.shared.settings import get_settings
 from classlop.teams import attendance
 from classlop.teams.fake_giving import FakeGiving
+from classlop.teams.fake_handins import FakeHandIns
 from classlop.teams.fake_lifecycle import FakeLifecycle
 from classlop.teams.lifecycle import writable
 from classlop.teams.service import (
@@ -43,11 +44,12 @@ from classlop.teams.types import (
 )
 
 
-class FakeTeams(FakeGiving, FakeLifecycle):
+class FakeTeams(FakeGiving, FakeHandIns, FakeLifecycle):
     def __init__(self, clock: Callable[[], datetime] = now):
         self._clock = clock
         self._signed_in = True
         self._init_giving()
+        self._init_handins()
         self._init_lifecycle()
         self._users: dict[str, tuple[str, str]] = {}
         self._teams: dict[str, dict] = {}

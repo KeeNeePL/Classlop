@@ -11,8 +11,8 @@ from sqlalchemy import delete, select
 
 from classlop.shared import schedule, storage
 from classlop.shared.db import sessions
-from classlop.teams import assignments
-from classlop.teams.assignment_records import AssignmentRecord
+from classlop.teams import assignments, submissions
+from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.assignments import WARSAW
 from classlop.teams.graph import GraphClient, GraphError
 from classlop.teams.models import ClassRecord, LessonRecord, SlotRecord
@@ -134,11 +134,20 @@ class Lifecycle:
                 await self._discard(f"/me/drive/items/{row.folder_id}")
             if row.pdf_key:
                 await asyncio.to_thread(storage.delete, row.pdf_key)
+            for submission_id in await self._submission_ids(row.id):
+                await asyncio.to_thread(storage.delete_prefix, submissions.prefix(submission_id))
         await self._clear_calendar(klass.id)
         if team:
             await self._discard(f"/groups/{klass.team_id}")
         async with sessions().begin() as session:
             await session.execute(delete(ClassRecord).where(ClassRecord.id == klass.id))
+
+    async def _submission_ids(self, assignment_id: str) -> list[str]:
+        async with sessions()() as session:
+            ids = await session.scalars(
+                select(SubmissionRecord.id).where(SubmissionRecord.assignment_id == assignment_id)
+            )
+            return [str(i) for i in ids]
 
     async def _clear_calendar(self, class_id: str) -> None:
         """Remove the Lessons yet to begin: a Timetable series ends with its last Lesson begun,

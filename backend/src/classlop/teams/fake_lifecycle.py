@@ -1,12 +1,13 @@
 """Deleting a Class, and a team deleted in Teams, in memory for FakeTeams. It follows
 lifecycle.py; the rules are the shared ones there."""
 
+import asyncio
 from collections.abc import Callable
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from classlop.shared import schedule
-from classlop.teams import lifecycle
+from classlop.shared import schedule, storage
+from classlop.teams import lifecycle, submissions
 from classlop.teams.service import WARSAW
 from classlop.teams.types import Assignment, Class, Lesson, Student, Submission
 
@@ -28,6 +29,8 @@ class FakeLifecycle:
     _assignment_dirs: dict[str, str]
     _folders: set[str]
     _shares: dict[str, list]
+    _drive: dict[str, dict]
+    _hands: dict[str, object]
 
     if TYPE_CHECKING:
 
@@ -75,6 +78,9 @@ class FakeLifecycle:
         for given in await self._of_class(klass.id):
             for name in lifecycle.schedule_names(given.id):
                 await schedule.cancel(name)
+            for submission in self._submissions[given.id].values():
+                self._hands.pop(submission.id, None)
+                await asyncio.to_thread(storage.delete_prefix, submissions.prefix(submission.id))
             self._drop_folders(self._assignment_dirs.pop(given.id, None))
             del self._assignments[given.id], self._submissions[given.id], self._pdfs[given.id]
         if team:
@@ -95,6 +101,7 @@ class FakeLifecycle:
         if path is None:
             return
         self._folders = {f for f in self._folders if f != path and not f.startswith(path + "/")}
+        self._drive = {k: v for k, v in self._drive.items() if not k.startswith(path + "/")}
         for user_id, shares in self._shares.items():
             self._shares[user_id] = [s for s in shares if not s.path.startswith(path + "/")]
 

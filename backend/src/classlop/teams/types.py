@@ -172,7 +172,12 @@ class Assignment(BaseModel):
 class Submission(BaseModel):
     """One Student's work on an Assignment. The folder is the Student's private hand-in folder in
     the Teacher's OneDrive, `permission_id` their sharing permission on it, `chat_id` their 1:1
-    chat with the Teacher and `notice_id` the «Nowa praca» message in it (None until sent)."""
+    chat with the Teacher and `notice_id` the «Nowa praca» message in it (None until sent).
+
+    `handed_in_at` is the server time of the hand-in's last upload, `late` marks a Late
+    submission (handed in after the due time) and `files` are the hand-in's copies in storage.
+    A hand-in settles after 3 quiet minutes; until then the folder's files are not yet the
+    Submission's."""
 
     id: str
     assignment_id: str
@@ -183,6 +188,9 @@ class Submission(BaseModel):
     permission_id: str | None = None
     chat_id: str | None = None
     notice_id: str | None = None
+    handed_in_at: datetime | None = None
+    late: bool = False
+    files: list[str] = []
 
 
 class Teams(Protocol):
@@ -353,4 +361,18 @@ class Teams(Protocol):
     async def restore_team(self, class_id: str) -> Class:
         """Ask Teams to restore the Class's deleted team, then sync: the Class is active again.
         A team restored in Teams does the same on the next roster sync."""
+        ...
+
+    async def poll_handins(self) -> int:
+        """Read what Students uploaded into their folders: a set unchanged for 3 minutes becomes
+        the Submission's hand-in (Handed in, Late if after the due time, graded on its own), a
+        change before return replaces it, no files at all is Not handed in. Also closes what is
+        due to close. Returns how many Submissions changed state."""
+        ...
+
+    async def close_due_assignments(self) -> int:
+        """Close each Open Assignment whose close time has come: what is settled stays, Students
+        who have not handed in are Missing, and every folder's sharing permission becomes read.
+        Files uploaded after the close time are ignored. Returns how many Submissions went
+        Missing or were settled by the close."""
         ...

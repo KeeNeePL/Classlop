@@ -59,6 +59,7 @@ __all__ = [
     "backend",
     "cancel_lessons",
     "change_slot",
+    "close_due_assignments",
     "create_class",
     "delete_class",
     "deliver_assignment",
@@ -79,6 +80,7 @@ __all__ = [
     "link_team",
     "list_calendar_questions",
     "override_attendance",
+    "poll_handins",
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
@@ -294,3 +296,14 @@ async def list_deleted_teams() -> list[Class]:
 async def restore_team(class_id: str) -> Class:
     """Restore the Class's deleted team in Teams and make the Class active again."""
     return await backend().restore_team(class_id)
+
+
+async def poll_handins() -> int:
+    """Turn what Students uploaded into Submissions and close what is due; the job calls this
+    every 2 minutes."""
+    return await backend().poll_handins()
+
+
+async def close_due_assignments() -> int:
+    """Close Open Assignments whose close time has come."""
+    return await backend().close_due_assignments()

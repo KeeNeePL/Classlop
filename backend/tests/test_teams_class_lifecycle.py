@@ -246,3 +246,19 @@ async def test_a_retry_job_of_a_deleted_class_ends_quietly(tenant, monkeypatch):
     await handlers.give_assignment(
         Job(kind="teams.give_assignment", payload=payload, attempts=1), ignore
     )
+
+
+async def test_the_copies_of_hand_ins_kept_in_storage_go_with_the_class(tenant, clock):
+    klass, users = await _class(tenant, "2A matematyka", "Jan Kowalski")
+    await tenant.give_assignment(klass.id, _spec(), PDF)
+    tenant.upload(users["Jan Kowalski"], "strona-1.jpg", b"page one")
+    clock.advance(minutes=3)
+    await tenant.poll_handins()
+    (given,) = await tenant.list_assignments(klass.id)
+    (mine,) = await tenant.list_submissions(given.id)
+    assert await asyncio.to_thread(storage.get, mine.files[0]) == b"page one"
+
+    await tenant.delete_class(klass.id, "2A matematyka")
+
+    with pytest.raises(Exception, match="NoSuchKey"):
+        await asyncio.to_thread(storage.get, mine.files[0])
