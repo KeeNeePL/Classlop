@@ -56,39 +56,49 @@
   transform: translate(-50%, -50%);
 }
 
-/* the status marks, shared with the legend; :where keeps the status classes winning */
-:where(button, .legend i) {
-  display: block;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border-radius: 50%;
-  border: 2px solid var(--ink);
-  background: var(--card);
-}
-
+/* the type is the icon, the status its colour; the legend shows the colours */
 button {
+  display: block;
+  padding: 3px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--status);
   cursor: pointer;
 }
 
-.graded {
-  background: #1d6b3c;
-  border-color: #1d6b3c;
+svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.open {
-  border-color: var(--pen);
-  background: radial-gradient(var(--pen) 0 35%, var(--card) 40%);
-}
-
-.closed {
-  background: var(--muted);
-  border-color: var(--muted);
+.legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--status);
 }
 
 .scheduled {
-  border-style: dashed;
-  border-color: var(--muted);
+  --status: #9aa4b5;
+}
+
+.open {
+  --status: var(--pen);
+}
+
+.graded {
+  --status: #1d6b3c;
+}
+
+.closed {
+  --status: #c27c0e;
 }
 
 button:hover,
@@ -100,7 +110,7 @@ button:focus-visible {
   display: none;
   position: absolute;
   z-index: 10;
-  top: 26px;
+  top: 34px;
   left: 50%;
   transform: translateX(-50%);
   width: 240px;

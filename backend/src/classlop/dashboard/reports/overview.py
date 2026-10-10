@@ -65,6 +65,8 @@ class ClassOverview(BaseModel):
     id: str
     name: str
     progress: list[TypeProgress]
+    # Assessed Curriculum sections, the one with the newest graded work first.
+    recent_sections: list[str]
     assignments: list[AssignmentRow]
     attention: list[Attention]
     students: list[StudentRow]
@@ -123,6 +125,16 @@ def type_progress(
     )
 
 
+def recent_sections(data: ClassData, sections: Sequence[CurriculumSection]) -> list[str]:
+    latest: dict[int, datetime] = {}
+    for a in data.assignments:
+        tags = {t for i in counted(a.submissions) for t in i.topic_ids}
+        for n, section in enumerate(sections):
+            if tags.intersection(t.id for t in section.topics):
+                latest[n] = max(latest.get(n, a.given_at), a.given_at)
+    return [sections[n].id for n in sorted(latest, key=lambda n: (-latest[n].timestamp(), n))]
+
+
 def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> ClassOverview:
     submissions = [s for a in data.assignments for s in a.submissions]
     rows = [row(a) for a in given(data)]
@@ -151,6 +163,7 @@ def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> Cl
         id=data.id,
         name=data.name,
         progress=[type_progress(kind, data, sections) for kind in TYPES],
+        recent_sections=recent_sections(data, sections),
         assignments=rows,
         attention=flagged[:TOP],
         students=students,

@@ -13,6 +13,8 @@ import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
 
+const RECENT = 4;
+
 const KIND: Record<AssignmentRow['type'], string> = {
   quiz: 'Kartkówki',
   exam: 'Sprawdziany',
@@ -25,11 +27,13 @@ const HINTS = {
     'kartkówek, sprawdzianów i prac domowych. „Średnia” to wynik całej kategorii. Zadanie ' +
     'przypisane do kilku tematów liczy się w całości w każdym z nich, a w dziale raz. Nie ' +
     'liczą się prace nieoddane, zwolnione ani wstrzymane do sprawdzenia. „brak danych” znaczy, ' +
-    'że nic z tego nie zostało jeszcze ocenione.',
+    'że nic z tego nie zostało jeszcze ocenione. Na start widać 4 działy, z których ostatnio ' +
+    'oceniono prace; „Rozwiń” pokazuje wszystkie.',
   assignments:
-    'Kiedy zadano każdą pracę: oś pozioma to czas, pasy to typ pracy. Znaczek pokazuje ' +
-    'stan pracy (legenda pod wykresem), czerwona linia to dziś. Najedź na znaczek, żeby ' +
-    'zobaczyć termin, liczbę oddanych prac i średni wynik klasy.',
+    'Kiedy zadano każdą pracę: oś pozioma to czas. Ikonka to typ pracy (kartka z ptaszkiem: ' +
+    'sprawdzian, długopis: kartkówka, domek: praca domowa), jej kolor to stan (legenda pod ' +
+    'wykresem). Czerwona linia to dziś. Najedź na ikonkę, żeby zobaczyć termin, liczbę ' +
+    'oddanych prac i średni wynik klasy.',
   attention:
     'Uczeń trafia tu, gdy nie oddał 2 z ostatnich 5 prac, ma wynik poniżej 30% albo 3 ' +
     'nieobecności w ostatnich 10 lekcjach. Lista pokazuje najwyżej pięć osób, od tych, ' +
@@ -63,10 +67,14 @@ export class ClassOverview {
   protected readonly kind = KIND;
   protected readonly tab = signal<'sections' | 'topics'>('sections');
 
-  /** One row per Curriculum section, with a cell for each Assignment type, in the same order. */
+  protected readonly expanded = signal(false);
+
+  /** One row per Curriculum section, with a cell for each Assignment type, in the same order.
+   * Folded, only the RECENT sections most recently assessed, newest first. */
   protected readonly rows = computed(() => {
-    const columns = this.overview()?.progress ?? [];
-    return (columns[0]?.sections ?? []).map((section, i) => ({
+    const o = this.overview();
+    const columns = o?.progress ?? [];
+    const rows = (columns[0]?.sections ?? []).map((section, i) => ({
       id: section.id,
       name: section.name,
       cells: columns.map((c) => c.sections[i]),
@@ -76,6 +84,9 @@ export class ClassOverview {
         cells: columns.map((c) => c.sections[i].topics[j]),
       })),
     }));
+    if (this.expanded()) return rows;
+    const recent = (o?.recent_sections ?? []).slice(0, RECENT);
+    return recent.flatMap((id) => rows.filter((r) => r.id === id));
   });
 
   protected readonly link = (student: string) => ['/klasy', this.id(), 'uczniowie', student];

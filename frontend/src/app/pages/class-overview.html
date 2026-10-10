@@ -54,7 +54,12 @@
           </div>
         }
       }
+    } @empty {
+      <p class="muted">Nic jeszcze nie oceniono.</p>
     }
+    <button class="more" type="button" (click)="expanded.set(!expanded())">
+      {{ expanded() ? 'Zwiń do ostatnich działów' : 'Rozwiń wszystkie działy' }}
+    </button>
   </cl-panel>
 
   <cl-panel>

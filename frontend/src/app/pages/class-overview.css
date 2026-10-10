@@ -71,6 +71,17 @@ h2 {
   padding-left: 16px;
 }
 
+.more {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--pen);
+  cursor: pointer;
+}
+
 .student {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 2fr;

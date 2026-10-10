@@ -385,6 +385,13 @@
             "type": "array",
             "title": "Progress"
           },
+          "recent_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recent Sections"
+          },
           "assignments": {
             "items": {
               "$ref": "#/components/schemas/AssignmentRow"
@@ -416,6 +423,7 @@
           "id",
           "name",
           "progress",
+          "recent_sections",
           "assignments",
           "attention",
           "students",

@@ -22,6 +22,7 @@ def test_overview_is_ready_for_the_screen_and_marked_invented():
     assert any(s["percent"] is None for s in sections)
     assert any(s["percent"] is not None for s in sections)
     assert view["assignments"] and view["students"]
+    assert sorted(view["recent_sections"]) == ["lo2024:I", "lo2024:II", "lo2024:III"]
     given = [a["given_at"] for a in view["assignments"]]
     assert given == sorted(given, reverse=True)
     assert any(s["former"] for s in view["students"])

@@ -5,7 +5,21 @@
       <div class="track" role="list" [attr.aria-label]="lane.label">
         @for (a of marks(lane.type); track a.id) {
           <div class="mark" role="listitem" [style.left.%]="at(a.given_at)">
-            <button type="button" [class]="status(a)" [attr.aria-label]="label(a)"></button>
+            <button type="button" [class]="status(a)" [attr.aria-label]="label(a)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                @switch (a.type) {
+                  @case ('exam') {
+                    <path d="M6 2h9l5 5v15H6z M15 2v5h5 M9 14l2 2 4-4" />
+                  }
+                  @case ('quiz') {
+                    <path d="M15 4l5 5L9 20H4v-5z M13 6l5 5" />
+                  }
+                  @default {
+                    <path d="M3 11l9-8 9 8 M5 9v12h14V9 M10 21v-6h4v6" />
+                  }
+                }
+              </svg>
+            </button>
             <div class="card" role="tooltip">
               <b>{{ a.title }}</b>
               <div>zadana {{ given(a) }}, termin {{ due(a) }}</div>

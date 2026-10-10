@@ -14,12 +14,16 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByText('Średnia', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
   await expect(page.getByText(/pkt/)).toHaveCount(0);
-  await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
 
   const hint = page.getByRole('button', { name: 'Co to znaczy?' }).first();
   await expect(page.getByRole('tooltip').first()).toBeHidden();
   await hint.hover();
   await expect(page.getByRole('tooltip').first()).toContainText('Procent punktów zdobytych');
+
+  await expect(page.getByText('Stereometria')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Rozwiń wszystkie działy' }).click();
+  await expect(page.getByText('Stereometria')).toBeVisible();
+  await expect(page.getByText('brak danych', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('tab', { name: 'Tematy' }).click();
   await expect(page.getByText('Wykonuje działania').first()).toBeVisible();

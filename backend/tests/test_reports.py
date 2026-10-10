@@ -309,3 +309,15 @@ def test_a_students_result_pools_every_category():
     )
 
     assert view.students[0].percent == 60
+
+
+def test_recent_sections_are_the_assessed_ones_newest_given_first():
+    C1 = SECTIONS[2].topics[0].id
+    view = overview(
+        work(1, sub("s1", item(1, 2, A1))),
+        work(2, sub("s1", item(1, 2, C1))),
+        work(3, sub("s1", item(1, 2, B1, A1))),
+        work(4, sub("s1", item(1, 2, C1), state="missing")),
+    )
+
+    assert view.recent_sections == [SECTIONS[0].id, SECTIONS[1].id, SECTIONS[2].id]

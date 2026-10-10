@@ -14,13 +14,13 @@ export const STATUS: Record<Status, string> = {
   scheduled: 'Zaplanowana',
   open: 'Zbieranie prac',
   graded: 'Ocenione',
-  closed: 'Zamknięta',
+  closed: 'Zamknięta, bez ocen',
 };
 
 const DAY = 86_400_000;
 
 /** When each Assignment was given, on a time axis, in one lane per Assignment type. The mark
- * shows its status; hovering or focusing it shows the details. */
+ * is an icon of its type coloured by its status; hovering or focusing it shows the details. */
 @Component({
   selector: 'cl-assignment-lanes',
   templateUrl: './assignment-lanes.html',
