@@ -34,7 +34,8 @@
         {"points": 1, "description": "Poprawne obliczenie wyróżnika $\\Delta = 36$ albo rozkład na czynniki $(x+1)(x-5)$."},
         {"points": 2, "description": "Oba pierwiastki: $x_1 = -1$, $x_2 = 5$."}
       ],
-      "curriculum_topics": [{"id": null, "name": "Równania kwadratowe"}]
+      "curriculum_topics": [{"id": null, "name": "Równania kwadratowe"}],
+      "leaks": ["x_1 = -1", "x_2 = 5", "x = -1", "x = 5", "(x+1)(x-5)"]
     },
     {
       "number": 4,
@@ -48,7 +49,8 @@
         {"points": 1, "description": "Przekształcenie nierówności do postaci $a^2 - 6a + 9 \\geq 0$."},
         {"points": 2, "description": "Pełny dowód z uzasadnieniem, np. $(a-3)^2 \\geq 0$ dla każdego $a$."}
       ],
-      "curriculum_topics": [{"id": null, "name": "Dowodzenie nierówności algebraicznych"}]
+      "curriculum_topics": [{"id": null, "name": "Dowodzenie nierówności algebraicznych"}],
+      "leaks": ["(a-3)^2"]
     },
     {
       "number": 5,
@@ -66,7 +68,8 @@
       "curriculum_topics": [
         {"id": null, "name": "Twierdzenie Pitagorasa"},
         {"id": null, "name": "Pole trójkąta"}
-      ]
+      ],
+      "leaks": ["\\frac{24}{5}", "24/5", "h = 4,8", "h = 4.8"]
     }
   ]
 }
