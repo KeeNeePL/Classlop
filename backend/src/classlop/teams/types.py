@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Protocol
 
 from pydantic import BaseModel
@@ -12,6 +12,10 @@ class AlreadyLinked(Exception):
     """The team is already a Class."""
 
 
+class TimetableExists(Exception):
+    """The Class already has a Timetable."""
+
+
 class Team(BaseModel):
     id: str
     name: str
@@ -22,6 +26,24 @@ class Class(BaseModel):
     team_id: str
     general_channel_id: str
     name: str
+    school_year_end: date | None = None
+
+
+class Slot(BaseModel):
+    """A weekly Timetable slot; weekday 0 is Monday, times are Warsaw wall-clock."""
+
+    weekday: int
+    start: time
+    end: time
+
+
+class Lesson(BaseModel):
+    id: str
+    class_id: str
+    start: datetime
+    end: datetime
+    join_url: str
+    topic: str | None = None
 
 
 class Student(BaseModel):
@@ -51,3 +73,16 @@ class Teams(Protocol):
         ...
 
     async def sync_roster(self, class_id: str) -> None: ...
+
+    async def add_timetable(self, class_id: str, slots: list[Slot], school_year_end: date) -> None:
+        """One recurring online-meeting event per slot, from the next such weekday to the
+        school-year end, inviting the Students. Raises TimetableExists."""
+        ...
+
+    async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
+        """One event with the Lesson topic in its title. Raises ValueError without a topic."""
+        ...
+
+    async def list_lessons(self, class_id: str) -> list[Lesson]:
+        """Every Lesson of the Class by start: series occurrences and single Lessons."""
+        ...

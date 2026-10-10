@@ -13,6 +13,8 @@ GRAPH_SCOPES = [
     "Group.ReadWrite.All",
     "TeamMember.ReadWrite.All",
     "Channel.ReadBasic.All",
+    "Calendars.ReadWrite",
+    "OnlineMeetings.ReadWrite",
 ]
 
 BASE = "https://graph.microsoft.com/v1.0"
@@ -36,7 +38,12 @@ class GraphClient:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
         self._token = token or (lambda: graph_token(GRAPH_SCOPES))
-        self._http = httpx.AsyncClient(transport=transport, base_url=BASE, timeout=30)
+        self._http = httpx.AsyncClient(
+            transport=transport,
+            base_url=BASE,
+            timeout=30,
+            headers={"Prefer": 'outlook.timezone="UTC"'},
+        )
         self._sleep = sleep
         # One Teacher is one tenant, so one limit.
         self._slots = asyncio.Semaphore(MAX_CONCURRENT)
@@ -56,6 +63,9 @@ class GraphClient:
         if response.is_error:
             raise GraphError(response)
         return response
+
+    async def send(self, method: str, url: str, body: dict) -> dict:
+        return (await self.request(method, url, json=body)).json()
 
     async def get(self, url: str, **params) -> dict:
         return (await self.request("GET", url, params=params or None)).json()
