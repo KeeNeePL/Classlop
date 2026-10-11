@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from classlop.dashboard import auth, invented
+from classlop.dashboard import auth, bank, invented
 from classlop.dashboard.actions import refusing
 from classlop.dashboard.classes import TheTeams
 from classlop.dashboard.reports import ClassData, ClassOverview, Student, class_overview
@@ -20,11 +20,10 @@ class OverviewResponse(ClassOverview):
 
 @router.get("/api/classes/{class_id}/overview")
 async def overview(
-    class_id: str, _: Annotated[auth.Me, Depends(auth.teacher)], t: TheTeams
+    class_id: str, _: Annotated[auth.Me, Depends(auth.teacher)], t: TheTeams, pool: bank.TheBank
 ) -> OverviewResponse:
-    now = datetime.now(UTC)
-    if (name := invented.class_name(class_id, now)) is not None:
-        view = class_overview(invented.class_data(class_id, name, now), curriculum())
+    if (read := await invented.read(class_id, datetime.now(UTC), pool)) is not None:
+        view = class_overview(read.data, curriculum())
         return OverviewResponse(**view.model_dump(), invented=True)
     # A Class of the Teacher's own: its Students, until the Reports read its work (#81).
     with refusing():

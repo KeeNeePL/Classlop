@@ -7,13 +7,15 @@ test('overriding one Item changes the total, here and on the Assignment page', a
   await page.goto(PAGE);
   await expect(page.getByRole('heading', { name: 'Damian R.' })).toBeVisible();
   await expect(page.getByText('ZMYŚLONE')).toBeVisible();
-  await expect(page.getByRole('article', { name: /^Zadanie \d$/ })).toHaveCount(3);
+  // The bank's Items of sections I and II, both closed, 1 point.
+  await expect(page.getByRole('article', { name: /^Zadanie \d$/ })).toHaveCount(2);
+  await expect(page.getByText('Ile to')).toBeVisible();
 
   const total = page.getByLabel('Suma punktów');
   const points = page.getByLabel('Punkty za zadanie 1');
   const before = Number((await total.locator('b').textContent()) ?? '');
   const was = Number(await points.inputValue());
-  const now = was === 0 ? 2 : 0;
+  const now = was === 0 ? 1 : 0;
 
   await points.fill(String(now));
   await points.press('Enter');
@@ -24,7 +26,7 @@ test('overriding one Item changes the total, here and on the Assignment page', a
 
   await page.getByRole('link', { name: /← Zbiory liczbowe/ }).click();
   const row = page.getByRole('row').filter({ hasText: 'Damian R.' });
-  await expect(row).toContainText(`${before - was + now}/6`);
+  await expect(row).toContainText(`${before - was + now}/2`);
 });
 
 test('a fixed Transcription renders its maths, and its markup as plain text', async ({ page }) => {

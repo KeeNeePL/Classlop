@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from classlop.dashboard import auth, invented, store
+from classlop.dashboard import auth, bank, invented, store
 from classlop.dashboard.reports import StudentReport, student_report
 from classlop.dashboard.reports.grades import check_thresholds
 from classlop.items import curriculum
@@ -29,20 +29,20 @@ async def report(
     student_id: str,
     kept: Kept,
     _: Teacher,
+    pool: bank.TheBank,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> StudentPage:
     """`start` and `end` bound the period by due time; leaving both out means everything."""
-    now = datetime.now(UTC)
-    if (name := invented.class_name(class_id, now)) is None:
+    if (read := await invented.read(class_id, datetime.now(UTC), pool)) is None:
         raise HTTPException(404)
-    data = invented.class_data(class_id, name, now)
+    data = read.data
     if student_id not in {s.id for s in data.students}:
         raise HTTPException(404)
     view = student_report(data, student_id, curriculum(), start, end, await kept.thresholds())
     return StudentPage(
         **view.model_dump(),
-        class_name=name,
+        class_name=data.name,
         note=await kept.note(class_id, student_id),
         invented=True,
     )
@@ -54,10 +54,8 @@ class Note(BaseModel):
 
 @router.put("/api/classes/{class_id}/students/{student_id}/note", status_code=204)
 async def save_note(class_id: str, student_id: str, body: Note, kept: Kept, _: Teacher) -> Response:
-    now = datetime.now(UTC)
-    if (name := invented.class_name(class_id, now)) is None or student_id not in {
-        s.id for s in invented.class_data(class_id, name, now).students
-    }:
+    found = invented.students(class_id, datetime.now(UTC))
+    if found is None or student_id not in {s.id for s in found}:
         raise HTTPException(404)
     await kept.save_note(class_id, student_id, body.text)
     return Response(status_code=204)
