@@ -542,7 +542,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/classlop__dashboard__chats__Rename"
+                "$ref": "#/components/schemas/ChatRename"
               }
             }
           }
@@ -1002,7 +1002,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/classlop__dashboard__classes__Rename"
+                "$ref": "#/components/schemas/Rename"
               }
             }
           }
@@ -2772,6 +2772,19 @@
           "created_at"
         ],
         "title": "ChatMessage"
+      },
+      "ChatRename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ChatRename"
       },
       "ClassLink": {
         "properties": {
@@ -4588,6 +4601,20 @@
         ],
         "title": "Recipients"
       },
+      "Rename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Rename"
+      },
       "ReportRow": {
         "properties": {
           "id": {
@@ -5829,33 +5856,6 @@
         ],
         "title": "WeeklySlot",
         "description": "A slot as the Teacher enters it; weekday 0 is Monday, times are Warsaw wall-clock."
-      },
-      "classlop__dashboard__chats__Rename": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "Rename"
-      },
-      "classlop__dashboard__classes__Rename": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "Rename"
       }
     }
   }
