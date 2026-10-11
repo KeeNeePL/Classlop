@@ -5,10 +5,11 @@ import os
 import uuid
 
 import pytest
+from fake_bank import InMemoryBank
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from classlop.dashboard import auth
+from classlop.dashboard import auth, bank
 from classlop.dashboard.app import create_app
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
@@ -18,6 +19,8 @@ from classlop.shared.models import Job
 def signed_in() -> TestClient:
     app = create_app()
     app.dependency_overrides[auth.teacher] = lambda: auth.Me(name="Anna Nowak")
+    items = InMemoryBank()
+    app.dependency_overrides[bank.backend] = lambda: items
     return TestClient(app)
 
 

@@ -1,0 +1,43 @@
+<dialog #dialog aria-labelledby="title">
+  <header>
+    <h2 id="title">Tematy z podstawy programowej</h2>
+    <input
+      type="search"
+      placeholder="Szukaj tematu"
+      aria-label="Szukaj tematu"
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+    />
+    <button type="button" class="btn ghost" [disabled]="!picked().length" (click)="clear()">
+      {{ clearLabel() }}
+    </button>
+    <button type="button" class="btn" (click)="close()">Zamknij</button>
+  </header>
+  <div class="sections">
+    @for (s of shown(); track s.id) {
+      <section>
+        <label class="section">
+          <input
+            type="checkbox"
+            [checked]="share(s.topics) === 'all'"
+            [indeterminate]="share(s.topics) === 'some'"
+            (change)="pick(s.topics, $any($event.target).checked)"
+          />
+          {{ s.name }}
+        </label>
+        @for (t of s.topics; track t.id) {
+          <label class="topic">
+            <input
+              type="checkbox"
+              [checked]="has(t.id)"
+              (change)="pick([t], $any($event.target).checked)"
+            />
+            <cl-math [text]="t.name" />
+          </label>
+        }
+      </section>
+    } @empty {
+      <p>Nic nie pasuje do „{{ query() }}”.</p>
+    }
+  </div>
+</dialog>

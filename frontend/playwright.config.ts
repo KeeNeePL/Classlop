@@ -2,7 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 // The dev server on :4201 proxies to a backend on :8001 that has the Teacher signed in already,
 // so these never meet the compose :4200 and :8000.
+// One worker: the tests share the backend's in-memory bank.
 export default defineConfig({
+  workers: 1,
   testDir: 'e2e',
   use: { baseURL: 'http://localhost:4201' },
   webServer: [

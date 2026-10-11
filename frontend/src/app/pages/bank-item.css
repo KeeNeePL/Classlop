@@ -1,0 +1,286 @@
+:host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Long text wraps and grows downwards; nothing makes the screen wider. */
+cl-panel,
+fieldset {
+  min-width: 0;
+}
+
+cl-math {
+  overflow-wrap: anywhere;
+}
+
+/* Sections of the Item are told apart by a rule above each, not by shouting. */
+h2 {
+  font-size: 15px;
+  margin: 20px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.usage h2 {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+p {
+  margin: 0;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.tags,
+.actions,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.note > div {
+  flex: 1;
+}
+
+.offer {
+  background: #eef2fb;
+  border: 1px solid var(--edge);
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* The task as it would stand in the exercise book: set off by the red margin line. */
+.statement {
+  font-size: 19px;
+  line-height: 1.55;
+  margin: 18px 0 0;
+  padding: 4px 0 4px 16px;
+  border-left: 3px solid var(--red);
+}
+
+.options {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+/* The marker sits level with the middle of its answer, a clear step away from it. */
+.options li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.options cl-badge {
+  margin-left: 16px;
+}
+
+.options .correct {
+  font-weight: 600;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+th,
+td {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.rubric td:first-child {
+  width: 56px;
+}
+
+/* Points as the teacher writes them in the margin. */
+.pts {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--pen);
+  border-radius: 50%;
+  color: var(--pen);
+  font-family: var(--display);
+  font-weight: 700;
+}
+
+.tagged {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.tagged dt {
+  color: var(--muted);
+}
+
+.tagged dd {
+  margin: 0;
+}
+
+.tagged ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.edit label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.edit .check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.edit input:not([type='checkbox']),
+.edit textarea,
+.edit select {
+  font: inherit;
+  font-weight: 400;
+  padding: 6px 10px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.preview {
+  min-width: 0;
+  overflow-x: auto;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+}
+
+fieldset {
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+legend {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  font-size: 14px;
+}
+
+.topics select {
+  width: 100%;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.points {
+  width: 70px;
+}
+
+.ask {
+  font-weight: 600;
+}
+
+.btn.danger {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* The task text is as tall as it needs to be and cannot be dragged wider or taller. */
+.edit textarea {
+  width: 100%;
+  min-height: 5em;
+  resize: none;
+  field-sizing: content;
+  overflow-wrap: anywhere;
+}
+
+.edit input:not([type='checkbox']),
+.edit select {
+  min-width: 0;
+}
+
+.choose {
+  justify-self: start;
+}

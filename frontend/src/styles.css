@@ -9,6 +9,8 @@
   --ink: #16233f;
   --muted: #5b6882;
   --line: #d5dce8;
+  /* the border of anything you can click or type in: it must stand out from the squared paper */
+  --edge: #8b9ab5;
   --pen: #2f55d4;
   --red: #d93a2f;
   --red-soft: #fdecea;
@@ -74,7 +76,7 @@ h2 {
   display: inline-block;
   font: inherit;
   font-weight: 600;
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--edge);
   background: var(--card);
   color: var(--ink);
   border-radius: 4px;
@@ -88,7 +90,7 @@ h2 {
 }
 
 .btn.ghost {
-  border-color: var(--line);
+  border-color: var(--pen);
   color: var(--pen);
 }
 

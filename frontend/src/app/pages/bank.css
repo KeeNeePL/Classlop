@@ -1,0 +1,184 @@
+header {
+  margin-bottom: 20px;
+}
+
+.bank {
+  display: grid;
+  grid-template-columns: 350px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+/* Everything you can type in or click sits on solid paper with an edge that shows on the grid. */
+.search {
+  font: inherit;
+  font-size: 16px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.search:focus {
+  border-color: var(--pen);
+  outline: 2px solid var(--pen);
+  outline-offset: 0;
+}
+
+.filters {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.levels {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1.5px solid var(--edge);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--pen);
+}
+
+.chip.on {
+  background: var(--pen);
+  border-color: var(--pen);
+  color: #fff;
+}
+
+.topic-filter {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+/* The topic the list is narrowed to, with a way to drop it without opening anything. */
+.chosen {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 10px;
+  border: 1.5px solid var(--pen);
+  border-radius: 14px;
+  background: #eef2fb;
+  font-size: 13px;
+}
+
+.chosen cl-math {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chosen button {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pen);
+  color: #fff;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.count {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  color: var(--ink);
+}
+
+.card:hover {
+  border-color: var(--pen);
+}
+
+.card.on {
+  border-color: var(--pen);
+  box-shadow: 0 0 0 1px var(--pen);
+}
+
+.card.retired .text {
+  color: var(--muted);
+}
+
+.text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.pager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
