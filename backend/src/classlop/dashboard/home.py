@@ -1,5 +1,6 @@
 """The home screen: the sidebar and the Do zrobienia queue, in one response."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal, get_args
 
@@ -126,7 +127,17 @@ def invented(now: datetime) -> Home:
     )
 
 
+def stand_in() -> Callable[[datetime], Home]:
+    """What stands in for the areas until they can give the real thing; the Playwright server
+    swaps it for one that reacts to jobs."""
+    return invented
+
+
 @router.get("/api/home")
-async def home(_: Annotated[auth.Me, Depends(auth.teacher)], items: bank.TheBank) -> Home:
-    view = invented(datetime.now(UTC))
+async def home(
+    _: Annotated[auth.Me, Depends(auth.teacher)],
+    items: bank.TheBank,
+    make: Annotated[Callable[[datetime], Home], Depends(stand_in)],
+) -> Home:
+    view = make(datetime.now(UTC))
     return view.model_copy(update={"flagged_items": await bank.flagged_count(items)})
