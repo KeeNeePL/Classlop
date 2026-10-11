@@ -90,8 +90,8 @@ class Read(NamedTuple):
     data: ClassData
     # Each Assignment's Item versions in Item order, by the Assignment's id.
     versions: dict[str, list[ItemVersion]]
-    # The current result of each Submission that has one, by its `grading` id.
-    results: dict[uuid.UUID, grading.Result]
+    # The current result of each Submission that has one, by its Assignment's and Student's ids.
+    results: dict[tuple[str, str], grading.Result]
 
 
 def assignment_uuid(assignment_id: str) -> uuid.UUID:
@@ -128,17 +128,16 @@ async def read(class_id: str, now: datetime, bank: Bank, grader: Grader) -> Read
         r.submission_id: r
         for r in await grader.results([assignment_uuid(a.id) for a in data.assignments])
     }
-    current: dict[uuid.UUID, grading.Result] = {}
+    current: dict[tuple[str, str], grading.Result] = {}
     assignments = []
     for a in data.assignments:
         submissions = []
         for s in a.submissions:
-            sid = submission_id(a.id, s.student_id)
-            result = results.get(sid)
+            result = results.get(submission_id(a.id, s.student_id))
             # A newer hand-in still being graded has no result yet: its older one does not count.
             if result is not None and result.handed_in_at == handed_in_at(a, s):
-                current[sid] = result
-            submissions.append(with_result(s, current.get(sid), by_id[a.id]))
+                current[a.id, s.student_id] = result
+            submissions.append(with_result(s, current.get((a.id, s.student_id)), by_id[a.id]))
         assignments.append(a.model_copy(update={"submissions": tuple(submissions)}))
     return Read(data.model_copy(update={"assignments": tuple(assignments)}), by_id, current)
 

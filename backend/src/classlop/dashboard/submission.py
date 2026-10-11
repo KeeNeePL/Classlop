@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading
-from classlop.dashboard import auth, bank, grader, invented
+from classlop.dashboard import auth, bank, class_read, grader, invented
 from classlop.dashboard.actions import carry_out
+from classlop.dashboard.classes import TheTeams
 from classlop.dashboard.reports import assignment_summary
 from classlop.dashboard.reports.records import SubmissionState
 from classlop.items import ItemVersion
@@ -104,13 +105,12 @@ async def submission(
     assignment_id: str,
     student_id: str,
     _: Teacher,
+    t: TheTeams,
     pool: bank.TheBank,
     graded: Grader,
 ) -> SubmissionPage:
     now = datetime.now(UTC)
-    if (read := await invented.read(class_id, now, pool, graded)) is None:
-        raise HTTPException(404)
-    data, versions, results = read
+    (data, versions, results), made_up = await class_read.read(class_id, t, pool, graded)
     assignment = next((a for a in data.assignments if a.id == assignment_id), None)
     if assignment is None:
         raise HTTPException(404)
@@ -118,7 +118,7 @@ async def submission(
     if mine is None:
         raise HTTPException(404)
     student = next(s for s in data.students if s.id == student_id)
-    result = results.get(invented.submission_id(assignment_id, student_id))
+    result = results.get((assignment_id, student_id))
     order = [
         Neighbour(student_id=r.student_id, name=r.name)
         for r in assignment_summary(assignment, data.students, [], now).rows
@@ -150,7 +150,7 @@ async def submission(
         items=items,
         previous=order[at - 1] if at else None,
         next=order[at + 1] if at is not None and at + 1 < len(order) else None,
-        invented=True,
+        invented=made_up,
     )
 
 
