@@ -15,6 +15,10 @@ export class HomeStore {
 
   constructor() {
     const stream = inject(EventStream);
+    const reopened = stream.reopened;
+    effect(() => {
+      if (reopened()) untracked(() => void this.refresh());
+    });
     for (const kind of CONCERNS) {
       const event = stream.of(kind);
       effect(() => {

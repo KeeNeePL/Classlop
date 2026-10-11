@@ -49,7 +49,7 @@ def _always(job: Job) -> bool:
 # progress joins when Item upload becomes a job.
 CONCERNS: dict[str, tuple[EventKind, Callable[[Job], bool]]] = {
     "teams.poll_handins": ("hand_in", _found("changed")),
-    "grading.grade": ("graded", _always),
+    "grading.grade": ("graded", _finished),
     "items.generate": ("generation", _always),
     "teams.fetch_attendance": ("attendance", _found("fetched")),
 }

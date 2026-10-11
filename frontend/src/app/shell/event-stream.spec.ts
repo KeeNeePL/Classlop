@@ -6,6 +6,7 @@ class FakeSource {
   readyState = 1;
   onmessage: ((message: MessageEvent<string>) => void) | null = null;
   onerror: (() => void) | null = null;
+  onopen: (() => void) | null = null;
   close = vi.fn(() => (this.readyState = this.CLOSED));
 
   push(event: Partial<StreamEvent>) {
@@ -58,6 +59,16 @@ describe('EventStream', () => {
     sources[0].push({ kind: 'hand_in' });
 
     expect(graded()).toBe(before);
+  });
+
+  it('counts each time the stream opens again, not the first open', () => {
+    const stream = TestBed.inject(EventStream);
+
+    sources[0].onopen?.();
+    expect(stream.reopened()).toBe(0);
+    sources[0].onopen?.();
+
+    expect(stream.reopened()).toBe(1);
   });
 
   it('leaves a stream the browser is reopening alone', () => {

@@ -65,16 +65,21 @@ async def test_a_job_finishing_is_pushed_with_its_kind_and_status(feed):
     assert "retry:" in await anext(stream)
 
     job_id = await write("grading.grade", status="running")
-    started = await next_event(stream)
     await change(job_id, status="succeeded")
     done = await next_event(stream)
 
-    assert (started["kind"], started["job_id"], started["status"]) == (
-        "graded",
-        str(job_id),
-        "running",
-    )
     assert (done["kind"], done["job_id"], done["status"]) == ("graded", str(job_id), "succeeded")
+
+
+async def test_a_job_that_has_not_finished_or_has_failed_is_no_news(feed):
+    stream = events.stream(feed, await feed.now(), interval=0.05)
+    await anext(stream)
+
+    await write("grading.grade", status="running")
+    await write("grading.grade", status="failed", error="boom")
+    marker = await write("grading.grade", status="succeeded")
+
+    assert (await next_event(stream))["job_id"] == str(marker)
 
 
 async def test_progress_goes_with_the_event(feed):

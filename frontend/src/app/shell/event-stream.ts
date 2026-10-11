@@ -27,6 +27,10 @@ export class EventStream {
   private readonly open = inject(OPEN_STREAM);
   private readonly latest = signal<Partial<Record<StreamEvent['kind'], StreamEvent>>>({});
 
+  /** Counts the times the stream opened again; what was pushed in the gap is lost to it. */
+  readonly reopened = signal(0);
+  private opened = false;
+
   constructor() {
     this.connect();
   }
@@ -38,6 +42,10 @@ export class EventStream {
 
   private connect(): void {
     const source = this.open(URL);
+    source.onopen = () => {
+      if (this.opened) this.reopened.update((n) => n + 1);
+      this.opened = true;
+    };
     source.onmessage = (message: MessageEvent<string>) => {
       const event: StreamEvent = JSON.parse(message.data);
       this.latest.update((all) => ({ ...all, [event.kind]: event }));
