@@ -41,6 +41,422 @@
         }
       }
     },
+    "/api/bank/filters": {
+      "get": {
+        "summary": "Filters",
+        "operationId": "filters_api_bank_filters_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankFilters"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank/items": {
+      "get": {
+        "summary": "Search",
+        "description": "Retired items are left out unless `show_retired`.",
+        "operationId": "search_api_bank_items_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Section"
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "easy",
+                      "medium",
+                      "hard"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Difficulty"
+            }
+          },
+          {
+            "name": "item_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "closed",
+                    "open"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Item Format"
+            }
+          },
+          {
+            "name": "flagged",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Flagged"
+            }
+          },
+          {
+            "name": "show_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Show Retired"
+            }
+          },
+          {
+            "name": "never_used_with_class",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Never Used With Class"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank/items/{item_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "detail_api_bank_items__item_id__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit",
+        "description": "A new version of the Item; it dismisses the Item's flag.",
+        "operationId": "edit_api_bank_items__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemChanges"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank/items/{item_id}/retire": {
+      "post": {
+        "summary": "Retire",
+        "operationId": "retire_api_bank_items__item_id__retire_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank/items/{item_id}/restore": {
+      "post": {
+        "summary": "Restore",
+        "operationId": "restore_api_bank_items__item_id__restore_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank/items/{item_id}/dismiss-flag": {
+      "post": {
+        "summary": "Dismiss Flag",
+        "operationId": "dismiss_flag_api_bank_items__item_id__dismiss_flag_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/classes/{class_id}/overview": {
       "get": {
         "summary": "Overview",
@@ -875,6 +1291,39 @@
         ],
         "title": "Attention"
       },
+      "BankFilters": {
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "general_requirements": {
+            "items": {
+              "$ref": "#/components/schemas/GeneralRequirementText"
+            },
+            "type": "array",
+            "title": "General Requirements"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassOption"
+            },
+            "type": "array",
+            "title": "Classes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sections",
+          "general_requirements",
+          "classes"
+        ],
+        "title": "BankFilters",
+        "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
+      },
       "ClassLink": {
         "properties": {
           "id": {
@@ -897,6 +1346,25 @@
           "graded"
         ],
         "title": "ClassLink"
+      },
+      "ClassOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ClassOption"
       },
       "Counts": {
         "properties": {
@@ -935,6 +1403,67 @@
           "held"
         ],
         "title": "Counts"
+      },
+      "CurriculumSection": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumTopic"
+            },
+            "type": "array",
+            "title": "Topics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "topics"
+        ],
+        "title": "CurriculumSection"
+      },
+      "CurriculumTopic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CurriculumTopic"
+      },
+      "EditResult": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ItemDetail"
+          },
+          "offer_regenerate": {
+            "type": "boolean",
+            "title": "Offer Regenerate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail",
+          "offer_regenerate"
+        ],
+        "title": "EditResult"
       },
       "Entry": {
         "properties": {
@@ -1009,6 +1538,35 @@
         ],
         "title": "Feedback"
       },
+      "GeneralRequirementText": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "I",
+              "II",
+              "III",
+              "IV"
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "GeneralRequirementText"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1076,6 +1634,271 @@
         ],
         "title": "Home"
       },
+      "Item": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "upload",
+              "nowa_praca"
+            ],
+            "title": "Origin"
+          },
+          "origin_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Ref"
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File"
+          },
+          "source_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Page"
+          },
+          "exemplar_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Exemplar Ids"
+          },
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged"
+          },
+          "flag_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag Reason"
+          },
+          "retired": {
+            "type": "boolean",
+            "title": "Retired"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ItemVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "origin",
+          "origin_ref",
+          "source_file",
+          "source_page",
+          "exemplar_ids",
+          "flagged",
+          "flag_reason",
+          "retired",
+          "created_at",
+          "version"
+        ],
+        "title": "Item",
+        "description": "An Item's record with its current version."
+      },
+      "ItemChanges": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "easy",
+                  "medium",
+                  "hard"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difficulty"
+          },
+          "curriculum_topic_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Curriculum Topic Ids"
+          },
+          "general_requirements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "I",
+                    "II",
+                    "III",
+                    "IV"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "General Requirements"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "correct_options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Options"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "rubric": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RubricLevel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rubric"
+          },
+          "model_solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Solution"
+          }
+        },
+        "type": "object",
+        "title": "ItemChanges",
+        "description": "What the Teacher changed; what is left out stays as it was."
+      },
+      "ItemDetail": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "usage": {
+            "items": {
+              "$ref": "#/components/schemas/UsageEntry"
+            },
+            "type": "array",
+            "title": "Usage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "usage"
+        ],
+        "title": "ItemDetail"
+      },
       "ItemSummary": {
         "properties": {
           "number": {
@@ -1113,6 +1936,138 @@
           "mistakes"
         ],
         "title": "ItemSummary"
+      },
+      "ItemVersion": {
+        "properties": {
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "curriculum_topics": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumTopic"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Curriculum Topics"
+          },
+          "general_requirements": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "I",
+                "II",
+                "III",
+                "IV"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "General Requirements"
+          },
+          "item_format": {
+            "type": "string",
+            "enum": [
+              "closed",
+              "open"
+            ],
+            "title": "Item Format"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Points"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Options",
+            "default": {}
+          },
+          "correct_options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Correct Options",
+            "default": []
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "rubric": {
+            "items": {
+              "$ref": "#/components/schemas/RubricLevel"
+            },
+            "type": "array",
+            "title": "Rubric",
+            "default": []
+          },
+          "model_solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Solution"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Item Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "difficulty",
+          "curriculum_topics",
+          "general_requirements",
+          "item_format",
+          "text",
+          "points",
+          "id",
+          "item_id",
+          "number",
+          "created_at"
+        ],
+        "title": "ItemVersion",
+        "description": "An immutable version of an Item, as Assignments pin it."
       },
       "ItemView": {
         "properties": {
@@ -1409,6 +2364,55 @@
           "student_ids"
         ],
         "title": "Recipients"
+      },
+      "RubricLevel": {
+        "properties": {
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "description"
+        ],
+        "title": "RubricLevel"
+      },
+      "SearchPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "SearchPage"
       },
       "SectionBar": {
         "properties": {
@@ -1925,6 +2929,67 @@
         ],
         "title": "TypeProgress",
         "description": "Progress on one Assignment type; `average` is its points earned over available."
+      },
+      "UsageEntry": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "class_id": {
+            "type": "string",
+            "title": "Class Id"
+          },
+          "class_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Name"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Given At"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "title",
+          "class_id",
+          "class_name",
+          "given_at",
+          "average"
+        ],
+        "title": "UsageEntry",
+        "description": "An Item Given to a Class in an Assignment, with how the Class did on it. The title and\nname are missing when `teams` no longer knows the Assignment or the Class."
       },
       "ValidationError": {
         "properties": {
