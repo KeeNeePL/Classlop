@@ -55,11 +55,6 @@ p {
   flex: 1;
 }
 
-.flag {
-  background: var(--marker);
-  border: 1px solid #d8b800;
-}
-
 .offer {
   background: #eef2fb;
   border: 1px solid var(--edge);
@@ -213,14 +208,20 @@ legend {
   padding: 0 4px;
 }
 
-.topics {
-  max-height: 260px;
-  overflow: auto;
+.picked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  font-size: 14px;
 }
 
-.topics .section {
-  font-weight: 700;
-  margin-top: 6px;
+.topics select {
+  width: 100%;
 }
 
 .option {

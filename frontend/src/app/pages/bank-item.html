@@ -43,18 +43,6 @@
       </div>
     </div>
 
-    @if (d.item.flagged) {
-      <div class="note flag" role="status">
-        <div>
-          <b>Do sprawdzenia.</b> <cl-math [text]="d.item.flag_reason ?? ''" />
-          <div class="muted">Zapisanie zmian w zadaniu też odrzuca tę flagę.</div>
-        </div>
-        <button type="button" class="btn" [disabled]="busy()" (click)="dismiss(d)">
-          Odrzuć flagę
-        </button>
-      </div>
-    }
-
     @if (offer()) {
       <div class="note offer" role="status">
         <div>
@@ -119,19 +107,31 @@
 
         <fieldset class="topics">
           <legend>Tematy</legend>
-          @for (s of sections(); track s.id) {
-            <div class="section">{{ s.name }}</div>
-            @for (t of s.topics; track t.id) {
-              <label class="check">
-                <input
-                  type="checkbox"
-                  [checked]="has(f.topics, t.id)"
-                  (change)="toggle(f.topics, t.id, $any($event.target).checked)"
-                />
-                <cl-math [text]="t.name" />
-              </label>
-            }
+          @for (id of f.topics; track id) {
+            <div class="picked">
+              <cl-math [text]="topicName(id)" />
+              <button
+                type="button"
+                class="btn ghost"
+                [attr.aria-label]="'Usuń temat: ' + topicName(id)"
+                (click)="toggle(f.topics, id, false)"
+              >
+                Usuń
+              </button>
+            </div>
           }
+          <select aria-label="Dodaj temat" (change)="addTopic(f, $event)">
+            <option value="">Dodaj temat…</option>
+            @for (s of sections(); track s.id) {
+              <optgroup [label]="s.name">
+                @for (t of s.topics; track t.id) {
+                  @if (!has(f.topics, t.id)) {
+                    <option [value]="t.id">{{ plain(t.name) }}</option>
+                  }
+                }
+              </optgroup>
+            }
+          </select>
         </fieldset>
 
         @if (v.item_format === 'closed') {

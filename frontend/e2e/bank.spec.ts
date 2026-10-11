@@ -106,7 +106,7 @@ test('deleting an Item takes it out of the list, and the Teacher can bring it ba
   await expect(items(page)).toHaveCount(1);
 });
 
-test('dismissing a flag lowers the count in the sidebar', async ({ page }) => {
+test('editing a flagged Item lowers the count in the sidebar', async ({ page }) => {
   await page.goto('/bank');
   const link = page.getByRole('navigation').getByRole('link', { name: /^Bank zadań/ });
   await expect(link).toHaveText(/4$/);
@@ -114,11 +114,39 @@ test('dismissing a flag lowers the count in the sidebar', async ({ page }) => {
   await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('Wartość wyrażenia');
   await expect(items(page)).toHaveCount(1);
   await items(page).getByRole('link').click();
-  await expect(page.getByText('Do sprawdzenia.')).toBeVisible();
-  await page.getByRole('button', { name: 'Odrzuć flagę' }).click();
+  await expect(page.getByText('Do sprawdzenia')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Edytuj' }).click();
+  await page.getByLabel('Treść').fill('Wartość wyrażenia $a + b$ dla $a = 2$, $b = 3$ jest równa:');
+  await page.getByRole('button', { name: 'Zapisz' }).click();
 
-  await expect(page.getByText('Do sprawdzenia.')).toHaveCount(0);
+  await expect(page.getByText('wersja 2')).toBeVisible();
   await expect(link).toHaveText(/3$/);
+});
+
+test('the Teacher picks a topic from the drop-down and the new topic shows', async ({ page }) => {
+  await page.goto('/bank');
+  await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('równanie');
+  await expect(items(page)).toHaveCount(1);
+  await items(page).getByRole('link').click();
+
+  await page.getByRole('button', { name: 'Edytuj' }).click();
+  const topics = page.getByRole('group', { name: 'Tematy' });
+  await expect(
+    topics.locator('.picked').filter({ hasText: 'Rozwiązuje równania i nierówności kwadratowe' }),
+  ).toBeVisible();
+  await topics.getByLabel('Dodaj temat').selectOption('lo2024:II.1');
+  await expect(
+    topics.locator('.picked').filter({ hasText: 'Stosuje wzory skróconego mnożenia' }),
+  ).toBeVisible();
+  await topics.getByRole('button', { name: /^Usuń temat: Rozwiązuje równania/ }).click();
+  await expect(
+    topics.locator('.picked').filter({ hasText: 'Rozwiązuje równania i nierówności kwadratowe' }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Zapisz' }).click();
+
+  const tags = page.locator('dd').filter({ hasText: 'Stosuje wzory skróconego mnożenia' });
+  await expect(tags).toBeVisible();
+  await expect(page.locator('dd').filter({ hasText: 'Rozwiązuje równania' })).toHaveCount(0);
 });
 
 test('an edit saves a new version and the AI offers a new solution', async ({ page }) => {

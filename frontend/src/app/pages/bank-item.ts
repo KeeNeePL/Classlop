@@ -7,7 +7,6 @@ import { map } from 'rxjs';
 import { Api } from '../api/api';
 import {
   detailApiBankItemsItemIdGet,
-  dismissFlagApiBankItemsItemIdDismissFlagPost,
   editApiBankItemsItemIdPatch,
   restoreApiBankItemsItemIdRestorePost,
   retireApiBankItemsItemIdRetirePost,
@@ -134,6 +133,25 @@ export class BankItem {
     return this.skills().find((s) => s.id === id)?.name ?? id;
   }
 
+  protected topicName(id: string): string {
+    for (const s of this.sections()) {
+      const t = s.topics.find((t) => t.id === id);
+      if (t) return t.name;
+    }
+    return id;
+  }
+
+  /** A topic's name for a list that cannot show mathematics. */
+  protected plain(name: string): string {
+    return name.replaceAll('$', '');
+  }
+
+  protected addTopic(draft: Draft, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    if (select.value) draft.topics.push(select.value);
+    select.value = '';
+  }
+
   protected edit(d: ItemDetail): void {
     this.error.set(null);
     this.draft.set(draftOf(d.item.version));
@@ -192,10 +210,6 @@ export class BankItem {
 
   protected restore(d: ItemDetail): Promise<void> {
     return this.act(restoreApiBankItemsItemIdRestorePost, d);
-  }
-
-  protected dismiss(d: ItemDetail): Promise<void> {
-    return this.act(dismissFlagApiBankItemsItemIdDismissFlagPost, d);
   }
 
   private act(call: typeof retireApiBankItemsItemIdRetirePost, d: ItemDetail): Promise<void> {
