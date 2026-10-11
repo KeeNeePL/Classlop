@@ -43,6 +43,8 @@ Zadanie otwarte: answer, model_solution i rubric jako poziomy punktacji CKE rosn
 bez options."""
 RERANK = """Oceń, jak dobrym wzorcem dla nowego zadania jest każdy kandydat: score od 0 do 1.
 Zwróć score dla każdego id."""
+# Curriculum section and topic names by id: the model reads a topic by its name, not its number.
+NAMES = {x.id: x.name for s in curriculum() for x in (s, *s.topics)}
 
 
 class Line(BaseModel):
@@ -162,6 +164,10 @@ async def _exemplar_texts(ids: list[str]) -> list[dict]:
         ]
 
 
+def _named(id: str | None) -> dict | None:
+    return {"id": id, "name": NAMES.get(id)} if id else None
+
+
 async def _nearest_cosine(content: ItemContent) -> float:
     nearest = await index.nearest_item(content)
     return nearest[1] if nearest else -1.0
@@ -219,13 +225,12 @@ class Run:
     async def retrieve(self, state: BranchState) -> dict:
         task = state["task"]
         line = task["spec"]
-        topics = {t.id: t.name for s in curriculum() for t in s.topics}
         sections = (
             [line.curriculum_section]
             if line.curriculum_section
             else sorted({index.section_of(t) for t in line.curriculum_topics})
         )
-        query = topics.get(task["topic"] or "") or next(
+        query = NAMES.get(task["topic"] or "") or next(
             (s.name for s in curriculum() if s.id in sections), "zadanie z matematyki"
         )
         found: list[exemplars.Exemplar] = []
@@ -270,8 +275,8 @@ class Run:
         brief = {
             "item_format": line.item_format,
             "difficulty": line.difficulty,
-            "curriculum_topic": task["topic"],
-            "curriculum_section": line.curriculum_section,
+            "curriculum_topic": _named(task["topic"]),
+            "curriculum_section": _named(line.curriculum_section),
             "wzorce": await _exemplar_texts(state.get("exemplar_ids", [])),
             "poprzednia_próba_odrzucona_bo": state.get("problems", []),
         }

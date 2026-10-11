@@ -330,7 +330,8 @@ async def nearest_item(content: ItemContent) -> tuple[uuid.UUID, float] | None:
                 "knn": {
                     "embedding": {
                         "vector": vector,
-                        "k": 1,
+                        # Lucene's HNSW searches only k candidates; k=1 can miss the nearest.
+                        "k": 10,
                         "filter": {"bool": {"filter": [{"term": {"retired": False}}]}},
                     }
                 }
