@@ -29,3 +29,9 @@ export const HELD = 'czeka na sprawdzenie';
 
 /** A Submission's state as the Teacher reads it; a Held one waits for them whatever its state. */
 export const stateLabel = (state: State, held: boolean) => (held ? HELD : STATE[state]);
+
+/** "1 zadanie", "3 zadania", "5 zadań". */
+export const tasks = (n: number): string => {
+  const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
+  return `${n} ${n === 1 ? 'zadanie' : few ? 'zadania' : 'zadań'}`;
+};

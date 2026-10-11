@@ -13,6 +13,7 @@ import {
   swapApiClassesClassIdNewWorkSwapPost,
 } from '../api/functions';
 import { GivenWork, Placed, Shortfall } from '../api/models';
+import { tasks } from '../labels';
 import { fromInput } from '../time';
 import { Badge } from '../ui/badge';
 import { MathText } from '../ui/math';
@@ -45,6 +46,7 @@ const TYPE: Record<Type, string> = {
   styleUrl: './new-work.css',
 })
 export class NewWork {
+  protected readonly tasks = tasks;
   private readonly api = inject(Api);
   private readonly id = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map((p) => p.get('klasa') ?? '')),
@@ -131,12 +133,6 @@ export class NewWork {
     if (this.later() && this.publishAt() === '') return 'Wpisz, kiedy wydać pracę w Teams.';
     return null;
   });
-
-  /** "1 zadanie", "3 zadania", "5 zadań". */
-  protected tasks(n: number): string {
-    const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
-    return `${n} ${n === 1 ? 'zadanie' : few ? 'zadania' : 'zadań'}`;
-  }
 
   /** "1 uczeń", "3 uczniów". */
   protected students(n: number): string {

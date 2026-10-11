@@ -1,5 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -10,7 +19,9 @@ import { ChatMessage, JobCard } from '../api/models';
 import { EventStream } from '../shell/event-stream';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
-import { AiJob } from './ai-job';
+import { ProgressBar } from '../ui/progress-bar';
+import { jobFinished, jobPercent, jobState, jobTitle } from './ai-progress';
+import { AiResults } from './ai-results';
 import { AiStore, Outgoing, Reply } from './ai-store';
 
 /** What the Teacher just sent and what the AI has said so far, before the Chat is read again. */
@@ -22,11 +33,14 @@ interface Turn {
 
 const ASKED = 'Nie udało się wysłać wiadomości. Spróbuj jeszcze raz.';
 
-/** One Chat: its history, the replies of a turn as they stream in, the job cards that follow the
- * jobs it started, and the box to write in. Without a Chat (`/ai`) it is the empty start of one,
+/** A Generation request to finish in the Teacher's words: count, Item format, Difficulty, topic. */
+const REQUEST = 'Wygeneruj 5 zadań zamkniętych, łatwych, z tematu: ';
+
+/** One Chat: its history, the replies of a turn as they stream in, a chip for each job it started,
+ * the box to write in, and beside them the results panel. Without a Chat (`/ai`) it is the empty start of one,
  * made when the first message is sent. */
 @Component({
-  imports: [AiJob, FormsModule, MathText, Panel],
+  imports: [AiResults, FormsModule, MathText, Panel, ProgressBar],
   templateUrl: './ai-chat.html',
   styleUrl: './ai-chat.css',
 })
@@ -46,6 +60,11 @@ export class AiChat {
   protected readonly text = signal('');
   protected readonly file = signal<File | null>(null);
   protected readonly sending = signal(false);
+  protected readonly title = jobTitle;
+  protected readonly state = jobState;
+  protected readonly percent = jobPercent;
+  protected readonly finished = jobFinished;
+  private readonly box = viewChild.required<ElementRef<HTMLTextAreaElement>>('box');
 
   protected readonly jobOf = computed(() => {
     const byId = new Map(this.jobs().map((j) => [j.job_id, j]));
@@ -105,6 +124,14 @@ export class AiChat {
     const input = event.target as HTMLInputElement;
     this.file.set(input.files?.[0] ?? null);
     input.value = '';
+  }
+
+  /** Starts a Generation request in the box for the Teacher to finish. */
+  protected ask(): void {
+    if (!this.text().trim()) this.text.set(REQUEST);
+    const box = this.box().nativeElement;
+    box.focus();
+    setTimeout(() => box.setSelectionRange(box.value.length, box.value.length));
   }
 
   protected key(event: KeyboardEvent): void {
