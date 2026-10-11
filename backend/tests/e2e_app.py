@@ -2,6 +2,8 @@
 frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished.
 `teams` for the Classes screens is FakeTeams with its demo tenant."""
 
+from datetime import UTC, datetime, timedelta
+
 from fake_bank import InMemoryBank
 from fake_events import InMemoryFeed
 from fake_store import InMemoryStore
@@ -26,7 +28,8 @@ def create() -> FastAPI:
     kept = InMemoryStore()
     app.state.store = kept
     app.dependency_overrides[store.backend] = lambda: kept
-    app.dependency_overrides[home.failed_gives] = lambda: []
+    app.dependency_overrides[home.failed_gives] = failed_give
+    app.dependency_overrides[home.from_teams] = from_teams
     app.state.teams = demo()
     app.dependency_overrides[classes.backend] = lambda: app.state.teams
 
@@ -45,6 +48,63 @@ def create() -> FastAPI:
         feed.grade()
 
     return app
+
+
+def failed_give() -> list[home.Entry]:
+    return [
+        home.Entry(
+            kind="give_failed",
+            title="Nie udało się wydać pracy «Ciągi: zadania z treścią»",
+            detail="Teams odrzucił publikację dla klasy 2C",
+            link="/klasy/2c/prace/ciagi",
+            action="Otwórz pracę",
+        )
+    ]
+
+
+def from_teams() -> list[home.Entry]:
+    """What `teams` would give the queue for the invented Classes."""
+    now = datetime.now(UTC)
+    return [
+        home.Entry(
+            kind="deadline",
+            title="Termin: Wzory skróconego mnożenia (1A)",
+            detail="Praca domowa, oddane 17/26",
+            at=now + timedelta(hours=9),
+            link="/klasy/1a/prace/1a-4",
+            action="Otwórz pracę",
+        ),
+        home.Entry(
+            kind="team_removed",
+            title="Zespół klasy 3B usunięto w Teams",
+            detail="Praca i lekcje tej klasy nie zostaną już pobrane",
+            link="/klasy/3b/ustawienia",
+            action="Otwórz ustawienia klasy",
+        ),
+        home.Entry(
+            kind="next_lesson",
+            title="Lekcja: klasa 3B",
+            detail="Graniastosłupy: pola i objętości",
+            at=now + timedelta(hours=3),
+            link="/klasy/3b",
+            action="Otwórz klasę",
+        ),
+        home.Entry(
+            kind="sign_in",
+            title="Zaloguj się ponownie",
+            detail="Logowanie do Teams wygasło, część zadań czeka",
+            link="/auth/login",
+            action="Zaloguj się",
+        ),
+        home.Entry(
+            kind="live_lesson",
+            title="Trwa lekcja: klasa 1A",
+            detail="Wzory skróconego mnożenia",
+            at=now - timedelta(minutes=20),
+            link="https://teams.microsoft.com/l/meetup-join/1a-wzory",
+            action="Dołącz w Teams",
+        ),
+    ]
 
 
 def serve() -> FastAPI:

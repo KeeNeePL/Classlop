@@ -6,7 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from classlop.dashboard import auth, bank, invented, store
+from classlop.dashboard import auth, bank, class_read, store
+from classlop.dashboard.actions import refusing
+from classlop.dashboard.classes import TheTeams
+from classlop.dashboard.invented import students as invented_students
 from classlop.dashboard.reports import StudentReport, student_report
 from classlop.dashboard.reports.grades import check_thresholds
 from classlop.items import curriculum
@@ -29,13 +32,13 @@ async def report(
     student_id: str,
     kept: Kept,
     _: Teacher,
+    t: TheTeams,
     pool: bank.TheBank,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> StudentPage:
     """`start` and `end` bound the period by due time; leaving both out means everything."""
-    if (read := await invented.read(class_id, datetime.now(UTC), pool)) is None:
-        raise HTTPException(404)
+    read, invented = await class_read.read(class_id, t, pool)
     data = read.data
     if student_id not in {s.id for s in data.students}:
         raise HTTPException(404)
@@ -44,7 +47,7 @@ async def report(
         **view.model_dump(),
         class_name=data.name,
         note=await kept.note(class_id, student_id),
-        invented=True,
+        invented=invented,
     )
 
 
@@ -53,9 +56,14 @@ class Note(BaseModel):
 
 
 @router.put("/api/classes/{class_id}/students/{student_id}/note", status_code=204)
-async def save_note(class_id: str, student_id: str, body: Note, kept: Kept, _: Teacher) -> Response:
-    found = invented.students(class_id, datetime.now(UTC))
-    if found is None or student_id not in {s.id for s in found}:
+async def save_note(
+    class_id: str, student_id: str, body: Note, kept: Kept, _: Teacher, t: TheTeams
+) -> Response:
+    found = invented_students(class_id, datetime.now(UTC))
+    if found is None:
+        with refusing():
+            found = await t.list_students(class_id)
+    if student_id not in {s.id for s in found}:
         raise HTTPException(404)
     await kept.save_note(class_id, student_id, body.text)
     return Response(status_code=204)

@@ -24,8 +24,9 @@ export class DoZrobienia {
   protected readonly today = today();
   protected readonly mark = (entry: Entry) => MARK[entry.kind];
 
+  /** Signing in and joining a Lesson in Teams leave the app. */
   protected external(entry: Entry): boolean {
-    return entry.link.startsWith('/auth/');
+    return entry.link.startsWith('/auth/') || entry.link.startsWith('https://');
   }
 
   protected at(entry: Entry): string {

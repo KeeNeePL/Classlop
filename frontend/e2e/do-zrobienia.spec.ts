@@ -20,6 +20,11 @@ test('Do zrobienia opens with the sidebar and its queue', async ({ page }) => {
     'Termin: Wzory skróconego mnożenia (1A)',
   ]);
 
+  await expect(page.getByRole('link', { name: 'Dołącz w Teams' })).toHaveAttribute(
+    'href',
+    /^https:\/\/teams\.microsoft\.com\//,
+  );
+
   const sidebar = page.getByRole('navigation');
   await expect(sidebar.getByRole('link', { name: /^Do zrobienia\s*8$/ })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Classlop AI' })).toBeVisible();
@@ -45,7 +50,8 @@ test('a job finishing in the worker changes Do zrobienia without a reload', asyn
   await request.post('/api/e2e/grade');
 
   await expect(queue).toHaveCount(9);
-  await expect(queue.locator('.title').last()).toHaveText('Ocenione przez AI: Pierwiastki (1A)');
+  // With the other AI-graded Assignments, before the next Lesson.
+  await expect(queue.locator('.title').nth(6)).toHaveText('Ocenione przez AI: Pierwiastki (1A)');
   await expect(sidebar.getByRole('link', { name: /^Do zrobienia\s*9$/ })).toBeVisible();
 });
 

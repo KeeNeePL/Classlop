@@ -17,6 +17,7 @@ from classlop.teams.types import (
     CalendarQuestion,
     Candidate,
     Class,
+    ClassRead,
     ClassReadOnly,
     ClassState,
     Lesson,
@@ -41,6 +42,7 @@ __all__ = [
     "AttendanceState",
     "Candidate",
     "Class",
+    "ClassRead",
     "ClassReadOnly",
     "ClassState",
     "Lesson",
@@ -75,6 +77,7 @@ __all__ = [
     "give_again",
     "list_failed_gives",
     "publish_scheduled",
+    "read_class",
     "list_assignments",
     "list_submissions",
     "get_class",
@@ -138,6 +141,12 @@ async def get_class(class_id: str) -> Class:
 
 async def list_classes() -> list[Class]:
     return await backend().list_classes()
+
+
+async def read_class(class_id: str) -> ClassRead:
+    """The Class with its Students (Former students too), its Assignments with every Submission,
+    and its Lessons with the Attendance of those that began: one read for Reports."""
+    return await backend().read_class(class_id)
 
 
 async def list_students(class_id: str) -> list[Student]:

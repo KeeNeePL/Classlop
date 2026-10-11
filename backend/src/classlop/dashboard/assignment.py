@@ -11,8 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading, teams
-from classlop.dashboard import auth, bank, invented, store
+from classlop.dashboard import auth, bank, class_read, invented, store
 from classlop.dashboard.actions import carry_out
+from classlop.dashboard.classes import TheTeams
 from classlop.dashboard.reports import AssignmentSummary, Mistake, Student, assignment_summary
 
 router = APIRouter()
@@ -42,19 +43,19 @@ def mistakes(found: list[grading.ItemMistakes]) -> list[Mistake]:
 
 
 async def page(
-    class_id: str, assignment_id: str, thresholds: list[int], pool: bank.Bank
+    class_id: str, assignment_id: str, thresholds: list[int], t: teams.Teams, pool: bank.Bank
 ) -> tuple[AssignmentPage, tuple[Student, ...]]:
-    """The page, and the Class's Students in their order."""
-    now = datetime.now(UTC)
-    if (read := await invented.read(class_id, now, pool)) is None:
-        raise HTTPException(404)
+    """The page, and the Class's Students in their order. Common mistakes come from `grading`
+    once the Reports read it (#82); until then an own Class's Assignment has none."""
+    read, made_up = await class_read.read(class_id, t, pool)
     data = read.data
     found = next((a for a in data.assignments if a.id == assignment_id), None)
     if found is None:
         raise HTTPException(404)
-    found_mistakes = mistakes(invented.common_mistakes(found))
-    view = assignment_summary(found, data.students, found_mistakes, now, thresholds)
-    return AssignmentPage(**view.model_dump(), class_name=data.name, invented=True), data.students
+    found_mistakes = mistakes(invented.common_mistakes(found)) if made_up else []
+    view = assignment_summary(found, data.students, found_mistakes, datetime.now(UTC), thresholds)
+    page = AssignmentPage(**view.model_dump(), class_name=data.name, invented=made_up)
+    return page, data.students
 
 
 @router.get("/api/classes/{class_id}/assignments/{assignment_id}")
@@ -63,9 +64,10 @@ async def assignment(
     assignment_id: str,
     kept: Annotated[store.Store, Depends(store.backend)],
     _: Annotated[auth.Me, Depends(auth.teacher)],
+    t: TheTeams,
     pool: bank.TheBank,
 ) -> AssignmentPage:
-    return (await page(class_id, assignment_id, await kept.thresholds(), pool))[0]
+    return (await page(class_id, assignment_id, await kept.thresholds(), t, pool))[0]
 
 
 @router.get(
@@ -78,11 +80,12 @@ async def assignment_csv(
     assignment_id: str,
     kept: Annotated[store.Store, Depends(store.backend)],
     _: Annotated[auth.Me, Depends(auth.teacher)],
+    t: TheTeams,
     pool: bank.TheBank,
 ) -> Response:
     """One row per recipient in the Class's order, for typing the grades into the e-gradebook.
     Semicolons and a BOM, so Excel opens it in Polish."""
-    view, students = await page(class_id, assignment_id, await kept.thresholds(), pool)
+    view, students = await page(class_id, assignment_id, await kept.thresholds(), t, pool)
     order = {s.id: n for n, s in enumerate(students)}
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
