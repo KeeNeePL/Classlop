@@ -3,7 +3,8 @@ import { RouterLink } from '@angular/router';
 import { AssignmentRow } from '../api/models';
 import { shortDate, warsaw } from '../time';
 
-type Status = 'scheduled' | 'open' | 'graded';
+/** The Assignment states of a Given Assignment; the Class overview leaves Drafts out. */
+type GivenState = Exclude<AssignmentRow['state'], 'draft'>;
 
 const LANES: { type: AssignmentRow['type']; label: string }[] = [
   { type: 'exam', label: 'Sprawdzian' },
@@ -11,10 +12,11 @@ const LANES: { type: AssignmentRow['type']; label: string }[] = [
   { type: 'homework', label: 'Praca domowa' },
 ];
 
-export const STATUS: Record<Status, string> = {
+export const STATUS: Record<GivenState, string> = {
   scheduled: 'Zaplanowana',
   open: 'Zbieranie prac',
-  graded: 'Ocenione',
+  // Not "Ocenione": its Submissions may still be ungraded or Held.
+  closed: 'Zamknięta',
 };
 
 const DAY = 86_400_000;
@@ -33,7 +35,7 @@ export class AssignmentLanes {
   private readonly now = new Date().toISOString();
 
   protected readonly lanes = LANES;
-  protected readonly statuses = Object.entries(STATUS) as [Status, string][];
+  protected readonly statuses = Object.entries(STATUS) as [GivenState, string][];
 
   /** The axis spans every given day and today, padded so marks never sit on the edge. */
   private readonly range = computed(() => {
@@ -59,9 +61,7 @@ export class AssignmentLanes {
   protected readonly marks = (type: AssignmentRow['type']) =>
     this.assignments().filter((a) => a.type === type);
 
-  /** AI grades every Submission as it comes in, so a closed Assignment counts as graded. */
-  protected readonly status = (a: AssignmentRow): Status =>
-    a.state === 'closed' ? 'graded' : a.state === 'open' ? 'open' : 'scheduled';
+  protected readonly status = (a: AssignmentRow) => a.state as GivenState;
 
   protected readonly statusLabel = (a: AssignmentRow) => STATUS[this.status(a)];
   protected readonly given = (a: AssignmentRow) => shortDate(a.given_at);
