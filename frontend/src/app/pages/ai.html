@@ -1,0 +1,71 @@
+<header>
+  <h1>Classlop AI</h1>
+</header>
+
+<div class="ai">
+  <section class="list" aria-label="Czaty">
+    <a class="btn ghost new" routerLink="/ai">+ Nowy czat</a>
+    <input
+      type="search"
+      class="search"
+      placeholder="Szukaj czatów"
+      aria-label="Szukaj czatów"
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+    />
+    <ul aria-label="Lista czatów">
+      @for (chat of shown(); track chat.id) {
+        <li>
+          @if (renaming() === chat.id) {
+            <input
+              class="rename"
+              aria-label="Nowa nazwa czatu"
+              [value]="chat.name"
+              (keydown.enter)="rename(chat, $any($event.target).value)"
+              (keydown.escape)="renaming.set(null)"
+              (blur)="rename(chat, $any($event.target).value)"
+              #field
+            />
+          } @else {
+            <a class="name" [routerLink]="['/ai', chat.id]" routerLinkActive="on">
+              {{ chat.name }}
+              @if (chat.running) {
+                <cl-badge tone="live" [attr.aria-label]="'Trwające zadania: ' + chat.running">
+                  {{ chat.running }}
+                </cl-badge>
+              }
+            </a>
+            @if (deleting() === chat.id) {
+              <span class="ask">Usunąć?</span>
+              <button type="button" class="small danger" (click)="remove(chat)">Tak</button>
+              <button type="button" class="small" (click)="deleting.set(null)">Nie</button>
+            } @else {
+              <button
+                type="button"
+                class="small"
+                [attr.aria-label]="'Zmień nazwę: ' + chat.name"
+                (click)="renaming.set(chat.id)"
+              >
+                Zmień
+              </button>
+              <button
+                type="button"
+                class="small"
+                [attr.aria-label]="'Usuń czat: ' + chat.name"
+                (click)="deleting.set(chat.id)"
+              >
+                Usuń
+              </button>
+            }
+          }
+        </li>
+      } @empty {
+        <li class="muted">{{ query() ? 'Nic nie znaleziono.' : 'Nie ma jeszcze czatów.' }}</li>
+      }
+    </ul>
+  </section>
+
+  <section class="chat">
+    <router-outlet />
+  </section>
+</div>

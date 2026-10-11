@@ -12,8 +12,14 @@ const empty = (path: string, title: string, sub = false): Route => ({
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', component: DoZrobienia },
-  empty('ai', 'Classlop AI'),
-  empty('ai/:czat', 'Classlop AI'),
+  {
+    path: 'ai',
+    loadComponent: () => import('./pages/ai').then((m) => m.Ai),
+    children: [
+      { path: '', loadComponent: () => import('./pages/ai-chat').then((m) => m.AiChat) },
+      { path: ':czat', loadComponent: () => import('./pages/ai-chat').then((m) => m.AiChat) },
+    ],
+  },
   {
     path: 'bank',
     loadComponent: () => import('./pages/bank').then((m) => m.Bank),
@@ -41,8 +47,11 @@ export const routes: Routes = [
         path: 'uczniowie',
         loadComponent: () => import('./pages/class-students').then((m) => m.ClassStudents),
       },
-      empty('lekcje', 'Lekcje', true),
-      empty('lekcje/:lekcja', 'Lekcja', true),
+      { path: 'lekcje', loadComponent: () => import('./pages/lessons').then((m) => m.Lessons) },
+      {
+        path: 'lekcje/:lekcja',
+        loadComponent: () => import('./pages/lesson-page').then((m) => m.LessonPage),
+      },
       {
         path: 'ustawienia',
         loadComponent: () => import('./pages/class-settings').then((m) => m.ClassSettingsTab),

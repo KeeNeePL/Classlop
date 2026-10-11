@@ -127,7 +127,7 @@ async def test_the_lessons_and_deadlines_come_from_teams(own):
 
     shown = {e["kind"]: (e["title"], e["detail"], e["action"]) for e in entries}
     assert shown["live_lesson"] == ("Trwa lekcja: klasa 1A", "Funkcje", "Dołącz w Teams")
-    assert shown["next_lesson"] == ("Lekcja: klasa 1A", "Ciągi", "Otwórz klasę")
+    assert shown["next_lesson"] == ("Lekcja: klasa 1A", "Ciągi", "Otwórz lekcję")
     assert shown["deadline"] == (
         "Termin: Równania (1A)",
         "Praca domowa, oddane 1/3",

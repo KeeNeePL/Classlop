@@ -66,6 +66,7 @@ class FakeTeams(
         # Per Class: [event id, slot, first day, last day or None once replaced]
         self._series: dict[str, list[list]] = {}
         self._singles: dict[str, list[Lesson]] = {}
+        self._breaks: dict[str, list[tuple[date, date]]] = {}
         self._events: dict[str, dict] = {}
         self._records: list[tuple[str, list[attendance.Session]]] = []
         self._attendees: dict[str, list[Attendee]] = {}
@@ -286,6 +287,7 @@ class FakeTeams(
         self._classes[klass.id] = klass
         self._students[klass.id] = {}
         self._series[klass.id], self._singles[klass.id] = [], []
+        self._breaks[klass.id] = []
         await self.sync_roster(klass.id)
         return klass
 
@@ -346,9 +348,17 @@ class FakeTeams(
             raise ValueError("a slot changes from after its first Lesson")
         series[3] = from_date - timedelta(days=1)
         self._start_series(class_id, new, from_date)
+        event_id, _, day, _ = self._series[class_id][-1]
+        while day <= self._classes[class_id].school_year_end:
+            if day.weekday() == new.weekday and any(
+                a <= day <= b for a, b in self._breaks[class_id]
+            ):
+                self._occurrences.setdefault(f"{event_id}@{day}", {})["cancelled"] = True
+            day += timedelta(days=1)
 
     @writable
     async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        self._breaks[class_id].append((first, last))
         for lesson in await self.list_lessons(class_id):
             if first <= lesson.start.astimezone(WARSAW).date() <= last:
                 if lesson.id in self._events:

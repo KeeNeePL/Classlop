@@ -1,0 +1,77 @@
+<div class="conversation" role="log" aria-label="Rozmowa" aria-live="polite">
+  @if (!id() && !turn()) {
+    <cl-panel class="welcome">
+      <p>
+        Napisz, jakich zadań potrzebujesz, albo dołącz plik z zadaniami. Zadania trafią do banku
+        zadań.
+      </p>
+    </cl-panel>
+  }
+
+  @for (message of messages(); track message.id) {
+    <div class="msg" [class.me]="message.role === 'user'">
+      @if (message.payload['file']) {
+        <p class="file">
+          Plik: <b>{{ message.payload['file'] }}</b>
+        </p>
+      }
+      @if (message.text) {
+        <cl-math [text]="message.text" />
+      }
+      @if (jobOf()(message); as job) {
+        <cl-ai-job [job]="job" (changed)="read(id())" />
+      }
+    </div>
+  }
+
+  @if (turn(); as t) {
+    <div class="msg me">
+      @if (t.file) {
+        <p class="file">
+          Plik: <b>{{ t.file }}</b>
+        </p>
+      }
+      @if (t.text) {
+        <cl-math [text]="t.text" />
+      }
+    </div>
+    @for (reply of t.replies; track $index) {
+      <div class="msg">
+        <cl-math [text]="reply.text" />
+      </div>
+    } @empty {
+      <div class="msg thinking" role="status">AI pisze</div>
+    }
+  }
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+</div>
+
+<form class="composer" (submit)="$event.preventDefault(); send()">
+  @if (file(); as f) {
+    <p class="attached">
+      Plik: <b>{{ f.name }}</b>
+      <button type="button" class="drop" aria-label="Odłącz plik" (click)="file.set(null)">
+        ×
+      </button>
+    </p>
+  }
+  <textarea
+    rows="2"
+    aria-label="Wiadomość"
+    placeholder="Napisz do Classlop AI"
+    [ngModel]="text()"
+    (ngModelChange)="text.set($event)"
+    name="message"
+    (keydown)="key($event)"
+  ></textarea>
+  <div class="buttons">
+    <label class="btn ghost attach">
+      Dołącz plik
+      <input type="file" accept=".pdf,image/*" hidden (change)="attach($event)" />
+    </label>
+    <button type="submit" class="btn send" [disabled]="sending()">Wyślij</button>
+  </div>
+</form>

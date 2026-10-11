@@ -1,10 +1,12 @@
 """The dashboard with the Teacher signed in and no database, for the Playwright tests in
-frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished.
-`teams` for the Classes screens is FakeTeams with its demo tenant."""
+frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished;
+the Classlop AI tab talks to a fake Chat. `teams` for the Classes screens is FakeTeams with its
+demo tenant."""
 
 from datetime import UTC, datetime, timedelta
 
 from fake_bank import InMemoryBank
+from fake_chats import InMemoryChats
 from fake_events import InMemoryFeed
 from fake_grading import InMemoryGrader
 from fake_store import InMemoryStore
@@ -12,7 +14,18 @@ from fake_work import Offline, invented_class
 from fastapi import FastAPI
 
 from classlop import teams
-from classlop.dashboard import auth, bank, classes, events, grader, home, invented, new_work, store
+from classlop.dashboard import (
+    auth,
+    bank,
+    chats,
+    classes,
+    events,
+    grader,
+    home,
+    invented,
+    new_work,
+    store,
+)
 from classlop.dashboard.app import create_app
 from classlop.teams.fake import FakeTeams, demo
 
@@ -27,6 +40,8 @@ def create() -> FastAPI:
     app.dependency_overrides[grader.backend] = lambda: graded
     feed = InMemoryFeed()
     app.dependency_overrides[events.job_feed] = lambda: feed
+    talk = InMemoryChats(items, feed)
+    app.dependency_overrides[chats.backend] = lambda: talk
     app.dependency_overrides[home.stand_in] = lambda: feed.home
     kept = InMemoryStore()
     app.state.store = kept
@@ -44,8 +59,39 @@ def create() -> FastAPI:
         invented.reset()
         graded.reset()
         feed.reset()
+        talk.reset()
         app.state.teams = demo()
         kept.reset()
+
+    @app.post("/api/e2e/attend", include_in_schema=False)
+    async def attend(class_id: str) -> None:
+        """A call record for each Lesson of the Class: Jan joins on time, Ewa 9 minutes late,
+        Piotr never, and a guest called Piotrek W. joins unlinked."""
+        fake: FakeTeams = app.state.teams
+        users = {s.display_name: s.user_id for s in await fake.list_students(class_id)}
+        who = [
+            (users["Jan Kowalski"], "Jan Kowalski", 1),
+            (users["Ewa Zielinska"], "Ewa Zielinska", 9),
+            (None, "Piotrek W.", 2),
+        ]
+        for lesson in await fake.list_lessons(class_id):
+            fake.attend(
+                lesson.join_url,
+                [(u, n, lesson.start + timedelta(minutes=m), lesson.end) for u, n, m in who],
+            )
+
+    @app.post("/api/e2e/meeting", include_in_schema=False)
+    async def meeting(class_id: str) -> None:
+        """A Teams meeting that the Class's Students and a stranger were invited to."""
+        fake: FakeTeams = app.state.teams
+        invited = [s.upn for s in await fake.list_students(class_id)]
+        start = datetime.now(UTC) + timedelta(days=2)
+        fake.add_meeting(
+            "Wycieczka do muzeum",
+            start,
+            start + timedelta(hours=1),
+            attendees=[*invited[:1], "gosc@example.org"],
+        )
 
     @app.post("/api/e2e/grade", include_in_schema=False)
     async def grade() -> None:
@@ -90,8 +136,8 @@ def from_teams() -> list[home.Entry]:
             title="Lekcja: klasa 3B",
             detail="Graniastosłupy: pola i objętości",
             at=now + timedelta(hours=3),
-            link="/klasy/3b",
-            action="Otwórz klasę",
+            link="/klasy/3b/lekcje/graniastoslupy",
+            action="Otwórz lekcję",
         ),
         home.Entry(
             kind="sign_in",

@@ -12,7 +12,15 @@
           <div class="muted">{{ e.detail }}</div>
         </div>
         <time class="at">{{ at(e) }}</time>
-        @if (external(e)) {
+        @if (e.question_id; as id) {
+          <div class="choices" role="group" [attr.aria-label]="e.title">
+            @for (c of e.choices; track c.answer) {
+              <button type="button" class="btn ghost" (click)="answer(id, c.answer)">
+                {{ c.label }}
+              </button>
+            }
+          </div>
+        } @else if (external(e)) {
           <a class="btn ghost" [href]="e.link">{{ e.action }}</a>
         } @else {
           <a class="btn ghost" [routerLink]="e.link">{{ e.action }}</a>

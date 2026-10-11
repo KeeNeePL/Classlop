@@ -18,6 +18,7 @@ from classlop.teams.handins import HandIns
 from classlop.teams.lifecycle import Lifecycle, writable
 from classlop.teams.models import (
     AttendeeRecord,
+    BreakRecord,
     CalendarCursor,
     CalendarEventRecord,
     CalendarSeriesRecord,
@@ -240,12 +241,24 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing
         row = await self._start_series(
             klass, new, from_date, await self._invitees(class_id), klass.school_year_end
         )
+        before = {lesson.id for lesson in await self.list_lessons(class_id)}
         async with sessions().begin() as session:
             (await session.get_one(SlotRecord, current.id)).last_on = last_on
             session.add(row)
+            breaks = list(
+                await session.scalars(select(BreakRecord).where(BreakRecord.class_id == class_id))
+            )
+        # The new series is the only source of Lessons whose ids were not there before.
+        for lesson in await self.list_lessons(class_id):
+            if lesson.id not in before and any(
+                b.first <= lesson.start.astimezone(WARSAW).date() <= b.last for b in breaks
+            ):
+                await self._graph.send("POST", f"/me/events/{lesson.id}/cancel", {})
 
     @writable
     async def cancel_lessons(self, class_id: str, first: date, last: date) -> None:
+        async with sessions().begin() as session:
+            session.add(BreakRecord(id=str(ULID()), class_id=class_id, first=first, last=last))
         for lesson in await self.list_lessons(class_id):
             if not lesson.cancelled and first <= lesson.start.astimezone(WARSAW).date() <= last:
                 await self._graph.send("POST", f"/me/events/{lesson.id}/cancel", {})
