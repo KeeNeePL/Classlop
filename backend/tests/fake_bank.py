@@ -270,3 +270,33 @@ class InMemoryBank:
 
     async def dismiss_flag(self, item_id: uuid.UUID) -> None:
         await self._set(item_id, flagged=False, flag_reason=None)
+
+    def add(self, version: ItemContent, origin_ref: str | None = None) -> Item:
+        """A new Item, as a Generation request or an upload makes one."""
+        n = len(self.items) + 1
+        item_id = uuid.UUID(int=1000 + n)
+        now = datetime.now(UTC)
+        item = Item(
+            id=item_id,
+            origin="chat",
+            origin_ref=origin_ref,
+            source_file=None,
+            source_page=None,
+            exemplar_ids=[],
+            flagged=False,
+            flag_reason=None,
+            retired=False,
+            created_at=now,
+            version=ItemVersion(
+                id=uuid.UUID(int=2000 + n),
+                item_id=item_id,
+                number=1,
+                created_at=now,
+                **version.model_dump(),
+            ),
+        )
+        self.items[item_id] = item
+        self._usage[item_id] = []
+        self.classes_used[item_id] = set()
+        self._versions[item.version.id] = item.version
+        return item

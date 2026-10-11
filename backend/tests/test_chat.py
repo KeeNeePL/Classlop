@@ -364,3 +364,61 @@ async def test_chats_over_http_rename_delete_and_refuse_the_unknown(web, model, 
     assert (await web.get(f"/api/chats/{chat['id']}/messages")).status_code == 404
     assert (await web.post("/api/chats/nope/messages", data={"text": "x"})).status_code == 404
     assert (await web.post(f"/api/chats/{chat['id']}/messages", data={})).status_code == 404
+
+
+async def write_job(kind: str, payload: dict, **values) -> uuid.UUID:
+    from classlop.shared.db import sessions
+    from classlop.shared.models import Job
+
+    job = Job(id=uuid.uuid4(), kind=kind, payload=payload, **values)
+    async with sessions().begin() as session:
+        session.add(job)
+    return job.id
+
+
+async def test_a_chats_jobs_are_its_generations_and_uploads_with_the_items_they_added():
+    chat, other = await items.create_chat(), await items.create_chat()
+    ids = [uuid.uuid4() for _ in range(3)]
+    spec = items.GenerationSpec(lines=[EASY_CLOSED]).model_dump(mode="json")
+    generation = await write_job(
+        "items.generate",
+        {"spec": spec, "origin": {"kind": "chat", "chat_id": chat.id}},
+        status="succeeded",
+        progress={"landed": 2, "total": 2},
+        result={"lines": [[str(ids[0])], [str(ids[1])]]},
+    )
+    upload = await write_job(
+        "items.upload",
+        {"upload_id": str(uuid.uuid4()), "chat_id": chat.id, "filename": "zestaw.pdf"},
+        status="running",
+        progress={"pages": 4, "pages_done": 1},
+    )
+    await write_job(
+        "items.generate",
+        {"spec": spec, "origin": {"kind": "chat", "chat_id": other.id}},
+    )
+    await write_job("grading.grade", {"chat_id": chat.id})
+
+    found = await items.chat_jobs(chat.id)
+
+    assert [(j.job_id, j.kind, j.status) for j in found] == [
+        (generation, "generation", "succeeded"),
+        (upload, "upload", "running"),
+    ]
+    assert found[0].item_ids == ids[:2]
+    assert found[1].filename == "zestaw.pdf"
+    assert found[1].progress == {"pages": 4, "pages_done": 1}
+
+
+async def test_running_jobs_are_counted_per_chat():
+    chat, other = await items.create_chat(), await items.create_chat()
+    origin = {"kind": "chat", "chat_id": chat.id}
+    await write_job("items.generate", {"origin": origin})
+    await write_job("items.generate", {"origin": origin}, status="running")
+    await write_job("items.generate", {"origin": origin}, status="succeeded")
+    await write_job("items.upload", {"chat_id": chat.id, "filename": "a.pdf"}, status="failed")
+
+    counts = await items.running_jobs()
+
+    assert counts[chat.id] == 2
+    assert other.id not in counts

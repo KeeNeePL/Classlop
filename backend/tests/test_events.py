@@ -92,6 +92,16 @@ async def test_progress_goes_with_the_event(feed):
     assert (event["kind"], event["progress"]) == ("generation", {"landed": 3, "total": 8})
 
 
+async def test_upload_progress_goes_with_the_event(feed):
+    stream = events.stream(feed, await feed.now(), interval=0.05)
+    await anext(stream)
+
+    await write("items.upload", status="running", progress={"pages": 4, "pages_done": 1})
+
+    event = await next_event(stream)
+    assert (event["kind"], event["progress"]) == ("upload", {"pages": 4, "pages_done": 1})
+
+
 async def test_only_what_changed_after_the_stream_opened_is_pushed(feed):
     await write("grading.grade", status="succeeded")
     stream = events.stream(feed, await feed.now(), interval=0.05)

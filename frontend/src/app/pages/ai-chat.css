@@ -1,0 +1,104 @@
+:host {
+  display: grid;
+  gap: 12px;
+}
+
+.conversation {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-height: 320px;
+}
+
+.msg {
+  justify-self: start;
+  max-width: 85%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+}
+
+.msg.me {
+  justify-self: end;
+  border-color: var(--pen);
+  background: #eef2fd;
+}
+
+.thinking {
+  color: var(--muted);
+}
+
+.thinking::after {
+  content: '...';
+}
+
+.file {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+  font-weight: 600;
+}
+
+.welcome p {
+  margin: 0;
+}
+
+.composer {
+  display: grid;
+  gap: 8px;
+}
+
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+  resize: vertical;
+}
+
+textarea:focus {
+  border-color: var(--pen);
+  outline: 2px solid var(--pen);
+  outline-offset: 0;
+}
+
+.attached {
+  margin: 0;
+  font-size: 13px;
+}
+
+.drop {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.attach {
+  cursor: pointer;
+}
+
+.send {
+  background: var(--pen);
+  border-color: var(--pen);
+  color: #fff;
+}
+
+.send:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -4,7 +4,7 @@ import { Injectable, InjectionToken, Signal, computed, inject, signal } from '@a
  * `Event` in backend/src/classlop/dashboard/events.py, which is left out of the OpenAPI
  * client since a stream has no generated call. */
 export interface StreamEvent {
-  kind: 'hand_in' | 'graded' | 'generation' | 'attendance';
+  kind: 'hand_in' | 'graded' | 'generation' | 'upload' | 'attendance';
   job_id: string;
   status: string;
   progress: Record<string, unknown> | null;

@@ -21,7 +21,7 @@ INTERVAL = 2.0
 # An idle stream says so now and then, so no proxy closes it.
 KEEPALIVE = 15.0
 
-EventKind = Literal["hand_in", "graded", "generation", "attendance"]
+EventKind = Literal["hand_in", "graded", "generation", "upload", "attendance"]
 
 
 class Event(BaseModel):
@@ -45,12 +45,12 @@ def _always(job: Job) -> bool:
     return True
 
 
-# The jobs a screen shows, by job kind: the event kind and when a job of it is news. Upload
-# progress joins when Item upload becomes a job.
+# The jobs a screen shows, by job kind: the event kind and when a job of it is news.
 CONCERNS: dict[str, tuple[EventKind, Callable[[Job], bool]]] = {
     "teams.poll_handins": ("hand_in", _found("changed")),
     "grading.grade": ("graded", _finished),
     "items.generate": ("generation", _always),
+    "items.upload": ("upload", _always),
     "teams.fetch_attendance": ("attendance", _found("fetched")),
 }
 

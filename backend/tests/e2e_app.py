@@ -1,8 +1,10 @@
 """The dashboard with the Teacher signed in and no database, for the Playwright tests in
-frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished.
-`teams` for the Classes screens is FakeTeams with its demo tenant."""
+frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished;
+the Classlop AI tab talks to a fake Chat. `teams` for the Classes screens is FakeTeams with its
+demo tenant."""
 
 from fake_bank import InMemoryBank
+from fake_chats import InMemoryChats
 from fake_events import InMemoryFeed
 from fake_grading import InMemoryGrader
 from fake_store import InMemoryStore
@@ -10,7 +12,18 @@ from fake_work import Offline, invented_class
 from fastapi import FastAPI
 
 from classlop import teams
-from classlop.dashboard import auth, bank, classes, events, grader, home, invented, new_work, store
+from classlop.dashboard import (
+    auth,
+    bank,
+    chats,
+    classes,
+    events,
+    grader,
+    home,
+    invented,
+    new_work,
+    store,
+)
 from classlop.dashboard.app import create_app
 from classlop.teams.fake import FakeTeams, demo
 
@@ -25,6 +38,8 @@ def create() -> FastAPI:
     app.dependency_overrides[grader.backend] = lambda: graded
     feed = InMemoryFeed()
     app.dependency_overrides[events.job_feed] = lambda: feed
+    talk = InMemoryChats(items, feed)
+    app.dependency_overrides[chats.backend] = lambda: talk
     app.dependency_overrides[home.stand_in] = lambda: feed.home
     kept = InMemoryStore()
     app.state.store = kept
@@ -41,6 +56,7 @@ def create() -> FastAPI:
         invented.reset()
         graded.reset()
         feed.reset()
+        talk.reset()
         app.state.teams = demo()
         kept.reset()
 

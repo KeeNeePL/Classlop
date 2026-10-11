@@ -1,0 +1,100 @@
+<section class="job" [attr.aria-label]="title()">
+  <h3>{{ title() }}</h3>
+  <ol class="steps" aria-label="Kroki">
+    @for (step of steps(); track $index) {
+      <li [class]="step.state">{{ step.label }}</li>
+    }
+  </ol>
+  @if (percent() !== null && job().status !== 'succeeded') {
+    <cl-progress [value]="percent()!" />
+  }
+
+  @if (job().items.length) {
+    <ol class="items" aria-label="Dodane zadania">
+      @for (card of job().items; track card.item.id) {
+        @let v = card.item.version;
+        <li class="item" [class.retired]="card.item.retired">
+          <div class="head">
+            <b>Zadanie {{ card.number }}</b>
+            <cl-badge>{{ difficulty[v.difficulty] }}</cl-badge>
+            <cl-badge>{{ v.points }} pkt</cl-badge>
+            @if (card.item.flagged) {
+              <cl-badge tone="warn">do sprawdzenia</cl-badge>
+            }
+            @if (card.item.retired) {
+              <cl-badge tone="danger">usunięte</cl-badge>
+            }
+          </div>
+          <div class="text"><cl-math [text]="v.text" /></div>
+          <details>
+            <summary>Szczegóły</summary>
+            @for (option of options(card); track option[0]) {
+              <p class="option">
+                <b>{{ option[0] }}.</b> <cl-math [text]="option[1]" />
+                @if (v.correct_options?.includes(option[0])) {
+                  <cl-badge tone="ok">poprawna</cl-badge>
+                }
+              </p>
+            }
+            @if (v.answer) {
+              <p><b>Odpowiedź:</b> <cl-math [text]="v.answer" /></p>
+            }
+            @if (v.model_solution) {
+              <p><b>Rozwiązanie wzorcowe:</b> <cl-math [text]="v.model_solution" /></p>
+            }
+            @if (v.rubric?.length) {
+              <ul class="rubric">
+                @for (level of v.rubric; track level.points) {
+                  <li>{{ level.points }} pkt: <cl-math [text]="level.description" /></li>
+                }
+              </ul>
+            }
+            <p class="muted">
+              @for (topic of v.curriculum_topics; track topic.id) {
+                <span>{{ topic.name }}{{ $last ? '' : ', ' }}</span>
+              }
+            </p>
+            @if (card.item.flag_reason) {
+              <p class="muted">{{ card.item.flag_reason }}</p>
+            }
+            <a [routerLink]="['/bank', card.item.id]">Otwórz w banku zadań</a>
+          </details>
+          @if (!card.item.retired) {
+            <button
+              type="button"
+              class="btn ghost"
+              [disabled]="busy()"
+              [attr.aria-label]="'Usuń zadanie ' + card.number"
+              (click)="retire(card)"
+            >
+              Usuń
+            </button>
+          }
+        </li>
+      }
+    </ol>
+  }
+
+  @if (job().pending?.length) {
+    <h4>Podobne do zadań w banku</h4>
+    <ul class="pending" aria-label="Podobne zadania">
+      @for (p of job().pending; track p.id) {
+        <li>
+          <div class="text"><cl-math [text]="p.content.text" /></div>
+          <p class="muted">
+            Strona {{ p.source_page }}.
+            <a [routerLink]="['/bank', p.nearest_item_id]">Zobacz podobne zadanie</a>
+          </p>
+          <div class="actions">
+            <button type="button" class="btn ghost" [disabled]="busy()" (click)="decide(p, true)">
+              Wgraj mimo to
+            </button>
+            <button type="button" class="btn" [disabled]="busy()" (click)="decide(p, false)">
+              Pomiń
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</section>
