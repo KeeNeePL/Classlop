@@ -1,0 +1,84 @@
+h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 15px;
+  margin: 20px 0 8px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+form.row {
+  flex-direction: row;
+  align-items: center;
+}
+
+form.wrap {
+  flex-wrap: wrap;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.slots li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.current li {
+  padding: 4px 0;
+  font-weight: 600;
+}
+
+.affected {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 3px solid var(--edge);
+}
+
+.affected li {
+  padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}

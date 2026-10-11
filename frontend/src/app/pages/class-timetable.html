@@ -1,0 +1,185 @@
+<cl-panel>
+  <h2>Plan lekcji</h2>
+  @if (error(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+  @if (timetable.value(); as t) {
+    @if (!t.slots.length) {
+      <p class="muted">
+        Każdy slot staje się cotygodniowym spotkaniem w Teams z zaproszonymi uczniami, aż do końca
+        roku szkolnego. Plan wpisujesz raz; potem możesz dodawać przerwy i zmieniać sloty.
+      </p>
+      <form (ngSubmit)="enter()">
+        <ul class="slots" aria-label="Sloty planu">
+          @for (s of slots(); track $index; let i = $index) {
+            <li>
+              <select
+                [attr.aria-label]="'Dzień slotu ' + (i + 1)"
+                [name]="'weekday' + i"
+                [disabled]="readOnly()"
+                [ngModel]="s.weekday"
+                (ngModelChange)="setSlot(i, { weekday: $event })"
+              >
+                @for (d of weekdays; track $index; let w = $index) {
+                  <option [ngValue]="w">{{ d }}</option>
+                }
+              </select>
+              <input
+                type="time"
+                [attr.aria-label]="'Początek slotu ' + (i + 1)"
+                [name]="'start' + i"
+                [disabled]="readOnly()"
+                [ngModel]="s.start"
+                (ngModelChange)="setSlot(i, { start: $event })"
+              />
+              <input
+                type="time"
+                [attr.aria-label]="'Koniec slotu ' + (i + 1)"
+                [name]="'end' + i"
+                [disabled]="readOnly()"
+                [ngModel]="s.end"
+                (ngModelChange)="setSlot(i, { end: $event })"
+              />
+              @if (slots().length > 1) {
+                <button
+                  type="button"
+                  class="btn ghost"
+                  [attr.aria-label]="'Usuń slot ' + (i + 1)"
+                  (click)="removeSlot(i)"
+                >
+                  Usuń
+                </button>
+              }
+            </li>
+          }
+        </ul>
+        <button type="button" class="btn ghost" [disabled]="readOnly()" (click)="addSlot()">
+          + Dodaj slot
+        </button>
+        <label class="field">
+          Koniec roku szkolnego
+          <input
+            type="date"
+            name="yearEnd"
+            [disabled]="readOnly()"
+            [ngModel]="yearEnd()"
+            (ngModelChange)="yearEnd.set($event)"
+          />
+        </label>
+        <button type="submit" class="btn" [disabled]="busy() || readOnly() || !canEnter()">
+          Zapisz plan lekcji
+        </button>
+      </form>
+    } @else {
+      <ul class="current" aria-label="Sloty planu">
+        @for (s of t.slots; track $index) {
+          <li>{{ slotLabel(s) }}</li>
+        }
+      </ul>
+      <p class="muted">Koniec roku szkolnego: {{ t.school_year_end }}</p>
+
+      @if (!readOnly()) {
+        <h3>Przerwa</h3>
+        <form class="row" (ngSubmit)="cancelBreak()">
+          <label class="field">
+            od
+            <input
+              type="date"
+              name="breakFirst"
+              aria-label="Przerwa od"
+              [ngModel]="breakFirst()"
+              (ngModelChange)="breakFirst.set($event)"
+            />
+          </label>
+          <label class="field">
+            do
+            <input
+              type="date"
+              name="breakLast"
+              aria-label="Przerwa do"
+              [ngModel]="breakLast()"
+              (ngModelChange)="breakLast.set($event)"
+            />
+          </label>
+          <button type="submit" class="btn" [disabled]="busy() || !inBreak().length">
+            Odwołaj lekcje
+          </button>
+        </form>
+        @if (breakFirst()) {
+          <ul class="affected" aria-label="Lekcje do odwołania">
+            @for (l of inBreak(); track l.id) {
+              <li>{{ warsaw(l.start) }}{{ l.topic ? ' · ' + l.topic : '' }}</li>
+            } @empty {
+              <li class="muted">W tych dniach nie ma lekcji.</li>
+            }
+          </ul>
+        }
+
+        <h3>Zmiana slotu</h3>
+        <p class="muted">
+          Od wybranego dnia stary slot się kończy, a jego dalsze lekcje zastępuje nowy. Wcześniejsze
+          lekcje zostają z tematami i frekwencją. Zmienić można od dnia po pierwszej lekcji slotu.
+        </p>
+        <form class="row wrap" (ngSubmit)="changeSlot()">
+          <select
+            aria-label="Slot do zmiany"
+            name="oldSlot"
+            [ngModel]="oldSlot()"
+            (ngModelChange)="oldSlot.set($event)"
+          >
+            <option [ngValue]="null" disabled>Wybierz slot</option>
+            @for (s of t.slots; track $index; let i = $index) {
+              <option [ngValue]="i">{{ slotLabel(s) }}</option>
+            }
+          </select>
+          <select
+            aria-label="Nowy dzień"
+            name="newWeekday"
+            [ngModel]="newSlot().weekday"
+            (ngModelChange)="newSlot.set({ ...newSlot(), weekday: $event })"
+          >
+            @for (d of weekdays; track $index; let w = $index) {
+              <option [ngValue]="w">{{ d }}</option>
+            }
+          </select>
+          <input
+            type="time"
+            aria-label="Nowy początek"
+            name="newStart"
+            [ngModel]="newSlot().start"
+            (ngModelChange)="newSlot.set({ ...newSlot(), start: $event })"
+          />
+          <input
+            type="time"
+            aria-label="Nowy koniec"
+            name="newEnd"
+            [ngModel]="newSlot().end"
+            (ngModelChange)="newSlot.set({ ...newSlot(), end: $event })"
+          />
+          <label class="field">
+            od
+            <input
+              type="date"
+              name="changeFrom"
+              aria-label="Zmiana od"
+              [ngModel]="changeFrom()"
+              (ngModelChange)="changeFrom.set($event)"
+            />
+          </label>
+          <button type="submit" class="btn" [disabled]="busy() || !canChange()">Zmień slot</button>
+        </form>
+        @if (oldSlot() !== null && changeFrom()) {
+          <ul class="affected" aria-label="Lekcje do zastąpienia">
+            @for (l of replaced(); track l.id) {
+              <li>{{ warsaw(l.start) }}{{ l.topic ? ' · ' + l.topic : '' }}</li>
+            } @empty {
+              <li class="muted">Od tego dnia ten slot nie ma już lekcji.</li>
+            }
+          </ul>
+        }
+      }
+    }
+  } @else if (timetable.error()) {
+    <p class="error" role="alert">Nie udało się wczytać planu lekcji.</p>
+  }
+</cl-panel>

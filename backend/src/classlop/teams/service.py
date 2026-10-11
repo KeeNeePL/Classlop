@@ -203,6 +203,15 @@ class GraphTeams(Giving, HandIns, Returning, Lifecycle, GraphReminding, Changing
             first_on=first,
         )
 
+    async def list_slots(self, class_id: str) -> list[Slot]:
+        async with sessions()() as session:
+            rows = await session.scalars(
+                select(SlotRecord)
+                .where(SlotRecord.class_id == class_id, SlotRecord.last_on.is_(None))
+                .order_by(SlotRecord.weekday, SlotRecord.start_time)
+            )
+            return [Slot(weekday=r.weekday, start=r.start_time, end=r.end_time) for r in rows]
+
     @writable
     async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
         klass = await self.get_class(class_id)

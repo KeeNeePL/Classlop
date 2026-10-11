@@ -238,6 +238,10 @@ class Teams(Protocol):
         school-year end, inviting the Students. Raises TimetableExists."""
         ...
 
+    async def list_slots(self, class_id: str) -> list[Slot]:
+        """The current Timetable slots, by weekday and start; a replaced slot is gone."""
+        ...
+
     async def add_lesson(self, class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:
         """One event with the Lesson topic in its title. Raises ValueError without a topic."""
         ...
