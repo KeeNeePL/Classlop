@@ -2,10 +2,10 @@
 the Teacher's Edit, Retire/Restore and Dismiss flag. It never creates Items."""
 
 import uuid
-from collections.abc import Iterator
+from collections.abc import Awaitable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Annotated, Protocol
+from typing import Annotated, Any, Protocol
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
@@ -114,9 +114,11 @@ class ItemsBank:
         names: dict[uuid.UUID, str | None] = {}
         for u in given:
             if u.assignment_id not in titles:
-                titles[u.assignment_id] = await _title(u.assignment_id)
+                titles[u.assignment_id] = await _or_none(
+                    teams.get_assignment(from_uuid(u.assignment_id)), "title"
+                )
             if u.class_id not in names:
-                names[u.class_id] = await _name(u.class_id)
+                names[u.class_id] = await _or_none(teams.get_class(from_uuid(u.class_id)), "name")
         return [
             UsageEntry(
                 assignment_id=from_uuid(u.assignment_id),
@@ -145,16 +147,10 @@ class ItemsBank:
         await items.dismiss_flag(item_id)
 
 
-async def _title(assignment_id: uuid.UUID) -> str | None:
+async def _or_none(lookup: Awaitable[Any], field: str) -> str | None:
+    """A field of what `teams` returns; nothing where it no longer knows the Assignment or Class."""
     try:
-        return (await teams.get_assignment(from_uuid(assignment_id))).title
-    except LookupError:
-        return None
-
-
-async def _name(class_id: uuid.UUID) -> str | None:
-    try:
-        return (await teams.get_class(from_uuid(class_id))).name
+        return getattr(await lookup, field)
     except LookupError:
         return None
 

@@ -34,7 +34,7 @@
     @if (d.item.flagged) {
       <div class="note flag" role="status">
         <div>
-          <b>Do sprawdzenia.</b> {{ d.item.flag_reason }}
+          <b>Do sprawdzenia.</b> <cl-math [text]="d.item.flag_reason ?? ''" />
           <div class="muted">Zapisanie zmian w zadaniu też odrzuca tę flagę.</div>
         </div>
         <button type="button" class="btn" [disabled]="busy()" (click)="dismiss(d)">
