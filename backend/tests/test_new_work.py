@@ -268,3 +268,21 @@ async def test_a_scheduled_give_that_fails_shows_on_do_zrobienia(screen):
     assert failed["kind"] == "give_failed"
     assert failed["title"] == "Nie udało się wydać pracy «Równania kwadratowe»"
     assert CLASS_NAME in failed["detail"]
+
+
+async def test_a_retired_or_repeated_item_cannot_be_given(screen):
+    screen.bank.items[CLOSED_ITEM] = screen.bank.items[CLOSED_ITEM].model_copy(
+        update={"retired": True}
+    )
+
+    retired = screen.post("assignments", give_body())
+    repeated = screen.post("assignments", give_body(item_ids=[str(OPEN_ITEM)] * 2))
+
+    assert retired.status_code == repeated.status_code == 422
+    assert await screen.fake.list_assignments(screen.class_id) == []
+
+
+async def test_a_time_without_a_zone_is_refused(screen):
+    response = screen.post("assignments", give_body(due_at="2099-05-04T18:00:00"))
+
+    assert response.status_code == 422

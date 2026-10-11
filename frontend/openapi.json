@@ -2486,7 +2486,7 @@
           },
           "count": {
             "type": "integer",
-            "maximum": 50.0,
+            "maximum": 20.0,
             "minimum": 1.0,
             "title": "Count"
           }

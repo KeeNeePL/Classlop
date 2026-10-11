@@ -4,11 +4,11 @@ giving the Assignment. Picking is `items`', giving is `teams`'; this only runs t
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 from classlop import items, teams
 from classlop.dashboard import auth, bank
@@ -74,7 +74,7 @@ class Line(BaseModel):
 
     section: str
     difficulty: Difficulty
-    count: int = Field(ge=1, le=50)
+    count: int = Field(ge=1, le=20)
 
 
 class PickRequest(BaseModel):
@@ -185,9 +185,9 @@ class GiveRequest(BaseModel):
     # None is the whole Class.
     student_ids: list[str] | None = None
     reminder_on: bool = True
-    due_at: datetime
+    due_at: AwareDatetime
     # Given at once when missing.
-    publish_at: datetime | None = None
+    publish_at: AwareDatetime | None = None
 
 
 class GivenWork(BaseModel):
@@ -217,13 +217,18 @@ async def give(class_id: TeamClass, body: GiveRequest, _: Teacher, pool: bank.Th
     """Give the Assignment now or at `publish_at`: `teams` posts the Items PDF and tells the
     Students, and `items` pins the Items."""
     await known_class(class_id)
+    if len(set(body.item_ids)) != len(body.item_ids):
+        raise HTTPException(422, "To samo zadanie jest w pracy dwa razy")
     try:
         found = await pool.get_many(body.item_ids)
     except LookupError:
         raise HTTPException(404, "Nie ma takiego zadania") from None
-    pdf = await asyncio.to_thread(items_pdf, body.title.strip(), found)
+    if any(i.retired for i in found):
+        raise HTTPException(422, "Wycofane zadanie nie może być w pracy")
+    title = body.title.strip()
+    pdf = await asyncio.to_thread(items_pdf, title, found)
     spec = teams.AssignmentSpec(
-        title=body.title,
+        title=title,
         type=body.type,
         due_at=body.due_at,
         close_at=body.due_at + CLOSES_AFTER[body.type],
