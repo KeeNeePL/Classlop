@@ -59,7 +59,7 @@ const routes = [
   ['/klasy/1a/lekcje', 'Klasa 1A'],
   ['/klasy/1a/lekcje/wzory', 'Klasa 1A'],
   ['/klasy/1a/ustawienia', 'Klasa 1A'],
-  ['/klasy/1a/uczniowie/ala-k', 'Uczeń'],
+  ['/klasy/1a/uczniowie/1a-0', 'Ala K.'],
   ['/klasy/1a/nowa-praca', 'Nowa praca'],
   ['/klasy/1a/prace/1a-0', 'Zbiory liczbowe'],
   ['/klasy/1a/prace/1a-0/1a-0', 'Ala K.'],
