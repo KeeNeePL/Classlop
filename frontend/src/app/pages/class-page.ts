@@ -7,7 +7,10 @@ import { HomeStore } from '../shell/home-store';
 @Component({
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
-    <h1>Klasa {{ name() }}</h1>
+    <div class="head">
+      <h1>Klasa {{ name() }}</h1>
+      <a class="btn" [routerLink]="[base(), 'nowa-praca']">+ Nowa praca</a>
+    </div>
     <div class="tabs">
       <a [routerLink]="base()" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }"
         >Przegląd</a
@@ -18,6 +21,12 @@ import { HomeStore } from '../shell/home-store';
     <router-outlet />
   `,
   styles: `
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
     .tabs {
       display: flex;
       gap: 24px;

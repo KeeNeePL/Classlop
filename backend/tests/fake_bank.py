@@ -13,9 +13,11 @@ from classlop.items import (
     ItemVersion,
     RubricLevel,
     SearchPage,
+    SectionCount,
     curriculum,
 )
 from classlop.items.index import section_of
+from classlop.items.types import Difficulty
 
 TOPICS = {t.id: t for s in curriculum() for t in s.topics}
 CLASSES = [
@@ -179,6 +181,51 @@ class InMemoryBank:
         if item_id not in self.items:
             raise LookupError(item_id)
         return self.items[item_id]
+
+    async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]:
+        return [await self.get(i) for i in item_ids]
+
+    @staticmethod
+    def _in(item: Item, section: str) -> bool:
+        return section in {section_of(t.id) for t in item.version.curriculum_topics}
+
+    async def stock(self, never_used_with: uuid.UUID | None) -> list[SectionCount]:
+        counts: dict[tuple[str, Difficulty], int] = {}
+        for i in self.items.values():
+            if i.retired or never_used_with in self.classes_used[i.id]:
+                continue
+            for section in {section_of(t.id) for t in i.version.curriculum_topics}:
+                key = (section, i.version.difficulty)
+                counts[key] = counts.get(key, 0) + 1
+        return [SectionCount(section=s, difficulty=d, count=n) for (s, d), n in counts.items()]
+
+    async def pick(
+        self,
+        section: str,
+        difficulty: Difficulty,
+        n: int,
+        class_id: uuid.UUID,
+        *,
+        allow_reuse: bool,
+        exclude: list[uuid.UUID],
+    ) -> list[Item]:
+        """The oldest Items first, where the real pick is random."""
+        found = [
+            i
+            for i in sorted(self.items.values(), key=lambda i: i.created_at)
+            if not i.retired
+            and self._in(i, section)
+            and i.version.difficulty == difficulty
+            and i.id not in exclude
+            and (allow_reuse or class_id not in self.classes_used[i.id])
+        ]
+        return found[:n]
+
+    def give(self, item_ids: list[uuid.UUID], class_id: uuid.UUID) -> list[uuid.UUID]:
+        """As `items.give`: the Class has now got them; returns the versions pinned."""
+        for i in item_ids:
+            self.classes_used[i].add(class_id)
+        return [self.items[i].version.id for i in item_ids]
 
     async def usage(self, item_id: uuid.UUID) -> list[UsageEntry]:
         return self._usage[item_id]

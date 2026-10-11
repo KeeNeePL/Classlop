@@ -1007,6 +1007,195 @@
         }
       }
     },
+    "/api/classes/{class_id}/new-work": {
+      "get": {
+        "summary": "Form",
+        "operationId": "form_api_classes__class_id__new_work_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewWorkForm"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/new-work/pick": {
+      "post": {
+        "summary": "Pick",
+        "description": "The Items for the preview, line by line; no Item twice.",
+        "operationId": "pick_api_classes__class_id__new_work_pick_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/new-work/swap": {
+      "post": {
+        "summary": "Swap",
+        "description": "\"Podmie\u0144 na inne\": another Item of the same cell that the preview does not hold.",
+        "operationId": "swap_api_classes__class_id__new_work_swap_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Swapped"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/assignments": {
+      "post": {
+        "summary": "Give",
+        "description": "Give the Assignment now or at `publish_at`: `teams` posts the Items PDF and tells the\nStudents, and `items` pins the Items.",
+        "operationId": "give_api_classes__class_id__assignments_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GivenWork"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Healthz",
@@ -1566,6 +1755,101 @@
           "description"
         ],
         "title": "GeneralRequirementText"
+      },
+      "GiveRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "item_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Item Ids"
+          },
+          "student_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Student Ids"
+          },
+          "reminder_on": {
+            "type": "boolean",
+            "title": "Reminder On",
+            "default": true
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "publish_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publish At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "type",
+          "item_ids",
+          "due_at"
+        ],
+        "title": "GiveRequest"
+      },
+      "GivenWork": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "scheduled",
+              "open",
+              "closed"
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state"
+        ],
+        "title": "GivenWork"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2185,6 +2469,37 @@
         ],
         "title": "ItemView"
       },
+      "Line": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "difficulty",
+          "count"
+        ],
+        "title": "Line",
+        "description": "What the Teacher asked of one cell of the table: `count` Items of a Curriculum section at\none Difficulty."
+      },
       "MeView": {
         "properties": {
           "name": {
@@ -2244,6 +2559,51 @@
           "name"
         ],
         "title": "Neighbour"
+      },
+      "NewWorkForm": {
+        "properties": {
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumSection"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/StudentChoice"
+            },
+            "type": "array",
+            "title": "Students"
+          },
+          "stock": {
+            "items": {
+              "$ref": "#/components/schemas/SectionCount"
+            },
+            "type": "array",
+            "title": "Stock"
+          },
+          "unused": {
+            "items": {
+              "$ref": "#/components/schemas/SectionCount"
+            },
+            "type": "array",
+            "title": "Unused"
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_name",
+          "sections",
+          "students",
+          "stock",
+          "unused"
+        ],
+        "title": "NewWorkForm"
       },
       "OverviewResponse": {
         "properties": {
@@ -2308,6 +2668,55 @@
         ],
         "title": "OverviewResponse"
       },
+      "PickRequest": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "allow_reuse": {
+            "type": "boolean",
+            "title": "Allow Reuse",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines"
+        ],
+        "title": "PickRequest"
+      },
+      "Placed": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "difficulty",
+          "item"
+        ],
+        "title": "Placed",
+        "description": "A previewed Item and the cell it was picked for, which a swap draws from again."
+      },
       "Points": {
         "properties": {
           "handed_in_at": {
@@ -2326,6 +2735,30 @@
           "points"
         ],
         "title": "Points"
+      },
+      "Preview": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/Placed"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "shortfalls": {
+            "items": {
+              "$ref": "#/components/schemas/Shortfall"
+            },
+            "type": "array",
+            "title": "Shortfalls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries",
+          "shortfalls"
+        ],
+        "title": "Preview"
       },
       "Reason": {
         "properties": {
@@ -2461,6 +2894,68 @@
           "topics"
         ],
         "title": "SectionBar"
+      },
+      "SectionCount": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "difficulty",
+          "count"
+        ],
+        "title": "SectionCount",
+        "description": "How many Items a Curriculum section has at one Difficulty."
+      },
+      "Shortfall": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "wanted": {
+            "type": "integer",
+            "title": "Wanted"
+          },
+          "got": {
+            "type": "integer",
+            "title": "Got"
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "difficulty",
+          "wanted",
+          "got"
+        ],
+        "title": "Shortfall"
       },
       "StudentChoice": {
         "properties": {
@@ -2801,6 +3296,63 @@
           "suggested_grade"
         ],
         "title": "SummaryRow"
+      },
+      "SwapRequest": {
+        "properties": {
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "exclude": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Exclude"
+          },
+          "allow_reuse": {
+            "type": "boolean",
+            "title": "Allow Reuse",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "section",
+          "difficulty",
+          "exclude"
+        ],
+        "title": "SwapRequest",
+        "description": "A previewed Item's cell, and every Item the preview holds."
+      },
+      "Swapped": {
+        "properties": {
+          "item": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Item"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "item"
+        ],
+        "title": "Swapped"
       },
       "Times": {
         "properties": {
