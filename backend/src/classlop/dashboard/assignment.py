@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading, teams
-from classlop.dashboard import auth, invented
+from classlop.dashboard import auth, invented, records
 from classlop.dashboard.actions import carry_out
 from classlop.dashboard.reports import AssignmentSummary, Mistake, Student, assignment_summary
 
@@ -41,7 +41,9 @@ def mistakes(found: list[grading.ItemMistakes]) -> list[Mistake]:
     ]
 
 
-def page(class_id: str, assignment_id: str) -> tuple[AssignmentPage, tuple[Student, ...]]:
+def page(
+    class_id: str, assignment_id: str, thresholds: list[int]
+) -> tuple[AssignmentPage, tuple[Student, ...]]:
     """The page, and the Class's Students in their order."""
     now = datetime.now(UTC)
     if (name := invented.class_name(class_id, now)) is None:
@@ -50,15 +52,19 @@ def page(class_id: str, assignment_id: str) -> tuple[AssignmentPage, tuple[Stude
     found = next((a for a in data.assignments if a.id == assignment_id), None)
     if found is None:
         raise HTTPException(404)
-    view = assignment_summary(found, data.students, mistakes(invented.common_mistakes(found)), now)
+    found_mistakes = mistakes(invented.common_mistakes(found))
+    view = assignment_summary(found, data.students, found_mistakes, now, thresholds)
     return AssignmentPage(**view.model_dump(), class_name=name, invented=True), data.students
 
 
 @router.get("/api/classes/{class_id}/assignments/{assignment_id}")
 async def assignment(
-    class_id: str, assignment_id: str, _: Annotated[auth.Me, Depends(auth.teacher)]
+    class_id: str,
+    assignment_id: str,
+    own: Annotated[records.Records, Depends(records.backend)],
+    _: Annotated[auth.Me, Depends(auth.teacher)],
 ) -> AssignmentPage:
-    return page(class_id, assignment_id)[0]
+    return page(class_id, assignment_id, await own.thresholds())[0]
 
 
 @router.get(
@@ -67,11 +73,14 @@ async def assignment(
     responses={200: {"content": {"text/csv": {}}}},
 )
 async def assignment_csv(
-    class_id: str, assignment_id: str, _: Annotated[auth.Me, Depends(auth.teacher)]
+    class_id: str,
+    assignment_id: str,
+    own: Annotated[records.Records, Depends(records.backend)],
+    _: Annotated[auth.Me, Depends(auth.teacher)],
 ) -> Response:
     """One row per recipient in the Class's order, for typing the grades into the e-gradebook.
     Semicolons and a BOM, so Excel opens it in Polish."""
-    view, students = page(class_id, assignment_id)
+    view, students = page(class_id, assignment_id, await own.thresholds())
     order = {s.id: n for n, s in enumerate(students)}
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
