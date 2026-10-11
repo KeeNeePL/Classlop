@@ -11,6 +11,7 @@ from classlop.dashboard.reports.records import (
     Student,
     Submission,
 )
+from classlop.dashboard.reports.student import StudentReport, student_report
 from classlop.dashboard.reports.summary import AssignmentSummary, assignment_summary
 
 __all__ = [
@@ -23,7 +24,9 @@ __all__ = [
     "Mistake",
     "ScoredItem",
     "Student",
+    "StudentReport",
     "Submission",
     "assignment_summary",
     "class_overview",
+    "student_report",
 ]

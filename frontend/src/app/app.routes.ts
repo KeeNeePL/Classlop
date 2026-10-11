@@ -45,7 +45,10 @@ export const routes: Routes = [
       },
     ],
   },
-  empty('klasy/:klasa/uczniowie/:uczen', 'Uczeń'),
+  {
+    path: 'klasy/:klasa/uczniowie/:uczen',
+    loadComponent: () => import('./pages/student-report').then((m) => m.StudentReport),
+  },
   {
     path: 'klasy/:klasa/nowa-praca',
     loadComponent: () => import('./pages/new-work').then((m) => m.NewWork),
@@ -58,6 +61,9 @@ export const routes: Routes = [
     path: 'klasy/:klasa/prace/:praca/:uczen',
     loadComponent: () => import('./pages/submission-page').then((m) => m.SubmissionPage),
   },
-  empty('ustawienia', 'Ustawienia'),
+  {
+    path: 'ustawienia',
+    loadComponent: () => import('./pages/settings').then((m) => m.Settings),
+  },
   { path: '**', component: NotFound },
 ];

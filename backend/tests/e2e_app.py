@@ -1,15 +1,15 @@
 """The dashboard with the Teacher signed in and no database, for the Playwright tests in
 frontend/e2e. The Item bank is a few invented Items in memory; one invented job can be finished.
-`teams` for the Classes screens is FakeTeams with its demo tenant, and the Notes are in memory."""
+`teams` for the Classes screens is FakeTeams with its demo tenant."""
 
 from fake_bank import InMemoryBank
 from fake_events import InMemoryFeed
-from fake_notes import InMemoryNotes
+from fake_store import InMemoryStore
 from fake_work import Offline, invented_class
 from fastapi import FastAPI
 
 from classlop import teams
-from classlop.dashboard import auth, bank, classes, events, home, new_work, notes
+from classlop.dashboard import auth, bank, classes, events, home, new_work, store
 from classlop.dashboard.app import create_app
 from classlop.teams.fake import FakeTeams, demo
 
@@ -23,11 +23,12 @@ def create() -> FastAPI:
     feed = InMemoryFeed()
     app.dependency_overrides[events.job_feed] = lambda: feed
     app.dependency_overrides[home.stand_in] = lambda: feed.home
+    kept = InMemoryStore()
+    app.state.store = kept
+    app.dependency_overrides[store.backend] = lambda: kept
     app.dependency_overrides[home.failed_gives] = lambda: []
     app.state.teams = demo()
-    app.state.notes = InMemoryNotes()
     app.dependency_overrides[classes.backend] = lambda: app.state.teams
-    app.dependency_overrides[notes.backend] = lambda: app.state.notes
 
     # The Playwright tests share this server, so one that changes the bank or the Classes puts it
     # back.
@@ -36,7 +37,7 @@ def create() -> FastAPI:
         items.reset()
         feed.reset()
         app.state.teams = demo()
-        app.state.notes = InMemoryNotes()
+        kept.reset()
 
     @app.post("/api/e2e/grade", include_in_schema=False)
     async def grade() -> None:

@@ -7,7 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from classlop.dashboard.reports.grades import THRESHOLDS, suggested_grade
-from classlop.dashboard.reports.progress import counted, overall, scored
+from classlop.dashboard.reports.progress import HANDED_IN, counted, overall, scored
 from classlop.dashboard.reports.records import (
     Assignment,
     AssignmentState,
@@ -21,7 +21,6 @@ from classlop.dashboard.reports.records import (
 # Whose times and recipients can still change, as in `teams`.
 LIVE = ("scheduled", "open")
 GRADED = ("graded", "returned")
-HANDED_IN = ("handed_in", *GRADED)
 BINS = 10
 # Common mistakes shown per Item; `grading` gives them most frequent first.
 MISTAKES = 3

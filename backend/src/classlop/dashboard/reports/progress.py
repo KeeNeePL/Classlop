@@ -32,6 +32,9 @@ def bar(earned: int, available: int) -> Bar:
     return Bar(earned=earned, available=available, percent=percent)
 
 
+HANDED_IN = ("handed_in", "graded", "returned")
+
+
 def scored(s: Submission) -> bool:
     """Graded and not Held: its points count."""
     return s.state in ("graded", "returned") and not s.held

@@ -1388,6 +1388,187 @@
         }
       }
     },
+    "/api/classes/{class_id}/students/{student_id}/report": {
+      "get": {
+        "summary": "Report",
+        "description": "`start` and `end` bound the period by due time; leaving both out means everything.",
+        "operationId": "report_api_classes__class_id__students__student_id__report_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Student Id"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/students/{student_id}/note": {
+      "put": {
+        "summary": "Save Note",
+        "operationId": "save_note_api_classes__class_id__students__student_id__note_put",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Note"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/thresholds": {
+      "get": {
+        "summary": "Thresholds",
+        "operationId": "thresholds_api_settings_thresholds_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Thresholds"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Save Thresholds",
+        "operationId": "save_thresholds_api_settings_thresholds_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Thresholds"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/classes/{class_id}/new-work": {
       "get": {
         "summary": "Form",
@@ -1817,6 +1998,36 @@
           "total"
         ],
         "title": "AssignmentRow"
+      },
+      "Attendance": {
+        "properties": {
+          "lessons": {
+            "type": "integer",
+            "title": "Lessons"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lessons",
+          "absent",
+          "percent"
+        ],
+        "title": "Attendance"
       },
       "Attention": {
         "properties": {
@@ -3156,6 +3367,19 @@
         ],
         "title": "NewWorkForm"
       },
+      "Note": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Note"
+      },
       "OverviewResponse": {
         "properties": {
           "id": {
@@ -3268,6 +3492,65 @@
         "title": "Placed",
         "description": "A previewed Item and the cell it was picked for, which a swap draws from again."
       },
+      "Point": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "class_average": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Average"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "title",
+          "type",
+          "due",
+          "percent",
+          "class_average"
+        ],
+        "title": "Point",
+        "description": "One Given Assignment on the chart, at its due time. Missing and Excused leave a gap, never\na 0; a Submission not yet graded or still Held has no point either."
+      },
       "Points": {
         "properties": {
           "handed_in_at": {
@@ -3362,6 +3645,111 @@
           "name"
         ],
         "title": "Rename"
+      },
+      "ReportRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "submission_state": {
+            "type": "string",
+            "enum": [
+              "not_handed_in",
+              "handed_in",
+              "graded",
+              "returned",
+              "missing",
+              "excused"
+            ],
+            "title": "Submission State"
+          },
+          "late": {
+            "type": "boolean",
+            "title": "Late"
+          },
+          "held": {
+            "type": "boolean",
+            "title": "Held"
+          },
+          "earned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned"
+          },
+          "available": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "suggested_grade": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "type",
+          "due",
+          "submission_state",
+          "late",
+          "held",
+          "earned",
+          "available",
+          "percent",
+          "suggested_grade"
+        ],
+        "title": "ReportRow"
       },
       "RubricLevel": {
         "properties": {
@@ -3540,6 +3928,122 @@
         ],
         "title": "StudentChoice"
       },
+      "StudentPage": {
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "attendance": {
+            "$ref": "#/components/schemas/Attendance"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SubmissionCounts"
+          },
+          "progress": {
+            "items": {
+              "$ref": "#/components/schemas/TypeProgress"
+            },
+            "type": "array",
+            "title": "Progress"
+          },
+          "recent_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recent Sections"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRow"
+            },
+            "type": "array",
+            "title": "Assignments"
+          },
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "invented": {
+            "type": "boolean",
+            "title": "Invented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_id",
+          "name",
+          "former",
+          "start",
+          "end",
+          "result",
+          "attendance",
+          "counts",
+          "progress",
+          "recent_sections",
+          "points",
+          "assignments",
+          "class_name",
+          "note",
+          "invented"
+        ],
+        "title": "StudentPage"
+      },
       "StudentRow": {
         "properties": {
           "id": {
@@ -3574,6 +4078,29 @@
           "percent"
         ],
         "title": "StudentRow"
+      },
+      "SubmissionCounts": {
+        "properties": {
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing"
+          },
+          "excused": {
+            "type": "integer",
+            "title": "Excused"
+          }
+        },
+        "type": "object",
+        "required": [
+          "late",
+          "missing",
+          "excused"
+        ],
+        "title": "SubmissionCounts"
       },
       "SubmissionPage": {
         "properties": {
@@ -3936,6 +4463,23 @@
           "name"
         ],
         "title": "Team"
+      },
+      "Thresholds": {
+        "properties": {
+          "percents": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Percents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "percents"
+        ],
+        "title": "Thresholds",
+        "description": "The lowest percent for grades 2 to 6."
       },
       "Times": {
         "properties": {

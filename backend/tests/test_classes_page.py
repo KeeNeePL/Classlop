@@ -1,6 +1,8 @@
 """Creating, linking, managing and deleting a Class, over HTTP with the Teacher signed in and
 `teams` served by FakeTeams."""
 
+import asyncio
+
 import pytest
 from e2e_app import create
 from fastapi.testclient import TestClient
@@ -22,6 +24,14 @@ def make_class(web, name="Klasa 4D", *names) -> str:
     response = web.post("/api/classes", json={"name": name, "student_user_ids": picked})
     assert response.status_code == 200
     return response.json()["id"]
+
+
+def keep_note(web, class_id, student_id):
+    asyncio.run(web.app.state.store.save_note(class_id, student_id, "spokojny"))
+
+
+def note(web, class_id, student_id) -> str:
+    return asyncio.run(web.app.state.store.note(class_id, student_id))
 
 
 def settings(web, class_id):
@@ -113,16 +123,16 @@ def test_a_blank_name_is_refused(web):
 def test_deleting_needs_the_name_and_takes_the_notes_with_it(web):
     class_id = make_class(web, "Klasa 4D")
     other = make_class(web, "Klasa 4E")
-    notes = web.app.state.notes
-    notes.kept = {(class_id, "s1"): "spokojny", (other, "s2"): "pracowity"}
+    keep_note(web, class_id, "s1")
+    keep_note(web, other, "s2")
 
     assert web.delete(f"/api/classes/{class_id}", params={"name": "4D"}).status_code == 409
     assert settings(web, class_id)["name"] == "Klasa 4D"
-    assert len(notes.kept) == 2
+    assert note(web, class_id, "s1") and note(web, other, "s2")
 
     assert web.delete(f"/api/classes/{class_id}", params={"name": "Klasa 4D"}).status_code == 204
     assert web.get(f"/api/classes/{class_id}/settings").status_code == 404
-    assert notes.kept == {(other, "s2"): "pracowity"}
+    assert not note(web, class_id, "s1") and note(web, other, "s2")
     assert class_id not in [c["id"] for c in web.get("/api/home").json()["classes"]]
 
 
@@ -194,9 +204,9 @@ def test_a_class_held_for_thirty_days_is_deleted_with_its_notes(web):
     teams = web.app.state.teams
     teams.delete_team(teams._classes[class_id].team_id)
     assert settings(web, class_id)["state"] == "team_deleted"
-    web.app.state.notes.kept = {(class_id, "s1"): "spokojny"}
+    keep_note(web, class_id, "s1")
 
     teams._clock = lambda: datetime.now(UTC) + timedelta(days=31)
 
     assert web.get(f"/api/classes/{class_id}/settings").status_code == 404
-    assert web.app.state.notes.kept == {}
+    assert not note(web, class_id, "s1")

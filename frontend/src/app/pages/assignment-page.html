@@ -234,7 +234,11 @@
             } @else {
               <td class="muted">—</td>
               <td></td>
-              <td></td>
+              <td class="grade">
+                @if (r.held) {
+                  <span class="muted">do sprawdzenia</span>
+                }
+              </td>
             }
           </tr>
         }

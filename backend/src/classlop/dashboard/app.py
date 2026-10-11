@@ -16,6 +16,7 @@ from classlop.dashboard import (
     home,
     new_work,
     overview,
+    student,
     submission,
 )
 from classlop.shared import db, search, storage
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(assignment.router)
     app.include_router(events.router)
     app.include_router(submission.router)
+    app.include_router(student.router)
     app.include_router(new_work.router)
 
     @app.get("/healthz")
