@@ -1,13 +1,40 @@
 :host {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 24px;
+  min-height: 0;
+}
+
+/* The Chat is a sheet of its own, so its messages do not float on the squared paper. */
+.chat {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+}
+
+aside {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+  background: var(--grid);
 }
 
 .conversation {
   display: grid;
   gap: 10px;
   align-content: start;
-  min-height: 320px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .msg {
@@ -16,13 +43,41 @@
   padding: 10px 14px;
   border: 1.5px solid var(--line);
   border-radius: 4px;
-  background: var(--card);
+  background: var(--grid);
+  overflow-wrap: anywhere;
 }
 
 .msg.me {
   justify-self: end;
   border-color: var(--pen);
   background: #eef2fd;
+}
+
+.chip {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px dashed var(--edge);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.chip p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+}
+
+.chip.working {
+  border-color: var(--pen);
+}
+
+.chip.failed {
+  border-style: solid;
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .thinking {
@@ -51,6 +106,14 @@
 .composer {
   display: grid;
   gap: 8px;
+  padding-top: 14px;
+  border-top: 1.5px solid var(--line);
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 textarea {
@@ -77,18 +140,11 @@ textarea:focus {
 
 .drop {
   font: inherit;
+  min-width: 24px;
+  min-height: 24px;
   border: 0;
   background: none;
   color: var(--muted);
-  cursor: pointer;
-}
-
-.buttons {
-  display: flex;
-  justify-content: space-between;
-}
-
-.attach {
   cursor: pointer;
 }
 
@@ -101,4 +157,15 @@ textarea:focus {
 .send:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+@media (max-width: 900px) {
+  :host {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .chat {
+    height: 75dvh;
+  }
 }

@@ -99,3 +99,9 @@ h2 {
   background: var(--pen);
   color: #fff;
 }
+
+/* The Classlop AI tab is a workspace: it takes the window's width, not the reading column.
+ * `.content` outweighs the shell's scoped `main` rule. */
+.content main:has(> .ai-page) {
+  max-width: 1600px;
+}

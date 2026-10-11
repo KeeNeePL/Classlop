@@ -4,45 +4,54 @@ import { expect, test } from '@playwright/test';
 // back.
 test.afterEach(({ request }) => request.post('/api/e2e/reset'));
 
-test('the Teacher asks for Items and sees the job card finish', async ({ page }) => {
+test('the Teacher asks for Items and follows the job in the results panel', async ({ page }) => {
   await page.goto('/ai');
   await expect(page.getByRole('heading', { level: 1, name: 'Classlop AI' })).toBeVisible();
-  await expect(page.getByText('Nie ma jeszcze czatów.')).toBeVisible();
+  const panel = page.getByRole('complementary', { name: 'Wyniki czatu' });
+  await expect(panel.getByText('Zadania pojawią się tutaj')).toBeVisible();
 
   // A request that is not clear is answered with a question.
   await page.getByLabel('Wiadomość').fill('Potrzebuję zadań z równań');
   await page.getByRole('button', { name: 'Wyślij' }).click();
   await expect(page).toHaveURL(/\/ai\/[0-9A-Za-z]+$/);
-  const log = page.getByRole('log', { name: 'Rozmowa' });
+  const log = page.getByRole('log', { name: 'Wiadomości' });
   await expect(log.getByText('Ile zadań, jakiej trudności i w jakim formacie?')).toBeVisible();
-  await expect(page.getByRole('link', { name: /Potrzebuję zadań z równań/ })).toBeVisible();
+  const menu = page.getByRole('button', { name: /^Czat:/ });
+  await expect(menu).toHaveAccessibleName(/Potrzebuję zadań z równań/);
 
   await page.getByLabel('Wiadomość').fill('Wygeneruj 3 łatwe zadania zamknięte');
   await page.getByRole('button', { name: 'Wyślij' }).click();
   await expect(log.getByText('Zaczynam generować 3 zadania.')).toBeVisible();
 
-  // The card follows the job on the event stream, and the chat list says a job runs.
-  const card = log.getByRole('region', { name: 'Generowanie zadań' });
-  await expect(card.getByText(/Pisanie zadań \(\d z 3\)/)).toBeVisible();
+  // The conversation carries a chip, and the panel follows the job on the event stream.
+  const chip = log.getByRole('group', { name: 'Generowanie zadań' });
+  const progress = panel.getByRole('region', { name: 'W toku' });
+  await expect(progress.getByText(/Pisanie zadań \(\d z 3\)/)).toBeVisible();
+  await expect(chip).toContainText('W toku');
   await expect(page.getByLabel('Trwające zadania: 1')).toBeVisible();
-  await expect(card.getByRole('listitem').filter({ hasText: 'Gotowe' }).first()).toHaveClass(
-    'done',
-    { timeout: 15_000 },
-  );
-  const added = card.getByRole('list', { name: 'Dodane zadania' }).getByRole('listitem');
+  await expect(chip).toContainText('Gotowe, 3 zadania', { timeout: 15_000 });
+  await expect(progress).toHaveCount(0);
+  await expect(page.getByLabel('Trwające zadania: 1')).toHaveCount(0);
+  const added = panel.getByRole('list', { name: 'Zadania z tego czatu' }).getByRole('listitem');
   await expect(added).toHaveCount(3);
   await expect(added.first().getByText('Zadanie 1')).toBeVisible();
-  await expect(page.getByLabel('Trwające zadania: 1')).toHaveCount(0);
+  await expect(log.getByText('Rozwiąż')).toHaveCount(0);
 
-  // Details open on the card, and retire takes the Item out of the bank.
+  // Details open in the panel, and retire asks first, then takes the Item out of the bank.
   await added.first().getByText('Szczegóły').click();
   await expect(added.first().getByText('Rozwiązanie wzorcowe:')).toBeVisible();
   await added.first().getByRole('button', { name: 'Usuń zadanie 1' }).click();
+  await expect(added.first().getByText('Usunąć to zadanie?')).toBeVisible();
+  await added.first().getByRole('button', { name: 'Anuluj' }).click();
+  await expect(added.first().getByText('usunięte')).toHaveCount(0);
+  await added.first().getByRole('button', { name: 'Usuń zadanie 1' }).click();
+  await added.first().getByRole('button', { name: 'Tak, usuń' }).click();
   await expect(added.first().getByText('usunięte')).toBeVisible();
 
-  // Leaving and coming back shows the history and the finished job.
+  // Leaving and coming back shows the history and the Items.
   await page.getByRole('link', { name: 'Bank zadań' }).click();
   await page.getByRole('link', { name: 'Classlop AI', exact: true }).click();
+  await menu.click();
   await page.getByRole('link', { name: /Potrzebuję zadań/ }).click();
   await expect(log.getByText('Zaczynam generować 3 zadania.')).toBeVisible();
   await expect(added).toHaveCount(3);
@@ -58,30 +67,39 @@ test('a file starts an upload and a near-duplicate waits for the Teacher', async
   await expect(page.getByText('Plik: zestaw.pdf')).toBeVisible();
   await page.getByRole('button', { name: 'Wyślij' }).click();
 
-  const log = page.getByRole('log', { name: 'Rozmowa' });
-  const card = log.getByRole('region', { name: 'Plik zestaw.pdf' });
-  const similar = card.getByRole('list', { name: 'Podobne zadania' });
+  const log = page.getByRole('log', { name: 'Wiadomości' });
+  const panel = page.getByRole('complementary', { name: 'Wyniki czatu' });
+  const decision = panel.getByRole('region', { name: 'Czeka na Twoją decyzję' });
+  const similar = decision.getByRole('list', { name: 'Podobne zadania' });
   await expect(similar).toBeVisible({ timeout: 15_000 });
+  await expect(log.getByRole('group', { name: 'Plik zestaw.pdf' })).toContainText(
+    'Gotowe, 1 zadanie',
+  );
   await expect(
-    card.getByRole('list', { name: 'Dodane zadania' }).getByRole('listitem'),
+    panel.getByRole('list', { name: 'Zadania z tego czatu' }).getByRole('listitem'),
   ).toHaveCount(1);
 
   await similar.getByRole('button', { name: 'Pomiń' }).click();
-  await expect(similar).toHaveCount(0);
+  await expect(decision).toHaveCount(0);
 });
 
-test('chats are searched, renamed and deleted', async ({ page, request }) => {
+test('chats are searched, renamed and deleted in the Chat menu', async ({ page }) => {
   await page.goto('/ai');
+  const menu = page.getByRole('button', { name: /^Czat:/ });
+  const list = page.getByRole('list', { name: 'Lista czatów' });
+  await expect(menu).toHaveAccessibleName('Czat: Nowy czat');
   for (const text of ['Nierówności', 'Ciągi']) {
     await page.getByLabel('Wiadomość').fill(text);
     await page.getByRole('button', { name: 'Wyślij' }).click();
-    await expect(page.getByRole('link', { name: text })).toBeVisible();
+    await expect(menu).toHaveAccessibleName(`Czat: ${text}`);
+    await menu.click();
     await page.getByRole('link', { name: '+ Nowy czat' }).click();
+    await expect(list).toBeHidden();
     await expect(page.getByText('Napisz, jakich zadań potrzebujesz')).toBeVisible();
   }
-  const list = page.getByRole('list', { name: 'Lista czatów' });
-  await expect(list.getByRole('listitem')).toHaveCount(2);
 
+  await menu.click();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
   await page.getByRole('searchbox', { name: 'Szukaj czatów' }).fill('ciąg');
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await page.getByRole('searchbox', { name: 'Szukaj czatów' }).fill('');
@@ -91,10 +109,46 @@ test('chats are searched, renamed and deleted', async ({ page, request }) => {
   await page.getByLabel('Nowa nazwa czatu').press('Enter');
   await expect(page.getByRole('link', { name: 'Ciągi liczbowe' })).toBeVisible();
 
+  // Escape closes the menu and gives focus back to its button.
+  await page.keyboard.press('Escape');
+  await expect(list).toBeHidden();
+  await expect(menu).toBeFocused();
+
+  await menu.click();
   await page.getByRole('link', { name: 'Ciągi liczbowe' }).click();
+  await expect(menu).toHaveAccessibleName('Czat: Ciągi liczbowe');
+  await menu.click();
   await page.getByRole('button', { name: 'Usuń czat: Ciągi liczbowe' }).click();
-  await page.getByRole('button', { name: 'Tak' }).click();
-  await expect(page.getByRole('link', { name: 'Ciągi liczbowe' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tak, usuń' }).click();
   await expect(page).toHaveURL(/\/ai$/);
+  await expect(page.getByRole('link', { name: 'Ciągi liczbowe' })).toHaveCount(0);
   await expect(list.getByRole('listitem')).toHaveCount(1);
+});
+
+test('a long Chat scrolls inside its card and the page keeps its height', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/ai');
+  const log = page.getByRole('log', { name: 'Wiadomości' });
+  const box = page.getByLabel('Wiadomość');
+  for (const n of [1, 2, 3, 4, 5, 6]) {
+    await box.fill(`Pytanie ${n}`);
+    await page.getByRole('button', { name: 'Wyślij' }).click();
+    await expect(log.getByText(`Pytanie ${n}`)).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'AI pisze' })).toHaveCount(0);
+  }
+
+  // The newest message and the box stay in view; the messages scroll, the page does not.
+  await expect(log.getByText('Pytanie 6')).toBeInViewport();
+  await expect(box).toBeInViewport();
+  const sizes = await log.evaluate((el) => ({
+    scrolls: el.scrollHeight > el.clientHeight,
+    page: document.documentElement.scrollHeight,
+    view: window.innerHeight,
+  }));
+  expect(sizes.scrolls).toBe(true);
+  expect(sizes.page).toBeLessThanOrEqual(sizes.view);
+
+  // The Chat uses the width of a wide window, not only the narrow column of other screens.
+  const chat = await log.evaluate((el) => el.closest('.chat')!.getBoundingClientRect().width);
+  expect(chat).toBeGreaterThan(700);
 });

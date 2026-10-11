@@ -1,23 +1,39 @@
-.job {
+:host {
   display: grid;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 1.5px solid var(--edge);
-  border-radius: 4px;
-  background: var(--card);
+  gap: 18px;
+  align-content: start;
 }
 
-h3,
-h4 {
+section {
+  display: grid;
+  gap: 8px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+h3 {
   margin: 0;
   font-size: 14px;
 }
 
+.count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.job {
+  padding: 10px 12px;
+  border: 1.5px solid var(--pen);
+  border-radius: 4px;
+  background: var(--card);
+}
+
 .steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
+  display: grid;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -56,6 +72,7 @@ h4 {
 
 .steps .failed {
   color: var(--red);
+  font-weight: 600;
 }
 
 .steps .failed::before {
@@ -79,7 +96,13 @@ h4 {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 4px;
+  background: var(--card);
   justify-items: start;
+}
+
+.pending li {
+  border-color: var(--tape);
+  background: var(--marker);
 }
 
 .item.retired {
@@ -91,13 +114,32 @@ h4 {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  width: 100%;
+}
+
+.remove {
+  margin-left: auto;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.remove:hover {
+  color: var(--red);
 }
 
 .text {
   max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 details {
+  max-width: 100%;
   font-size: 14px;
 }
 
@@ -117,9 +159,42 @@ details p {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
-.muted {
+.ask {
+  font-weight: 600;
+}
+
+.btn.danger {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+  font-weight: 600;
+}
+
+.done {
+  margin: 0;
   font-size: 13px;
+}
+
+.done:empty {
+  display: none;
+}
+
+.item:focus {
+  outline: 2px solid var(--pen);
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
