@@ -40,7 +40,11 @@ test('the Teacher gives an Assignment to the Class', async ({ page, request }) =
   // The preview names what the bank lacks, and the Items it picked.
   const items = page.getByRole('list', { name: 'Zadania w pracy' }).getByRole('listitem');
   await expect(items).toHaveCount(2);
-  await expect(page.getByRole('status')).toContainText('1 z 2: II. Wyrażenia algebraiczne, łatwe');
+  const note = page.getByRole('status');
+  await expect(note).toHaveText(
+    'W banku zabrakło: brakuje 1 z 2: II. Wyrażenia algebraiczne, łatwe. Dodaj zadania do banku.',
+  );
+  await expect(page.getByRole('button', { name: /Wygeneruj/ })).toHaveCount(0);
   await expect(page.getByText('2 zadania · 2 pkt')).toBeVisible();
 
   // Nothing else in the bank for the cell, so a swap says so; removing empties the preview.
@@ -52,15 +56,22 @@ test('the Teacher gives an Assignment to the Class', async ({ page, request }) =
   await expect(page.getByText('Brak zadań.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Opublikuj w Teams' })).toBeDisabled();
 
-  // Back to the form and pick again.
+  // Back to the form and pick again: the bank still falls short, so the work cannot be given.
+  const give = page.getByRole('button', { name: 'Opublikuj w Teams' });
   await page.getByRole('button', { name: '← Wróć do formularza' }).click();
   await page.getByRole('button', { name: 'Dobierz zadania z banku' }).click();
   await expect(items).toHaveCount(2);
-
-  // Giving needs a due time.
-  await expect(page.getByRole('button', { name: 'Opublikuj w Teams' })).toBeDisabled();
   await page.getByLabel('Termin oddania').fill('2099-05-04T18:00');
-  await page.getByRole('button', { name: 'Opublikuj w Teams' }).click();
+  await expect(give).toBeDisabled();
+  await expect(page.getByText(/^W banku zabrakło zadań\./)).toBeVisible();
+
+  // Asking for no more than the bank has clears the shortfall, and the work can be given.
+  await page.getByRole('button', { name: '← Wróć do formularza' }).click();
+  await page.getByLabel('łatwe, II. Wyrażenia algebraiczne').fill('1');
+  await page.getByRole('button', { name: 'Dobierz zadania z banku' }).click();
+  await expect(items).toHaveCount(2);
+  await expect(note).toHaveCount(0);
+  await give.click();
 
   await expect(page.getByText('Praca «Równania kwadratowe» wydana w Teams.')).toBeVisible();
   expect(await (await request.post('/api/e2e/posts')).json()).toContain('Równania kwadratowe.pdf');
