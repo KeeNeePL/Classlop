@@ -315,8 +315,8 @@ class Run:
                 Draft,
                 [SystemMessage(COMPLETE), HumanMessage(json.dumps(given, ensure_ascii=False))],
             )
-            tags = await self.tagger.tag("\n".join([draft.text, *draft.options.values()]))
-            fields = draft.model_dump()
+            tags = await self.tagger.tag(draft.shown())
+            fields = draft.fields()
             # The Teacher's own answer, solution and points win over the AI's.
             if exercise.points is not None:
                 fields["points"] = exercise.points
