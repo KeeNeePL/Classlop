@@ -4068,6 +4068,25 @@
               }
             ],
             "title": "Percent"
+          },
+          "handed_in": {
+            "type": "integer",
+            "title": "Handed In"
+          },
+          "given": {
+            "type": "integer",
+            "title": "Given"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
           }
         },
         "type": "object",
@@ -4075,7 +4094,11 @@
           "id",
           "name",
           "former",
-          "percent"
+          "percent",
+          "handed_in",
+          "given",
+          "absent",
+          "reasons"
         ],
         "title": "StudentRow"
       },

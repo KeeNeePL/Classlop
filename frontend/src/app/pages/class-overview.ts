@@ -38,11 +38,7 @@ const HINTS = {
   attention:
     'Uczeń trafia tu, gdy nie oddał 2 z ostatnich 5 prac, ma wynik poniżej 30% albo 3 ' +
     'nieobecności w ostatnich 10 lekcjach. Lista pokazuje najwyżej pięć osób, od tych, ' +
-    'którym trzeba poświęcić najwięcej uwagi.',
-  students:
-    'Średni wynik ucznia ze wszystkich kategorii razem (kartkówki, sprawdziany, prace ' +
-    'domowe): procent punktów zdobytych z możliwych w jego ocenionych zadaniach. Prace ' +
-    'nieoddane, zwolnione i wstrzymane do sprawdzenia się nie liczą.',
+    'którym trzeba poświęcić najwięcej uwagi. Wszyscy uczniowie są w zakładce Uczniowie.',
 };
 
 /** The Class page's Przegląd tab. */

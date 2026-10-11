@@ -37,6 +37,10 @@ export const routes: Routes = [
         path: '',
         loadComponent: () => import('./pages/class-overview').then((m) => m.ClassOverview),
       },
+      {
+        path: 'uczniowie',
+        loadComponent: () => import('./pages/class-students').then((m) => m.ClassStudents),
+      },
       empty('lekcje', 'Lekcje', true),
       empty('lekcje/:lekcja', 'Lekcja', true),
       {

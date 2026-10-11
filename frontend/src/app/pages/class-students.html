@@ -1,0 +1,71 @@
+@if (overview(); as o) {
+  <div class="tools">
+    <input
+      type="search"
+      class="search"
+      placeholder="Szukaj ucznia"
+      aria-label="Szukaj ucznia"
+      [value]="search()"
+      (input)="type($any($event.target).value)"
+    />
+    @if (o.invented) {
+      <span class="muted">Skąd te dane?<cl-invented [text]="hints.invented" /></span>
+    }
+    <a class="manage" routerLink="../ustawienia">Dodaj lub usuń uczniów →</a>
+  </div>
+
+  <cl-panel>
+    <div class="scroll">
+      <table aria-label="Uczniowie">
+        <thead>
+          <tr>
+            <th [attr.aria-sort]="sorted('uczen')">
+              <button type="button" (click)="sortBy('uczen')">Uczeń {{ arrow('uczen') }}</button>
+            </th>
+            <th [attr.aria-sort]="sorted('wynik')">
+              <button type="button" (click)="sortBy('wynik')">Wynik {{ arrow('wynik') }}</button>
+              <cl-hint [text]="hints.percent" />
+            </th>
+            <th [attr.aria-sort]="sorted('oddane')">
+              <button type="button" (click)="sortBy('oddane')">Oddane {{ arrow('oddane') }}</button>
+              <cl-hint [text]="hints.handed" />
+            </th>
+            <th [attr.aria-sort]="sorted('nieobecnosci')">
+              <button type="button" (click)="sortBy('nieobecnosci')">
+                Nieobecności {{ arrow('nieobecnosci') }}
+              </button>
+              <cl-hint [text]="hints.absent" />
+            </th>
+            <th>Wymagają uwagi<cl-hint class="end" [text]="hints.attention" /></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of rows(); track s.id) {
+            <tr [class.flagged]="s.reasons.length">
+              <td>
+                <a [routerLink]="link(s.id)">{{ s.name }}</a>
+                @if (s.former) {
+                  <cl-badge>były uczeń</cl-badge>
+                }
+              </td>
+              <td><cl-percent [value]="s.percent" /></td>
+              <td>{{ s.handed_in }}/{{ s.given }}</td>
+              <td>{{ s.absent }}</td>
+              <td class="reasons">{{ s.reasons.join(', ') }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="muted">
+                {{
+                  search()
+                    ? 'Nikt nie pasuje do „' + search() + '”.'
+                    : 'Klasa nie ma jeszcze uczniów.'
+                }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </cl-panel>
+}

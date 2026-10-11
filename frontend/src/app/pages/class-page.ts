@@ -16,6 +16,7 @@ import { HomeStore } from '../shell/home-store';
       <a [routerLink]="base()" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }"
         >Przegląd</a
       >
+      <a [routerLink]="[base(), 'uczniowie']" routerLinkActive="on">Uczniowie</a>
       <a [routerLink]="[base(), 'lekcje']" routerLinkActive="on">Lekcje</a>
       <a [routerLink]="[base(), 'ustawienia']" routerLinkActive="on">Ustawienia klasy</a>
     </div>
