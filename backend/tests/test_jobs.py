@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -19,7 +20,7 @@ from classlop.shared.settings import get_settings
 from classlop.teams.graph import BASE, MAX_TRIES, GraphClient
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 async def stack():
     try:
         await asyncio.to_thread(migrate)
@@ -28,17 +29,24 @@ async def stack():
         if os.environ.get("CI"):
             raise
         pytest.skip("compose stand-ins are not running: docker compose up -d postgres elasticmq")
-    # Started once: cancelling a worker mid-receive would leave an orphaned receive that
-    # steals a message and burns one of its three receives.
-    tasks = [asyncio.create_task(run_worker()), asyncio.create_task(schedule.run_scheduler())]
+    # For this module only: left running, the scheduler fires later modules' past schedules
+    # and the worker runs their jobs.
+    stop = asyncio.Event()
+    work = asyncio.create_task(run_worker(stop))
+    scheduler = asyncio.create_task(schedule.run_scheduler())
     yield
-    for task in tasks:
-        task.cancel()
+    # The worker stops between receives: cancelling it mid-receive would leave an orphaned
+    # receive that steals a message and burns one of its three receives.
+    stop.set()
+    await work
+    scheduler.cancel()
+    with suppress(asyncio.CancelledError):
+        await scheduler
 
 
-async def run_worker():
+async def run_worker(stop: asyncio.Event):
     worker.load_handlers()
-    while True:
+    while not stop.is_set():
         for message in await queue.receive(wait_seconds=1):
             await jobs.process(message)
 
