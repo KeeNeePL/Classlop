@@ -20,7 +20,7 @@ class NewChat(BaseModel):
     name: str | None = None
 
 
-class Rename(BaseModel):
+class ChatRename(BaseModel):
     name: str
 
 
@@ -46,7 +46,7 @@ async def create(body: NewChat | None = None) -> items.Chat:
 
 
 @router.patch("/{chat_id}")
-async def rename(chat_id: Known, body: Rename) -> None:
+async def rename(chat_id: Known, body: ChatRename) -> None:
     try:
         await items.rename_chat(chat_id, body.name)
     except ValueError as error:

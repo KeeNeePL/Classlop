@@ -1,5 +1,5 @@
 """The Reports of a Class of the Teacher's own, read from `teams` (FakeTeams) in one call per
-Class; the bank is in memory and nothing is graded yet."""
+Class; the bank is in memory and `grading` gives only the results a test hands it."""
 
 import uuid
 from datetime import timedelta
@@ -10,10 +10,11 @@ from fake_work import Offline, invented_class
 from fastapi.testclient import TestClient
 from tenant import Clock
 
-from classlop import teams
-from classlop.dashboard import bank, classes
+from classlop import grading, teams
+from classlop.dashboard import bank, classes, grader
 from classlop.shared import storage
 from classlop.teams.fake import FakeTeams
+from classlop.teams.ids import as_uuid
 
 OPEN_MEDIUM_III = uuid.UUID(int=1001)  # 2 points
 
@@ -28,9 +29,64 @@ class CountingTeams(FakeTeams):
         return await super().read_class(class_id)
 
 
+class Graded:
+    """`grading` with the results it is handed, and no Common mistakes."""
+
+    def __init__(self) -> None:
+        self.found: list[grading.Result] = []
+
+    async def results(self, assignment_ids: list[uuid.UUID]) -> list[grading.Result]:
+        return self.found
+
+    async def common_mistakes(self, assignment_id: uuid.UUID) -> list[grading.ItemMistakes]:
+        return []
+
+
+def graded(submission: teams.Submission, earned: int) -> grading.Result:
+    item = dict(
+        item_id=uuid.uuid4(),
+        number=1,
+        ai_points=earned,
+        max_points=2,
+        reading="readable",
+        drawing=False,
+        doubt=False,
+        ai_transcription="$x = 1$",
+        fixed_transcription=None,
+        feedback="Dobrze.",
+        edited_feedback=None,
+        mistake=None,
+        verification_note=None,
+        override=None,
+        effective_points=earned,
+    )
+    return grading.Result.model_validate(
+        dict(
+            submission_id=as_uuid(submission.id),
+            handed_in_at=submission.handed_in_at,
+            status="graded",
+            held_reasons=[],
+            spot_check_reasons=[],
+            summary="",
+            comment="",
+            pdf_key=None,
+            items=[item],
+            approved_at=None,
+        )
+    )
+
+
 class Class:
-    def __init__(self, web: TestClient, fake: CountingTeams, class_id: str, assignment_id: str):
-        self.web, self.fake, self.id, self.assignment_id = web, fake, class_id, assignment_id
+    def __init__(
+        self,
+        web: TestClient,
+        fake: CountingTeams,
+        grades: Graded,
+        class_id: str,
+        assignment_id: str,
+    ):
+        self.web, self.fake, self.grades = web, fake, grades
+        self.id, self.assignment_id = class_id, assignment_id
 
     def get(self, path: str):
         self.fake.reads.clear()
@@ -51,6 +107,8 @@ async def klass(monkeypatch):
     clock = Clock()
     fake = CountingTeams(clock)
     app.dependency_overrides[classes.backend] = lambda: fake
+    grades = Graded()
+    app.dependency_overrides[grader.backend] = lambda: grades
     for module, name, replacement in Offline(items).patches():
         monkeypatch.setattr(module, name, replacement)
     monkeypatch.setattr(storage, "put", lambda *_: None)
@@ -79,7 +137,7 @@ async def klass(monkeypatch):
     clock.advance(minutes=4)
     await fake.poll_handins()
     await fake.remove_student(made.id, users["Celina Wrona"])
-    return Class(TestClient(app), fake, made.id, given.id)
+    return Class(TestClient(app), fake, grades, made.id, given.id)
 
 
 async def test_the_overview_reads_the_students_work_and_absences_from_teams(klass):
@@ -136,3 +194,25 @@ async def test_the_assignment_page_has_each_recipient_and_the_banks_points(klass
 async def test_an_unknown_student_or_assignment_of_an_own_class_is_not_found(klass):
     assert klass.web.get(f"/api/classes/{klass.id}/students/nobody/report").status_code == 404
     assert klass.web.get(f"/api/classes/{klass.id}/assignments/nothing").status_code == 404
+
+
+async def test_an_own_classs_points_come_from_grading_for_the_current_hand_in(klass):
+    (handed_in,) = [
+        s for s in await klass.fake.list_submissions(klass.assignment_id) if s.handed_in_at
+    ]
+    klass.grades.found = [graded(handed_in, earned=1)]
+
+    rows = {r["name"]: r for r in klass.get(f"assignments/{klass.assignment_id}")["rows"]}
+    assert (rows["Bartek Nowicki"]["state"], rows["Bartek Nowicki"]["percent"]) == ("graded", 50)
+    assert klass.get("overview")["assignments"][0]["average"] == 50
+
+    stale = handed_in.model_copy(
+        update={"handed_in_at": handed_in.handed_in_at - timedelta(hours=1)}
+    )
+    klass.grades.found = [graded(stale, earned=2)]
+
+    rows = {r["name"]: r for r in klass.get(f"assignments/{klass.assignment_id}")["rows"]}
+    assert (rows["Bartek Nowicki"]["state"], rows["Bartek Nowicki"]["percent"]) == (
+        "handed_in",
+        None,
+    )

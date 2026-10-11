@@ -457,6 +457,235 @@
         }
       }
     },
+    "/api/chats": {
+      "get": {
+        "summary": "Chats",
+        "operationId": "chats_api_chats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Chat"
+                  },
+                  "type": "array",
+                  "title": "Response Chats Api Chats Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create",
+        "operationId": "create_api_chats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/NewChat"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chat"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}": {
+      "patch": {
+        "summary": "Rename",
+        "operationId": "rename_api_chats__chat_id__patch",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete",
+        "operationId": "delete_api_chats__chat_id__delete",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}/messages": {
+      "get": {
+        "summary": "Messages",
+        "operationId": "messages_api_chats__chat_id__messages_get",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessage"
+                  },
+                  "title": "Response Messages Api Chats  Chat Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Say",
+        "operationId": "say_api_chats__chat_id__messages_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_say_api_chats__chat_id__messages_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/users": {
       "get": {
         "summary": "Users",
@@ -2268,6 +2497,29 @@
         "title": "BankFilters",
         "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
       },
+      "Body_say_api_chats__chat_id__messages_post": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "title": "Body_say_api_chats__chat_id__messages_post"
+      },
       "Break": {
         "properties": {
           "first": {
@@ -2310,6 +2562,88 @@
           "upn"
         ],
         "title": "Candidate"
+      },
+      "Chat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "Chat"
+      },
+      "ChatMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "chat_id": {
+            "type": "string",
+            "title": "Chat Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "assistant",
+              "user"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "chat_id",
+          "role",
+          "text",
+          "payload",
+          "created_at"
+        ],
+        "title": "ChatMessage"
+      },
+      "ChatRename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ChatRename"
       },
       "ClassLink": {
         "properties": {
@@ -3469,6 +3803,23 @@
           "name"
         ],
         "title": "Neighbour"
+      },
+      "NewChat": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "NewChat"
       },
       "NewClass": {
         "properties": {

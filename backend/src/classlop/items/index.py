@@ -31,6 +31,8 @@ BATCH = 50
 _created: set[str] = set()  # indexes this process has made sure of
 # The nearest neighbours the vector half of a search contributes before paging.
 NEIGHBOURS = 100
+# Lucene's HNSW searches only k candidates, so a near-duplicate check with k=1 can miss the nearest.
+DUPLICATE_CANDIDATES = 10
 
 SETTINGS = {
     "index": {"knn": True},
@@ -330,7 +332,7 @@ async def nearest_item(content: ItemContent) -> tuple[uuid.UUID, float] | None:
                 "knn": {
                     "embedding": {
                         "vector": vector,
-                        "k": 1,
+                        "k": DUPLICATE_CANDIDATES,
                         "filter": {"bool": {"filter": [{"term": {"retired": False}}]}},
                     }
                 }

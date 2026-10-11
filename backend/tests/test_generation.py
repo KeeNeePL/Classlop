@@ -59,6 +59,7 @@ class FakeLLM:
         self.rerank_score = 0.9
         self.drafts: list[Draft] = []
         self.generated = 0
+        self.briefs: list[str] = []
         monkeypatch.setattr(llm, "ask", self.ask)
 
     def fresh(self, item_format="open") -> Draft:
@@ -86,6 +87,7 @@ class FakeLLM:
             ids = [c["id"] for c in __import__("json").loads(messages[1].content)["kandydaci"]]
             return Ranking(scores=[Score(id=i, score=self.rerank_score) for i in ids])
         self.generated += 1
+        self.briefs.append(messages[1].content)
         return self.drafts.pop(0) if self.drafts else self.fresh()
 
 
@@ -235,6 +237,15 @@ async def test_a_named_topic_must_be_among_the_tags(fake_llm, fake_tagger):
     (item,) = await landed(job)
     assert fake_llm.generated == 2
     assert INEQUALITY in item.version.curriculum_topics and not item.flagged
+
+
+async def test_the_brief_names_the_asked_topic_and_section(fake_llm, fake_tagger):
+    await run(spec(line(1, curriculum_topics=[INEQUALITY.id])))
+    await run(spec(line(1, "medium", curriculum_section="lo2024:X")))
+
+    topic_brief, section_brief = fake_llm.briefs[0], fake_llm.briefs[-1]
+    assert "Rozwiązuje nierówności liniowe z jedną niewiadomą" in topic_brief
+    assert "Stereometria" in section_brief
 
 
 async def test_a_shortfall_line_needs_a_tag_within_its_section(fake_llm, fake_tagger):

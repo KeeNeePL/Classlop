@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from classlop.dashboard import auth, bank, class_read, store
+from classlop.dashboard import auth, bank, class_read, grader, store
 from classlop.dashboard.actions import refusing
 from classlop.dashboard.classes import TheTeams
 from classlop.dashboard.invented import students as invented_students
@@ -34,11 +34,12 @@ async def report(
     _: Teacher,
     t: TheTeams,
     pool: bank.TheBank,
+    graded: grader.TheGrader,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> StudentPage:
     """`start` and `end` bound the period by due time; leaving both out means everything."""
-    read, invented = await class_read.read(class_id, t, pool)
+    read, invented = await class_read.read(class_id, t, pool, graded)
     data = read.data
     if student_id not in {s.id for s in data.students}:
         raise HTTPException(404)
