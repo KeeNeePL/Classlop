@@ -308,10 +308,16 @@ async def test_a_job_throttled_out_of_its_tries_goes_back_to_the_queue_and_then_
 async def test_a_graph_call_the_teacher_must_sign_in_for_waits_and_resumes():
     kind, route = new_kind(), respx.get(f"{BASE}/me")
     route.mock(side_effect=[httpx.Response(401), httpx.Response(200, json={})])
+    signed_in = False
+
+    async def refreshed() -> str:
+        if not signed_in:
+            raise jobs.SignInRequired
+        return "token"
 
     @jobs.handler(kind)
     async def whoami(job, progress):
-        await GraphClient(token=_token, sleep=_no_sleep).get("/me")
+        await GraphClient(token=_token, fresh_token=refreshed, sleep=_no_sleep).get("/me")
 
     job_id = await jobs.enqueue(kind)
 
@@ -322,5 +328,6 @@ async def test_a_graph_call_the_teacher_must_sign_in_for_waits_and_resumes():
         return (await job_of(job_id)).status == "succeeded"
 
     await until(waiting)
+    signed_in = True
     assert await jobs.resume_waiting() >= 1
     await until(succeeded)

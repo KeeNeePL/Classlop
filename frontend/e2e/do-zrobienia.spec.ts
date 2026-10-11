@@ -14,8 +14,8 @@ test('Do zrobienia opens with the sidebar and its queue', async ({ page }) => {
     'Zaloguj się ponownie',
     'Nie udało się wydać pracy «Ciągi: zadania z treścią»',
     'Zespół klasy 3B usunięto w Teams',
-    'Ocenione przez AI: Funkcja kwadratowa (2C)',
-    'Ocenione przez AI: Graniastosłupy (3B)',
+    'Ocenione przez AI: Równania (2C)',
+    'Ocenione przez AI: Zbiory liczbowe (3B)',
     'Lekcja: klasa 3B',
     'Termin: Wzory skróconego mnożenia (1A)',
   ]);

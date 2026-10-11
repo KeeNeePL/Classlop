@@ -3,7 +3,7 @@
   @if (error(); as e) {
     <p class="error" role="alert">{{ e }}</p>
   }
-  @if (timetable.value(); as t) {
+  @if (timetable.hasValue() && timetable.value(); as t) {
     @if (!t.slots.length) {
       <p class="muted">
         Każdy slot staje się cotygodniowym spotkaniem w Teams z zaproszonymi uczniami, aż do końca

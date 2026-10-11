@@ -246,6 +246,16 @@ async def test_a_job_uses_the_teachers_tokens_when_another_account_is_cached(
     assert microsoft.refreshed == [TEACHER]
 
 
+async def test_a_fresh_token_is_refreshed_though_the_cached_one_is_still_valid(microsoft):
+    await sign_in(microsoft, "teacher")
+    await auth.graph_token(["User.Read"])
+
+    await auth.graph_token(["User.Read"])
+    assert microsoft.grants == ["authorization_code", "refresh_token"]
+    await auth.graph_token(["User.Read"], fresh=True)
+    assert microsoft.grants == ["authorization_code", "refresh_token", "refresh_token"]
+
+
 async def test_a_lapsed_refresh_token_means_sign_in_required(microsoft):
     await sign_in(microsoft, "teacher")
     microsoft.refresh_works = False

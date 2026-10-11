@@ -118,8 +118,33 @@ async def test_a_throttled_call_does_not_hold_a_slot_while_it_waits():
 
 
 @respx.mock
-async def test_a_rejected_token_means_the_teacher_must_sign_in_again(graph):
+async def test_a_rejected_token_is_tried_again_fresh():
+    async def fresh() -> str:
+        return "fresh"
+
+    route = respx.get(f"{BASE}/me").mock(
+        side_effect=[httpx.Response(401), httpx.Response(200, json={"id": "u1"})]
+    )
+
+    assert await GraphClient(token=_token, fresh_token=fresh).get("/me") == {"id": "u1"}
+    assert route.calls.last.request.headers["Authorization"] == "Bearer fresh"
+
+
+@respx.mock
+async def test_a_rejected_token_that_cannot_be_refreshed_means_the_teacher_must_sign_in_again():
+    async def lapsed() -> str:
+        raise SignInRequired
+
     respx.get(f"{BASE}/me").mock(return_value=httpx.Response(401))
 
     with pytest.raises(SignInRequired):
-        await graph.get("/me")
+        await GraphClient(token=_token, fresh_token=lapsed).get("/me")
+
+
+@respx.mock
+async def test_a_401_a_fresh_token_still_gets_is_graph_refusing_not_a_lapsed_sign_in(graph):
+    route = respx.get(f"{BASE}/me/events").mock(return_value=httpx.Response(401))
+
+    with pytest.raises(GraphError) as refused:
+        await graph.get("/me/events")
+    assert (refused.value.status, route.call_count) == (401, 2)

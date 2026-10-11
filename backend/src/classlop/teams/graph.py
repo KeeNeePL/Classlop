@@ -7,7 +7,6 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from classlop.shared.auth import graph_token
-from classlop.shared.jobs import SignInRequired
 
 GRAPH_SCOPES = [
     "User.Read",
@@ -68,8 +67,12 @@ class GraphClient:
         token: Callable[[], Awaitable[str]] | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        fresh_token: Callable[[], Awaitable[str]] | None = None,
     ):
+        """`fresh_token` gives a token not taken from a cache, for one Graph has rejected; by
+        default `token` again, or the Teacher's refreshed one."""
         self._token = token or (lambda: graph_token(GRAPH_SCOPES))
+        self._fresh_token = fresh_token or token or (lambda: graph_token(GRAPH_SCOPES, fresh=True))
         self._http = httpx.AsyncClient(
             transport=transport,
             base_url=BASE,
@@ -93,10 +96,18 @@ class GraphClient:
 
     async def request(self, method: str, url: str, **kwargs) -> httpx.Response:
         extra = kwargs.pop("headers", {})
+        fresh = False
         for attempt in range(MAX_TRIES):
+            token = self._fresh_token if fresh else self._token
             async with self._slots:
-                headers = {"Authorization": f"Bearer {await self._token()}", **extra}
+                headers = {"Authorization": f"Bearer {await token()}", **extra}
                 response = await self._http.request(method, url, headers=headers, **kwargs)
+            # A rejected token may only be stale. Once a fresh one can be had, a 401 is Graph
+            # refusing (a mailbox Exchange will not open), which signing in again cannot change;
+            # when it cannot, the fresh token raises SignInRequired.
+            if response.status_code == 401 and not fresh:
+                fresh = True
+                continue
             if response.status_code not in _RETRY:
                 break
             if attempt < MAX_TRIES - 1:
@@ -104,8 +115,6 @@ class GraphClient:
                 await self._sleep(
                     float(retry_after) if retry_after else 2**attempt + random.random()
                 )
-        if response.status_code == 401:
-            raise SignInRequired
         if response.is_error:
             raise GraphError(response)
         return response
