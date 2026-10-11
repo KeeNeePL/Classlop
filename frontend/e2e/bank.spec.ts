@@ -123,7 +123,7 @@ test('editing a flagged Item lowers the count in the sidebar', async ({ page }) 
   await expect(link).toHaveText(/3$/);
 });
 
-test('the Teacher picks a topic from the drop-down and the new topic shows', async ({ page }) => {
+test('the Teacher ticks several topics in a pop-up while editing', async ({ page }) => {
   await page.goto('/bank');
   await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('równanie');
   await expect(items(page)).toHaveCount(1);
@@ -131,22 +131,53 @@ test('the Teacher picks a topic from the drop-down and the new topic shows', asy
 
   await page.getByRole('button', { name: 'Edytuj' }).click();
   const topics = page.getByRole('group', { name: 'Tematy' });
-  await expect(
-    topics.locator('.picked').filter({ hasText: 'Rozwiązuje równania i nierówności kwadratowe' }),
-  ).toBeVisible();
-  await topics.getByLabel('Dodaj temat').selectOption('lo2024:II.1');
-  await expect(
-    topics.locator('.picked').filter({ hasText: 'Stosuje wzory skróconego mnożenia' }),
-  ).toBeVisible();
+  const picked = topics.locator('.picked');
+  await expect(picked).toHaveCount(1);
+
+  await topics.getByRole('button', { name: 'Wybierz tematy' }).click();
+  const popup = page.getByRole('dialog', { name: 'Tematy z podstawy programowej' });
+  const box = await popup.boundingBox();
+  const screen = page.viewportSize()!;
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(screen.width);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(screen.height);
+
+  const search = popup.getByRole('searchbox', { name: 'Szukaj tematu' });
+  await search.fill('skróconego');
+  await popup.getByRole('checkbox', { name: 'Wyrażenia algebraiczne' }).check();
+  await search.fill('tożsamościowe');
+  await popup.getByRole('checkbox', { name: 'Równania i nierówności', exact: true }).check();
+  await expect(popup).toBeVisible();
+  await popup.getByRole('button', { name: 'Zamknij' }).click();
+  await expect(picked).toHaveCount(3);
+
   await topics.getByRole('button', { name: /^Usuń temat: Rozwiązuje równania/ }).click();
-  await expect(
-    topics.locator('.picked').filter({ hasText: 'Rozwiązuje równania i nierówności kwadratowe' }),
-  ).toHaveCount(0);
+  await expect(picked).toHaveCount(2);
   await page.getByRole('button', { name: 'Zapisz' }).click();
 
   const tags = page.locator('dd').filter({ hasText: 'Stosuje wzory skróconego mnożenia' });
-  await expect(tags).toBeVisible();
-  await expect(page.locator('dd').filter({ hasText: 'Rozwiązuje równania' })).toHaveCount(0);
+  await expect(tags).toContainText('tożsamościowe');
+  await expect(tags).not.toContainText('Rozwiązuje równania');
+});
+
+test('long text in the editor grows downwards and never widens the screen', async ({ page }) => {
+  await page.goto('/bank');
+  await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('równanie');
+  await expect(items(page)).toHaveCount(1);
+  await items(page).getByRole('link').click();
+  await page.getByRole('button', { name: 'Edytuj' }).click();
+
+  const text = page.getByLabel('Treść');
+  const before = (await text.boundingBox())!.height;
+  const word = 'bardzodługietekstbezspacji'.repeat(20);
+  await text.fill(`Rozwiąż równanie ${word} ${'słowo '.repeat(80)}`);
+
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    .toBe(true);
+  expect((await text.boundingBox())!.height).toBeGreaterThan(before);
+  expect(await text.evaluate((el) => getComputedStyle(el).resize)).toBe('none');
 });
 
 test('an edit saves a new version and the AI offers a new solution', async ({ page }) => {

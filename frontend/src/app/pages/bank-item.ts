@@ -18,6 +18,7 @@ import { Badge } from '../ui/badge';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
+import { TopicPicker } from './topic-picker';
 import { BankStore, DIFFICULTY } from './bank-store';
 
 /** What the Edit form holds while the Teacher types. */
@@ -83,7 +84,7 @@ function messageOf(error: unknown): string {
 
 /** One Item of the bank: what it says, where it was used, and what the Teacher can do to it. */
 @Component({
-  imports: [Badge, FormsModule, MathText, Panel, Percent, RouterLink],
+  imports: [Badge, FormsModule, MathText, Panel, Percent, RouterLink, TopicPicker],
   templateUrl: './bank-item.html',
   styleUrl: './bank-item.css',
 })
@@ -139,17 +140,6 @@ export class BankItem {
       if (t) return t.name;
     }
     return id;
-  }
-
-  /** A topic's name for a list that cannot show mathematics. */
-  protected plain(name: string): string {
-    return name.replaceAll('$', '');
-  }
-
-  protected addTopic(draft: Draft, event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    if (select.value) draft.topics.push(select.value);
-    select.value = '';
   }
 
   protected edit(d: ItemDetail): void {

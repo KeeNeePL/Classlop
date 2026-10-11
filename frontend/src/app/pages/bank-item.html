@@ -120,18 +120,15 @@
               </button>
             </div>
           }
-          <select aria-label="Dodaj temat" (change)="addTopic(f, $event)">
-            <option value="">Dodaj temat…</option>
-            @for (s of sections(); track s.id) {
-              <optgroup [label]="s.name">
-                @for (t of s.topics; track t.id) {
-                  @if (!has(f.topics, t.id)) {
-                    <option [value]="t.id">{{ plain(t.name) }}</option>
-                  }
-                }
-              </optgroup>
-            }
-          </select>
+          <button type="button" class="btn ghost choose" (click)="picker.open()">
+            Wybierz tematy
+          </button>
+          <cl-topic-picker
+            #picker
+            [sections]="sections()"
+            [picked]="f.topics"
+            (pickedChange)="f.topics = $event"
+          />
         </fieldset>
 
         @if (v.item_format === 'closed') {

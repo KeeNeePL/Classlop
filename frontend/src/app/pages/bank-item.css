@@ -1,6 +1,17 @@
 :host {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+
+/* Long text wraps and grows downwards; nothing makes the screen wider. */
+cl-panel,
+fieldset {
+  min-width: 0;
+}
+
+cl-math {
+  overflow-wrap: anywhere;
 }
 
 /* Sections of the Item are told apart by a rule above each, not by shouting. */
@@ -155,6 +166,7 @@ td {
 
 .edit {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
 }
@@ -186,6 +198,8 @@ td {
 }
 
 .preview {
+  min-width: 0;
+  overflow-x: auto;
   color: var(--muted);
 }
 
@@ -251,4 +265,22 @@ legend {
 .hint {
   margin: 0;
   font-size: 13px;
+}
+
+/* The task text is as tall as it needs to be and cannot be dragged wider or taller. */
+.edit textarea {
+  width: 100%;
+  min-height: 5em;
+  resize: none;
+  field-sizing: content;
+  overflow-wrap: anywhere;
+}
+
+.edit input:not([type='checkbox']),
+.edit select {
+  min-width: 0;
+}
+
+.choose {
+  justify-self: start;
 }

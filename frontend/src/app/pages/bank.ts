@@ -1,14 +1,15 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Item } from '../api/models';
 import { Badge } from '../ui/badge';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
+import { TopicPicker } from './topic-picker';
 import { BankStore, DIFFICULTY, SIZE } from './bank-store';
 
 /** The Bank zadań: search and filters on the left, the chosen Item on the right. */
 @Component({
-  imports: [Badge, MathText, Panel, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [Badge, MathText, Panel, RouterLink, RouterLinkActive, RouterOutlet, TopicPicker],
   templateUrl: './bank.html',
   styleUrl: './bank.css',
 })
@@ -21,23 +22,6 @@ export class Bank {
     Math.max(1, Math.ceil((this.store.results()?.total ?? 0) / SIZE)),
   );
   private typing: ReturnType<typeof setTimeout> | undefined;
-
-  /** What the Teacher types to find a Curriculum topic in the full-screen list. */
-  protected readonly topicQuery = signal('');
-
-  /** The sections with the topics that fit the words typed; a section that fits keeps all. */
-  protected readonly sections = computed(() => {
-    const words = this.topicQuery().trim().toLowerCase();
-    const all = this.store.filters()?.sections ?? [];
-    if (!words) return all;
-    return all
-      .map((s) =>
-        s.name.toLowerCase().includes(words)
-          ? s
-          : { ...s, topics: s.topics.filter((t) => t.name.toLowerCase().includes(words)) },
-      )
-      .filter((s) => s.topics.length);
-  });
 
   /** What the list is narrowed to, as chips: a whole section as one, otherwise each topic. */
   protected readonly chosen = computed(() => {
@@ -68,32 +52,9 @@ export class Bank {
     this.store.change({ neverUsedWith: (event.target as HTMLSelectElement).value || null });
   }
 
-  protected openTopics(dialog: HTMLDialogElement): void {
-    this.topicQuery.set('');
-    dialog.showModal();
-  }
-
-  protected picked(id: string): boolean {
-    return this.criteria().topics.includes(id);
-  }
-
-  /** How many of a section's topics are picked: all, some or none. */
-  protected share(topics: { id: string }[]): 'all' | 'some' | 'none' {
-    const n = topics.filter((t) => this.picked(t.id)).length;
-    return n === 0 ? 'none' : n === topics.length ? 'all' : 'some';
-  }
-
-  protected topicIds(topics: { id: string }[]): string[] {
-    return topics.map((t) => t.id);
-  }
-
-  protected pickTopics(ids: string[], on: boolean): void {
-    const rest = this.criteria().topics.filter((id) => !ids.includes(id));
-    this.store.change({ topics: on ? [...rest, ...ids] : rest });
-  }
-
-  protected clearTopics(): void {
-    this.store.change({ topics: [] });
+  /** Takes topics off the list, as the chips do. */
+  protected drop(ids: string[]): void {
+    this.store.change({ topics: this.criteria().topics.filter((id) => !ids.includes(id)) });
   }
 }
 
