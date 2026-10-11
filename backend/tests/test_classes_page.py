@@ -161,3 +161,42 @@ def test_a_new_class_has_an_overview_with_its_students_and_nothing_invented(web)
     assert (view["name"], view["invented"]) == ("Klasa 4D", False)
     assert [s["name"] for s in view["students"]] == ["Karolina Mazur"]
     assert view["assignments"] == []
+
+
+def test_a_class_the_real_area_does_not_know_is_not_found():
+    from fastapi import HTTPException
+    from sqlalchemy.exc import NoResultFound
+
+    from classlop.dashboard.actions import refusing
+
+    with pytest.raises(HTTPException) as refused, refusing():
+        raise NoResultFound
+
+    assert refused.value.status_code == 404
+
+
+def test_opening_the_settings_releases_a_class_whose_team_is_back(web):
+    class_id = make_class(web)
+    teams = web.app.state.teams
+    team_id = teams._classes[class_id].team_id
+    teams.delete_team(team_id)
+    assert settings(web, class_id)["state"] == "team_deleted"
+
+    teams.undelete_team(team_id)
+
+    assert settings(web, class_id)["state"] == "active"
+
+
+def test_a_class_held_for_thirty_days_is_deleted_with_its_notes(web):
+    from datetime import UTC, datetime, timedelta
+
+    class_id = make_class(web)
+    teams = web.app.state.teams
+    teams.delete_team(teams._classes[class_id].team_id)
+    assert settings(web, class_id)["state"] == "team_deleted"
+    web.app.state.notes.kept = {(class_id, "s1"): "spokojny"}
+
+    teams._clock = lambda: datetime.now(UTC) + timedelta(days=31)
+
+    assert web.get(f"/api/classes/{class_id}/settings").status_code == 404
+    assert web.app.state.notes.kept == {}

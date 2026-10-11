@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, StringConstraints
+from sqlalchemy.exc import NoResultFound
 
 from classlop import teams
 from classlop.dashboard import auth, notes
@@ -21,6 +22,7 @@ def backend() -> teams.Teams:
 
 
 TheTeams = Annotated[teams.Teams, Depends(backend)]
+TheNotes = Annotated[notes.Notes, Depends(notes.backend)]
 Teacher = Annotated[auth.Me, Depends(auth.teacher)]
 
 
@@ -93,12 +95,17 @@ async def link_team(body: LinkTeam, _: Teacher, t: TheTeams) -> Created:
 
 
 @router.get("/api/classes/{class_id}/settings")
-async def class_settings(class_id: str, _: Teacher, t: TheTeams) -> ClassSettings:
-    """The roster is brought in step with the team first, as when the Class page opens."""
+async def class_settings(class_id: str, _: Teacher, t: TheTeams, kept: TheNotes) -> ClassSettings:
+    """The roster is brought in step with the team first, as when the Class page opens. That also
+    releases a Class whose team is back, and deletes one held for 30 days, with its Notes."""
     with refusing():
-        if (await t.get_class(class_id)).state == "active":
-            await t.sync_roster(class_id)
-        klass = await t.get_class(class_id)
+        await t.get_class(class_id)
+        await t.sync_roster(class_id)
+        try:
+            klass = await t.get_class(class_id)
+        except (LookupError, NoResultFound):
+            await kept.delete_class(class_id)
+            raise
         students = await t.list_students(class_id)
     return ClassSettings(
         id=klass.id,
@@ -150,8 +157,8 @@ async def delete_class(
     t: TheTeams,
     kept: Annotated[notes.Notes, Depends(notes.backend)],
 ) -> Response:
-    """Deletes the Class and its team once its name is typed, then its Notes. The Notes go last, so
-    a refused deletion loses nothing."""
+    """Deletes the Class and its team once its name is typed, then its Notes. They go last, so
+    a refused deletion loses nothing; a failure between the two leaves Notes no Class can reach."""
     with refusing():
         await t.delete_class(class_id, name)
         await kept.delete_class(class_id)

@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Iterator
 from contextlib import contextmanager
 
 from fastapi import HTTPException, Response
+from sqlalchemy.exc import NoResultFound
 
 from classlop import grading, teams
 from classlop.shared.jobs import SignInRequired
@@ -14,7 +15,7 @@ from classlop.shared.jobs import SignInRequired
 def refusing() -> Iterator[None]:
     try:
         yield
-    except LookupError as e:
+    except (LookupError, NoResultFound) as e:
         raise HTTPException(404) from e
     except SignInRequired as e:
         # The screen's interceptor answers a 401 with "Zaloguj się ponownie".
