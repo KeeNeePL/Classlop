@@ -9,7 +9,7 @@ test('an Assignment opens from the Class overview, shows its summary and downloa
 
   await expect(page).toHaveURL('/klasy/2c/prace/2c-2');
   await expect(page.getByRole('heading', { name: 'Równania' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
 
   // Closed and handed in: nothing changes any more.
   for (const name of ['Zmień termin', 'Dodaj uczniów', 'Usuń pracę']) {

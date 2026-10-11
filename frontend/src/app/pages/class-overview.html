@@ -15,7 +15,7 @@
 
 @if (overview(); as o) {
   @if (o.invented) {
-    <p><cl-invented /></p>
+    <p class="muted">Skąd te dane?<cl-invented [text]="hints.invented" /></p>
   }
 
   <cl-panel>
@@ -91,22 +91,5 @@
         <li class="muted">Nikt.</li>
       }
     </ol>
-  </cl-panel>
-
-  <cl-panel>
-    <h2>Uczniowie<cl-hint [text]="hints.students" /></h2>
-    <ul aria-label="Uczniowie">
-      @for (s of o.students; track s.id) {
-        <li class="student">
-          <span>
-            <a [routerLink]="link(s.id)">{{ s.name }}</a>
-            @if (s.former) {
-              <cl-badge>były uczeń</cl-badge>
-            }
-          </span>
-          <cl-percent [value]="s.percent" />
-        </li>
-      }
-    </ul>
   </cl-panel>
 }

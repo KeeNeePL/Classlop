@@ -4,7 +4,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await page.goto('/klasy/2c');
 
   await expect(page.getByRole('heading', { name: 'Klasa 2C' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Postęp' })).toBeVisible();
   // Folded: the four sections with the newest graded work; the oldest, Liczby rzeczywiste, waits.
@@ -22,6 +22,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await expect(page.getByRole('tooltip').first()).toBeHidden();
   await hint.hover();
   await expect(page.getByRole('tooltip').first()).toContainText('Procent punktów zdobytych');
+  await page.mouse.move(0, 0);
 
   await expect(page.getByText('Stereometria')).toHaveCount(0);
   await page.getByRole('button', { name: 'Rozwiń wszystkie działy' }).click();
@@ -53,7 +54,4 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
 
   const attention = page.getByRole('list', { name: 'Wymagają uwagi' }).getByRole('listitem');
   await expect(attention.first()).toContainText('Wynik');
-
-  await expect(page.getByRole('list', { name: 'Uczniowie' }).getByRole('listitem')).toHaveCount(8);
-  await expect(page.getByRole('list', { name: 'Uczniowie' }).getByText('były uczeń')).toBeVisible();
 });

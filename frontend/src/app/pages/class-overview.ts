@@ -18,6 +18,10 @@ import { Percent } from '../ui/percent';
 const RECENT = 4;
 
 const HINTS = {
+  invented:
+    'Prawdziwe: zadania z banku z ich tematami i punktami oraz działy i tematy podstawy ' +
+    'programowej. Na razie zmyślone: uczniowie, prace i ich terminy, punkty uczniów ' +
+    'i nieobecności.',
   progress:
     'Procent punktów zdobytych z możliwych do zdobycia w ocenionych zadaniach, osobno dla ' +
     'kartkówek, sprawdzianów i prac domowych. „Średnia” to wynik całej kategorii. Zadanie ' +
@@ -34,11 +38,7 @@ const HINTS = {
   attention:
     'Uczeń trafia tu, gdy nie oddał 2 z ostatnich 5 prac, ma wynik poniżej 30% albo 3 ' +
     'nieobecności w ostatnich 10 lekcjach. Lista pokazuje najwyżej pięć osób, od tych, ' +
-    'którym trzeba poświęcić najwięcej uwagi.',
-  students:
-    'Średni wynik ucznia ze wszystkich kategorii razem (kartkówki, sprawdziany, prace ' +
-    'domowe): procent punktów zdobytych z możliwych w jego ocenionych zadaniach. Prace ' +
-    'nieoddane, zwolnione i wstrzymane do sprawdzenia się nie liczą.',
+    'którym trzeba poświęcić najwięcej uwagi. Wszyscy uczniowie są w zakładce Uczniowie.',
 };
 
 /** The Class page's Przegląd tab. */

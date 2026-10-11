@@ -36,7 +36,7 @@
       <span>{{ r.reason }}: zad. {{ r.items.join(', ') }}</span>
     }
     @if (v.invented) {
-      <cl-invented />
+      <cl-invented [text]="invented" />
     }
   </p>
 

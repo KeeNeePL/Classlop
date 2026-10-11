@@ -34,9 +34,17 @@ def test_the_page_is_ready_for_the_screen_and_marked_invented(web):
     flagged = [r["flagged"] for r in view["rows"]]
     assert flagged == sorted(flagged, reverse=True)
     # The invented Common mistakes, in the shape `grading` gives them.
-    assert [len(i["mistakes"]) for i in view["items"]] == [3, 0, 1]
+    assert [len(i["mistakes"]) for i in view["items"]] == [3, 1]
     assert view["items"][0]["mistakes"][0]["count"] == 6
     assert not view["deletable"] and not view["changeable"]
+
+
+def test_the_items_and_their_points_are_the_banks(web):
+    # The oldest Assignment pinned the bank's Items of sections I and II, both closed, 1 point.
+    view = web.get("/api/classes/2c/assignments/2c-0").json()
+
+    assert [(i["number"], i["points"]) for i in view["items"]] == [(1, 1), (2, 1)]
+    assert view["points"] == 2
 
 
 def test_an_open_assignment_shows_no_points_before_the_due_time(web):
@@ -71,7 +79,7 @@ def test_the_csv_downloads_one_row_per_recipient(web):
     states = {r[5] for r in rows[1:]}
     assert "brak pracy" in states
     graded = next(r for r in rows[1:] if r[5] == "ocenione")
-    assert graded[2] == "6" and graded[3].endswith("%") and graded[4] in "123456"
+    assert graded[2] == "4" and graded[3].endswith("%") and graded[4] in "123456"
     assert graded[6] in ("tak", "nie")
     # The Class's order, for typing into the e-gradebook, not flagged first as on the page.
     names = [r[0] for r in rows[1:]]

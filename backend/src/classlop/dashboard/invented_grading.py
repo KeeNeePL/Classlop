@@ -9,7 +9,23 @@ from datetime import UTC, datetime
 from classlop import grading
 from classlop.dashboard.reports import Assignment, ScoredItem, Submission
 
-# Per Item number, by points earned: the Student's work and the AI's Feedback.
+
+def _share(points: int, available: int) -> int:
+    """Nothing, part or all of the Item's points: what WORK, FEEDBACK and MISTAKES are kept by."""
+    return 2 if points == available else min(points, 1)
+
+
+def _unsure(submission: Submission) -> int:
+    """The Item a Held Submission's unsure reading is on: the second, or the only one."""
+    return min(2, submission.items[-1].number)
+
+
+def _drawn(submission: Submission) -> int:
+    """The Item with a drawing that a Spot-check looks at: the last one."""
+    return submission.items[-1].number
+
+
+# Per Item number, by share: the Student's work and the AI's Feedback.
 WORK = {
     1: ["$x = 5$", "$3x - 2x = 5 - 7$, więc $x = -2$", "$3x - 2x = 5 + 7$, więc $x = 12$"],
     2: [
@@ -92,8 +108,16 @@ class InventedGrading:
             return None
         failed = self._failed(submission_id, submission)
         items = [] if failed else [self._item(assignment, submission, i) for i in submission.items]
-        held = [grading.Reason(reason="Niepewny odczyt", items=[2])] if submission.held else []
-        drawn = [grading.Reason(reason="Rysunek", items=[3])] if submission.spot_check else []
+        held = (
+            [grading.Reason(reason="Niepewny odczyt", items=[_unsure(submission)])]
+            if submission.held
+            else []
+        )
+        drawn = (
+            [grading.Reason(reason="Rysunek", items=[_drawn(submission)])]
+            if submission.spot_check
+            else []
+        )
         return grading.Result(
             submission_id=submission_id,
             handed_in_at=handed_in_at,
@@ -111,8 +135,9 @@ class InventedGrading:
         self, assignment: Assignment, submission: Submission, scored: ScoredItem
     ) -> grading.ItemResult:
         key = self._key(assignment, submission, scored)
-        unsure = submission.held and scored.number == 2
+        unsure = submission.held and scored.number == _unsure(submission)
         ai = self._ai_points(key, scored)
+        share = _share(ai, scored.available)
         return grading.ItemResult.model_validate(
             {
                 "item_id": key[1],
@@ -120,13 +145,13 @@ class InventedGrading:
                 "ai_points": ai,
                 "max_points": scored.available,
                 "reading": "unsure" if unsure else "readable",
-                "drawing": submission.spot_check and scored.number == 3,
+                "drawing": submission.spot_check and scored.number == _drawn(submission),
                 "doubt": False,
-                "ai_transcription": WORK[scored.number][scored.earned],
+                "ai_transcription": WORK[scored.number][_share(scored.earned, scored.available)],
                 "fixed_transcription": self._fixed.get(key),
-                "feedback": FEEDBACK[ai],
+                "feedback": FEEDBACK[share],
                 "edited_feedback": self._feedback.get(key),
-                "mistake": None if ai == scored.available else MISTAKES[ai],
+                "mistake": None if share == 2 else MISTAKES[share],
                 "verification_note": "Druga lektura czyta $4a$ jako $4$." if unsure else None,
                 "override": self._overrides.get(key),
                 "effective_points": self._overrides.get(key, ai),

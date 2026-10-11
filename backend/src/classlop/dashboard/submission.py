@@ -10,10 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading
-from classlop.dashboard import auth, invented
+from classlop.dashboard import auth, bank, invented
 from classlop.dashboard.actions import carry_out
 from classlop.dashboard.reports import assignment_summary
 from classlop.dashboard.reports.records import SubmissionState
+from classlop.items import ItemVersion
 
 router = APIRouter()
 Teacher = Annotated[auth.Me, Depends(auth.teacher)]
@@ -76,11 +77,11 @@ class SubmissionPage(BaseModel):
     invented: bool
 
 
-def item(i: grading.ItemResult) -> ItemView:
+def item(i: grading.ItemResult, version: ItemVersion) -> ItemView:
     return ItemView(
         item_id=i.item_id,
         number=i.number,
-        text=invented.item_text(i.number),
+        text=version.text,
         max_points=i.max_points,
         ai_points=i.ai_points,
         override=i.override,
@@ -101,12 +102,12 @@ def item(i: grading.ItemResult) -> ItemView:
 
 @router.get("/api/classes/{class_id}/assignments/{assignment_id}/submissions/{student_id}")
 async def submission(
-    class_id: str, assignment_id: str, student_id: str, _: Teacher
+    class_id: str, assignment_id: str, student_id: str, _: Teacher, pool: bank.TheBank
 ) -> SubmissionPage:
     now = datetime.now(UTC)
-    if (name := invented.class_name(class_id, now)) is None:
+    if (read := await invented.read(class_id, now, pool)) is None:
         raise HTTPException(404)
-    data = invented.class_data(class_id, name, now)
+    data, versions = read
     assignment = next((a for a in data.assignments if a.id == assignment_id), None)
     if assignment is None:
         raise HTTPException(404)
@@ -124,9 +125,10 @@ async def submission(
         if r.state in WITH_WORK
     ]
     at = next((n for n, r in enumerate(order) if r.student_id == student_id), None)
-    items = [item(i) for i in result.items] if result else []
+    pinned = versions[assignment_id]
+    items = [item(i, pinned[i.number - 1]) for i in result.items] if result else []
     return SubmissionPage(
-        class_name=name,
+        class_name=data.name,
         assignment_id=assignment_id,
         assignment_title=assignment.title,
         due=assignment.due,

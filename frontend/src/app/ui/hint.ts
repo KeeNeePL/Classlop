@@ -6,7 +6,7 @@ let next = 0;
 @Component({
   selector: 'cl-hint',
   template: `
-    <button type="button" [attr.aria-describedby]="id" aria-label="Co to znaczy?">i</button>
+    <button type="button" [attr.aria-describedby]="id" [attr.aria-label]="label()">i</button>
     <span role="tooltip" [id]="id">{{ text() }}</span>
   `,
   styles: `
@@ -63,6 +63,15 @@ let next = 0;
       background: var(--ink);
       transform: rotate(45deg);
     }
+    /* at the end of a line: the tooltip opens leftwards, so it stays on screen */
+    :host(.end) span {
+      left: auto;
+      right: -12px;
+    }
+    :host(.end) span::before {
+      left: auto;
+      right: 17px;
+    }
     :host(:hover) span,
     :host(:focus-within) span {
       display: block;
@@ -71,5 +80,6 @@ let next = 0;
 })
 export class Hint {
   readonly text = input.required<string>();
+  readonly label = input('Co to znaczy?');
   protected readonly id = `hint-${next++}`;
 }
