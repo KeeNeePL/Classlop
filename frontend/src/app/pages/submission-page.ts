@@ -20,6 +20,10 @@ import { Invented } from '../ui/invented';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 
+const INVENTED =
+  'Prawdziwe: treść zadań i ich punkty z banku. Na razie zmyślone: uczeń, odczyt pracy, ' +
+  'punkty AI, informacja zwrotna i powody wstrzymania.';
+
 const READING: Record<ItemView['reading'], string | null> = {
   readable: null,
   unsure: 'niepewny odczyt',
@@ -63,6 +67,7 @@ export class SubmissionPage {
   protected readonly missing = computed(() => this.page.error() !== undefined);
 
   protected readonly reading = READING;
+  protected readonly invented = INVENTED;
   protected readonly warsaw = warsaw;
   protected readonly back = computed(() => [
     '/klasy',

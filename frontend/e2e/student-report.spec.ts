@@ -7,11 +7,15 @@ const day = (offset: number) => {
 
 test('a Student report opens from the Class and follows the chosen period', async ({ page }) => {
   await page.goto('/klasy/2c');
-  await page.getByRole('list', { name: 'Uczniowie' }).getByRole('link', { name: 'Ala K.' }).click();
+  await page.getByRole('link', { name: 'Uczniowie', exact: true }).click();
+  await page
+    .getByRole('table', { name: 'Uczniowie' })
+    .getByRole('link', { name: 'Ala K.' })
+    .click();
 
   await expect(page).toHaveURL('/klasy/2c/uczniowie/2c-0');
   await expect(page.getByRole('heading', { name: 'Ala K.' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
   await expect(page.getByText('Frekwencja')).toBeVisible();
   await expect(page.getByRole('img', { name: /na tle średniej klasy/ })).toBeVisible();
   const rows = page.locator('tbody tr');

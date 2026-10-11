@@ -28,12 +28,14 @@ def test_a_submission_shows_each_item_with_its_transcription_points_and_feedback
         True,
     )
     assert view["changeable"] and view["status"] == "graded"
-    assert [i["number"] for i in view["items"]] == [1, 2, 3]
+    # The bank's Items of sections I and II, both closed, 1 point.
+    assert [(i["number"], i["max_points"]) for i in view["items"]] == [(1, 1), (2, 1)]
     first = view["items"][0]
-    assert "$" in first["text"] and first["transcription"] and first["feedback"]
+    assert first["text"] == "Ile to $2^3 - 6$?"
+    assert first["transcription"] and first["feedback"]
     assert first["points"] == first["ai_points"] and first["override"] is None
     assert view["earned"] == sum(i["points"] for i in view["items"])
-    assert view["available"] == 6
+    assert view["available"] == 2
 
 
 def item_url(view, number: int, action: str) -> str:
@@ -48,7 +50,7 @@ def row(summary, student_id: str):
 def test_an_override_changes_the_points_here_and_in_the_assignment_summary(web):
     view = web.get(PAGE).json()
     first = view["items"][0]
-    points = 0 if first["points"] else 2
+    points = 0 if first["points"] else first["max_points"]
 
     response = web.post(
         item_url(view, 1, "override"),
@@ -67,7 +69,7 @@ def test_points_beyond_the_item_are_refused(web):
     view = web.get(PAGE).json()
 
     response = web.post(
-        item_url(view, 1, "override"), json={"handed_in_at": view["handed_in_at"], "points": 3}
+        item_url(view, 1, "override"), json={"handed_in_at": view["handed_in_at"], "points": 2}
     )
     assert response.status_code == 409
 
@@ -135,7 +137,7 @@ def test_a_failed_grading_is_graded_again(web):
 
     assert response.status_code == 204
     after = web.get(url).json()
-    assert after["status"] == "graded" and len(after["items"]) == 3
+    assert after["status"] == "graded" and len(after["items"]) == 2
     assert row(web.get(SUMMARY).json(), "1a-5")["state"] == "graded"
 
 
@@ -189,11 +191,11 @@ def test_a_change_to_a_hand_in_that_is_no_longer_current_is_not_found(web):
 def test_an_empty_edit_shows_as_empty_not_as_the_ais(web):
     view = web.get(PAGE).json()
     web.post(
-        item_url(view, 3, "feedback"), json={"handed_in_at": view["handed_in_at"], "feedback": ""}
+        item_url(view, 2, "feedback"), json={"handed_in_at": view["handed_in_at"], "feedback": ""}
     )
 
-    third = web.get(PAGE).json()["items"][2]
-    assert (third["feedback"], third["edited"]) == ("", True)
+    second = web.get(PAGE).json()["items"][1]
+    assert (second["feedback"], second["edited"]) == ("", True)
 
 
 def test_zatwierdz_does_not_wait_for_the_due_time(web):

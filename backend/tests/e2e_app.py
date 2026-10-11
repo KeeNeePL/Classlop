@@ -9,7 +9,7 @@ from fake_work import Offline, invented_class
 from fastapi import FastAPI
 
 from classlop import teams
-from classlop.dashboard import auth, bank, classes, events, home, new_work, store
+from classlop.dashboard import auth, bank, classes, events, home, invented, new_work, store
 from classlop.dashboard.app import create_app
 from classlop.teams.fake import FakeTeams, demo
 
@@ -35,6 +35,7 @@ def create() -> FastAPI:
     @app.post("/api/e2e/reset", include_in_schema=False)
     async def reset() -> None:
         items.reset()
+        invented.reset()
         feed.reset()
         app.state.teams = demo()
         kept.reset()

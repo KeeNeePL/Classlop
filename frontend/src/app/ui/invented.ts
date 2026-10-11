@@ -1,21 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
+import { Hint } from './hint';
 
-/** Marks a part of a screen that shows invented, hardcoded data. A strip of tape, stuck on
- * slightly crooked. */
+/** Marks a screen that still shows invented, hardcoded data: an "i" saying which parts are real
+ * and which are invented. */
 @Component({
   selector: 'cl-invented',
-  template: 'ZMYŚLONE',
-  styles: `
-    :host {
-      display: inline-block;
-      background: var(--tape);
-      color: var(--ink);
-      font-family: var(--display);
-      font-weight: 800;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      padding: 3px 9px;
-    }
-  `,
+  imports: [Hint],
+  template: '<cl-hint class="end" label="Skąd te dane?" [text]="text()" />',
 })
-export class Invented {}
+export class Invented {
+  readonly text = input.required<string>();
+}

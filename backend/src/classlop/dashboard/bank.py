@@ -18,6 +18,7 @@ from classlop.items import (
     GeneralRequirementText,
     Item,
     ItemEdit,
+    ItemVersion,
     RubricLevel,
     SearchPage,
     SectionCount,
@@ -97,6 +98,7 @@ class Bank(Protocol):
     async def restore(self, item_id: uuid.UUID) -> None: ...
     async def dismiss_flag(self, item_id: uuid.UUID) -> None: ...
     async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]: ...
+    async def versions(self, version_ids: list[uuid.UUID]) -> list[ItemVersion]: ...
     async def stock(self, never_used_with: uuid.UUID | None) -> list[SectionCount]: ...
     async def pick(
         self,
@@ -164,6 +166,9 @@ class ItemsBank:
 
     async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]:
         return await items.get_items(item_ids)
+
+    async def versions(self, version_ids: list[uuid.UUID]) -> list[ItemVersion]:
+        return await items.get_versions(version_ids)
 
     async def stock(self, never_used_with: uuid.UUID | None) -> list[SectionCount]:
         return await items.count_items(Filters(never_used_with_class=never_used_with))

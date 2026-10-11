@@ -946,3 +946,14 @@ async def test_a_team_renamed_in_teams_renames_the_class_on_the_next_sync(tenant
     await tenant.sync_roster(created.id)
 
     assert (await tenant.get_class(created.id)).name == "2B matematyka"
+
+
+async def test_the_timetable_lists_its_current_slots(tenant):
+    _, linked = await _class_with_jan(tenant)
+    assert await tenant.list_slots(linked.id) == []
+    await tenant.add_timetable(linked.id, [WEDNESDAY_9, MONDAY_8], YEAR_END)
+    tuesday = teams.Slot(weekday=1, start=time(10, 0), end=time(10, 45))
+
+    await tenant.change_slot(linked.id, WEDNESDAY_9, tuesday, date(2026, 9, 21))
+
+    assert await tenant.list_slots(linked.id) == [MONDAY_8, tuesday]

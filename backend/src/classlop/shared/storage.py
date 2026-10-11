@@ -51,3 +51,12 @@ def presigned_url(key: str, expires_in: int = 300) -> str:
 
 def ping() -> None:
     _client().head_bucket(Bucket=get_settings().s3_bucket)
+
+
+def list_keys(prefix: str) -> list[str]:
+    client, bucket = _client(), get_settings().s3_bucket
+    return [
+        o["Key"]
+        for page in client.get_paginator("list_objects_v2").paginate(Bucket=bucket, Prefix=prefix)
+        for o in page.get("Contents", [])
+    ]

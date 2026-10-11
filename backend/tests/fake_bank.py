@@ -149,6 +149,8 @@ class InMemoryBank:
                 for c, name, title, average in extra.get("used", [])
             ]
             self.classes_used[item_id] = {uuid.UUID(int=c) for c, *_ in extra.get("used", [])}
+        # Every version ever made: an edit leaves the pinned ones readable.
+        self._versions = {i.version.id: i.version for i in self.items.values()}
 
     async def search(self, query: str, filters: Filters, page: int, size: int) -> SearchPage:
         def matches(i: Item) -> bool:
@@ -184,6 +186,11 @@ class InMemoryBank:
 
     async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]:
         return [await self.get(i) for i in item_ids]
+
+    async def versions(self, version_ids: list[uuid.UUID]) -> list[ItemVersion]:
+        if missing := set(version_ids) - self._versions.keys():
+            raise LookupError(f"no version {sorted(missing)}")
+        return [self._versions[i] for i in version_ids]
 
     @staticmethod
     def _in(item: Item, section: str) -> bool:
@@ -250,6 +257,7 @@ class InMemoryBank:
                 ),
             )
         )
+        self._versions[self.items[item_id].version.id] = self.items[item_id].version
 
     async def _set(self, item_id: uuid.UUID, **values) -> None:
         self.items[item_id] = (await self.get(item_id)).model_copy(update=values)

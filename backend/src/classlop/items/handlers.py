@@ -1,6 +1,6 @@
 import uuid
 
-from classlop.items import exemplars, generation, index
+from classlop.items import exemplars, generation, index, upload
 from classlop.shared.jobs import Progress, handler
 from classlop.shared.models import Job
 
@@ -18,3 +18,8 @@ async def load_knowledge_base(job: Job, progress: Progress) -> dict:
 @handler("items.generate")
 async def generate(job: Job, progress: Progress) -> dict:
     return await generation.generate(generation.Request.model_validate(job.payload), progress)
+
+
+@handler("items.upload")
+async def upload_file(job: Job, progress: Progress) -> dict:
+    return await upload.upload(upload.Request.model_validate(job.payload), progress)

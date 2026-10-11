@@ -1,0 +1,90 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+/* Everything you can type in sits on solid paper with an edge that shows on the grid. */
+.search {
+  font: inherit;
+  font-size: 16px;
+  width: min(320px, 100%);
+  padding: 10px 14px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.search:focus {
+  border-color: var(--pen);
+  outline: 2px solid var(--pen);
+  outline-offset: 0;
+}
+
+.manage {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Narrow screens scroll the table inside the panel, never the page. */
+.scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+th button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+th[aria-sort='ascending'] button,
+th[aria-sort='descending'] button {
+  color: var(--ink);
+}
+
+td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+
+td cl-percent {
+  min-width: 160px;
+}
+
+td.reasons {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+tr.flagged td:first-child {
+  box-shadow: inset 3px 0 var(--tape);
+  padding-left: 10px;
+}

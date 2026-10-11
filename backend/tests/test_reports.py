@@ -183,6 +183,32 @@ def lesson(n: int, *absent: str) -> Lesson:
     return Lesson(id=f"l{n}", start=START + timedelta(days=n), absent=frozenset(absent))
 
 
+def test_each_student_row_counts_handed_in_of_given_and_absences_excused_left_out():
+    ok = item(1, 2, A1)
+    view = overview(
+        work(1, sub("s1", ok), sub("s2", state="missing")),
+        work(2, sub("s1", state="excused"), sub("s2", ok)),
+        work(3, sub("s1", state="not_handed_in"), sub("s2", ok), state="open"),
+        students=("s1", "s2"),
+        lessons=(lesson(1, "s1"), lesson(2, "s1", "s2"), lesson(3)),
+    )
+
+    assert [(s.id, s.handed_in, s.given, s.absent) for s in view.students] == [
+        ("s1", 1, 2, 2),
+        ("s2", 2, 3, 1),
+    ]
+
+
+def test_every_student_row_has_its_wymagaja_uwagi_reasons_not_only_the_top_five():
+    view = overview(
+        *(work(n, *(sub(f"s{s}", item(0, 2, A1)) for s in range(1, 8))) for n in (1, 2)),
+        students=tuple(f"s{s}" for s in range(1, 8)),
+    )
+
+    assert len(view.attention) == 5
+    assert all(s.reasons == ["Wynik 0%"] for s in view.students)
+
+
 def attention(view) -> list[tuple[str, list[str]]]:
     return [(a.student_id, a.reasons) for a in view.attention]
 
