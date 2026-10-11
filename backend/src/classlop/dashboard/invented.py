@@ -138,12 +138,12 @@ async def read(class_id: str, now: datetime, bank: Bank, grader: Grader) -> Read
             # A newer hand-in still being graded has no result yet: its older one does not count.
             if result is not None and result.handed_in_at == handed_in_at(a, s):
                 current[sid] = result
-            submissions.append(_graded(s, current.get(sid), by_id[a.id]))
+            submissions.append(with_result(s, current.get(sid), by_id[a.id]))
         assignments.append(a.model_copy(update={"submissions": tuple(submissions)}))
     return Read(data.model_copy(update={"assignments": tuple(assignments)}), by_id, current)
 
 
-def _graded(
+def with_result(
     submission: Submission, result: grading.Result | None, versions: list[ItemVersion]
 ) -> Submission:
     """The Submission with `grading`'s points and flags. Work with no graded result is still

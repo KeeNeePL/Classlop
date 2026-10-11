@@ -37,8 +37,9 @@ export class DoZrobienia {
     await this.store.refresh();
   }
 
+  /** Signing in and joining a Lesson in Teams leave the app. */
   protected external(entry: Entry): boolean {
-    return entry.link?.startsWith('/auth/') ?? false;
+    return ['/auth/', 'https://'].some((start) => entry.link?.startsWith(start));
   }
 
   protected at(entry: Entry): string {

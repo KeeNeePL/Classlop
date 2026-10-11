@@ -194,6 +194,18 @@ class Submission(BaseModel):
     excused_reason: str | None = None
 
 
+class ClassRead(BaseModel):
+    """One Class at once, for Reports and Do zrobienia: its Students (Former students too), its
+    Assignments with every Submission, and its Lessons with the Attendance of those that began."""
+
+    klass: Class
+    students: list[Student]
+    assignments: list[Assignment]
+    submissions: list[Submission]
+    lessons: list[Lesson]
+    attendance: dict[str, Attendance]
+
+
 class Teams(Protocol):
     """The `teams` area's interface: the real area and FakeTeams both implement it."""
 
@@ -206,6 +218,10 @@ class Teams(Protocol):
     async def get_class(self, class_id: str) -> Class: ...
 
     async def list_classes(self) -> list[Class]: ...
+
+    async def read_class(self, class_id: str) -> ClassRead:
+        """The Class with its Students, work and Lessons in one read."""
+        ...
 
     async def list_students(self, class_id: str) -> list[Student]:
         """Every Student, Former students included (`former_since` set)."""

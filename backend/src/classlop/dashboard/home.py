@@ -1,7 +1,7 @@
 """The home screen: the sidebar and the Do zrobienia queue, in one response."""
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Literal, get_args
 from zoneinfo import ZoneInfo
 
@@ -74,16 +74,9 @@ def inserted(entries: list[Entry], extra: list[Entry], kind: Kind) -> list[Entry
 
 
 def invented(now: datetime) -> Home:
-    """Hardcoded stand-in until the areas can give the real thing; every part is flagged."""
+    """Hardcoded stand-in for what `grading` will give (#82): the AI-graded entries and the
+    sidebar's invented Classes."""
     entries = [
-        Entry(
-            kind="deadline",
-            title="Termin: Wzory skróconego mnożenia (1A)",
-            detail="Praca domowa, oddane 17/26",
-            at=now + timedelta(hours=9),
-            link="/klasy/1a/prace/wzory",
-            action="Otwórz pracę",
-        ),
         Entry(
             kind="graded",
             title="Ocenione przez AI: Funkcja kwadratowa (2C)",
@@ -92,52 +85,15 @@ def invented(now: datetime) -> Home:
             action="Zobacz",
         ),
         Entry(
-            kind="team_removed",
-            title="Zespół klasy 3B usunięto w Teams",
-            detail="Praca i lekcje tej klasy nie zostaną już pobrane",
-            link="/klasy/3b/ustawienia",
-            action="Otwórz ustawienia klasy",
-        ),
-        Entry(
-            kind="next_lesson",
-            title="Lekcja: klasa 3B",
-            detail="Graniastosłupy: pola i objętości",
-            at=now + timedelta(hours=3),
-            link="/klasy/3b/lekcje/graniastoslupy",
-            action="Otwórz lekcję",
-        ),
-        Entry(
             kind="graded",
             title="Ocenione przez AI: Graniastosłupy (3B)",
             detail="Praca domowa, średnio 71%, oddane 20/22, 2 do sprawdzenia",
             link="/klasy/3b/prace/graniastoslupy",
             action="Zobacz",
         ),
-        Entry(
-            kind="give_failed",
-            title="Nie udało się wydać pracy «Ciągi: zadania z treścią»",
-            detail="Teams odrzucił publikację dla klasy 2C",
-            link="/klasy/2c/prace/ciagi",
-            action="Otwórz pracę",
-        ),
-        Entry(
-            kind="sign_in",
-            title="Zaloguj się ponownie",
-            detail="Logowanie do Teams wygasło, część zadań czeka",
-            link="/auth/login",
-            action="Zaloguj się",
-        ),
-        Entry(
-            kind="live_lesson",
-            title="Trwa lekcja: klasa 1A",
-            detail="Wzory skróconego mnożenia",
-            at=now - timedelta(minutes=20),
-            link="/klasy/1a/lekcje/wzory",
-            action="Otwórz lekcję",
-        ),
     ]
     return Home(
-        entries=queue(entries),
+        entries=entries,
         entries_invented=True,
         classes=[
             ClassLink(id="1a", name="1A", graded=0),
@@ -176,6 +132,86 @@ async def failed_gives() -> list[Entry]:
     return entries
 
 
+TYPES = {"homework": "Praca domowa", "quiz": "Kartkówka", "exam": "Sprawdzian"}
+HANDED_IN = {"handed_in", "graded", "returned"}
+
+
+async def from_teams(
+    t: TheTeams, lapsed: Annotated[bool, Depends(auth.sign_in_lapsed)]
+) -> list[Entry]:
+    """The live and the next Lesson, the problems and the deadlines, from one `teams` read per
+    Class."""
+    now = datetime.now(UTC)
+    entries = [
+        Entry(
+            kind="sign_in",
+            title="Zaloguj się ponownie",
+            detail="Logowanie do Teams wygasło, część zadań czeka",
+            link="/auth/login",
+            action="Zaloguj się",
+        )
+    ] * lapsed
+    entries += [
+        Entry(
+            kind="team_removed",
+            title=f"Zespół klasy {c.name} usunięto w Teams",
+            detail="Praca i lekcje tej klasy nie zostaną już pobrane",
+            link=f"/klasy/{c.id}/ustawienia",
+            action="Otwórz ustawienia klasy",
+        )
+        for c in await t.list_deleted_teams()
+    ]
+    coming: list[tuple[teams.Lesson, teams.Class]] = []
+    for c in await t.list_classes():
+        if c.state != "active":
+            continue
+        read = await t.read_class(c.id)
+        for lesson in read.lessons:
+            if lesson.cancelled or lesson.end <= now:
+                continue
+            if lesson.start > now:
+                coming.append((lesson, c))
+                continue
+            entries.append(
+                Entry(
+                    kind="live_lesson",
+                    title=f"Trwa lekcja: klasa {c.name}",
+                    detail=lesson.topic or "Bez tematu lekcji",
+                    at=lesson.start,
+                    link=lesson.join_url,
+                    action="Dołącz w Teams",
+                )
+            )
+        for a in read.assignments:
+            if a.state != "open" or a.due_at <= now:
+                continue
+            mine = [s for s in read.submissions if s.assignment_id == a.id]
+            handed_in = sum(s.state in HANDED_IN for s in mine)
+            entries.append(
+                Entry(
+                    kind="deadline",
+                    title=f"Termin: {a.title} ({c.name})",
+                    detail=f"{TYPES[a.type]}, oddane {handed_in}/{len(mine)}",
+                    at=a.due_at,
+                    link=f"/klasy/{c.id}/prace/{a.id}",
+                    action="Otwórz pracę",
+                )
+            )
+    if coming:
+        lesson, c = min(coming, key=lambda found: found[0].start)
+        entries.append(
+            Entry(
+                kind="next_lesson",
+                title=f"Lekcja: klasa {c.name}",
+                detail=lesson.topic or "Bez tematu lekcji",
+                at=lesson.start,
+                link=f"/klasy/{c.id}/lekcje/{lesson.id}",
+                action="Otwórz lekcję",
+            )
+        )
+    return entries
+
+
 async def calendar_questions(t: TheTeams) -> list[Entry]:
     """The Teams meetings the Teacher is asked to sort: which Class, or keep or hide."""
     names = {c.id: c.name for c in await t.list_classes()}
@@ -208,6 +244,7 @@ async def home(
     t: TheTeams,
     make: Annotated[Callable[[datetime], Home], Depends(stand_in)],
     failed: Annotated[list[Entry], Depends(failed_gives)],
+    found: Annotated[list[Entry], Depends(from_teams)],
     asked: Annotated[list[Entry], Depends(calendar_questions)],
 ) -> Home:
     view = make(datetime.now(UTC))
@@ -216,7 +253,9 @@ async def home(
     return view.model_copy(
         update={
             "entries": inserted(
-                inserted(view.entries, failed, "give_failed"), asked, "calendar_question"
+                inserted(queue([*view.entries, *found]), failed, "give_failed"),
+                asked,
+                "calendar_question",
             ),
             "classes": [*view.classes, *own],
             "flagged_items": await bank.flagged_count(items),
