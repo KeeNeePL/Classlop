@@ -9,12 +9,25 @@ test('the Teacher gives an Assignment to the Class', async ({ page, request }) =
   await expect(page).toHaveURL(/\/klasy\/1a\/nowa-praca$/);
   await expect(page.getByRole('heading', { level: 1, name: /Nowa praca/ })).toBeVisible();
 
-  // Nothing to pick yet.
-  await expect(page.getByRole('button', { name: 'Dobierz zadania z banku' })).toBeDisabled();
+  // Nothing to pick yet, and the page says what is missing.
+  const pickButton = page.getByRole('button', { name: 'Dobierz zadania z banku' });
+  await expect(pickButton).toBeDisabled();
+  await expect(page.getByText('Dodaj dział i wpisz, ile zadań ma z niego być.')).toBeVisible();
 
-  await page.getByLabel('Dodaj dział').selectOption({ label: 'III. Równania i nierówności' });
+  // A section joins the table only when the Teacher clicks Dodaj dział; the list stays ready.
+  const section = page.getByLabel('Dział do dodania');
+  const add = page.getByRole('button', { name: 'Dodaj dział', exact: true });
+  await expect(add).toBeDisabled();
+  await section.selectOption({ label: 'III. Równania i nierówności' });
+  await expect(page.getByRole('row', { name: /III. Równania/ })).toHaveCount(0);
+  await add.click();
   await expect(page.getByLabel('Tytuł')).toHaveValue('III. Równania i nierówności');
-  await page.getByLabel('Dodaj dział').selectOption({ label: 'II. Wyrażenia algebraiczne' });
+  await expect(section.locator('option:checked')).toHaveText('Wybierz dział…');
+  await section.selectOption({ label: 'II. Wyrażenia algebraiczne' });
+  await add.click();
+  await expect(
+    page.getByText('Wpisz w tabeli, ile zadań ma być (przynajmniej jedno).'),
+  ).toBeVisible();
   await page.getByLabel('Tytuł').fill('Równania kwadratowe');
 
   // The bank's stock shows per cell, and asking for more is marked.
@@ -28,7 +41,7 @@ test('the Teacher gives an Assignment to the Class', async ({ page, request }) =
   const items = page.getByRole('list', { name: 'Zadania w pracy' }).getByRole('listitem');
   await expect(items).toHaveCount(2);
   await expect(page.getByRole('status')).toContainText('1 z 2: II. Wyrażenia algebraiczne, łatwe');
-  await expect(page.getByText('2 zadań · 2 pkt')).toBeVisible();
+  await expect(page.getByText('2 zadania · 2 pkt')).toBeVisible();
 
   // Nothing else in the bank for the cell, so a swap says so; removing empties the preview.
   await items.first().getByRole('button', { name: 'podmień na inne' }).click();

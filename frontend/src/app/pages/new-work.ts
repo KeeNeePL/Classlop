@@ -68,6 +68,8 @@ export class NewWork {
   protected readonly type = signal<Type>('homework');
   protected readonly typed = signal<string | null>(null);
   protected readonly rows = signal<Row[]>([]);
+  /** The section picked in the list, not yet in the table. */
+  protected readonly choice = signal('');
   protected readonly allowReuse = signal(false);
   protected readonly everyone = signal(true);
   protected readonly picked = signal<ReadonlySet<string>>(new Set());
@@ -109,20 +111,35 @@ export class NewWork {
   protected readonly total = computed(() =>
     this.rows().reduce((n, r) => n + r.easy + r.medium + r.hard, 0),
   );
-  protected readonly canPick = computed(
-    () => this.total() > 0 && (this.everyone() || this.picked().size > 0),
-  );
+  /** What still stops the Teacher from picking, said where the button is. */
+  protected readonly pickBlock = computed(() => {
+    if (this.rows().length === 0) return 'Dodaj dział i wpisz, ile zadań ma z niego być.';
+    if (this.total() === 0) return 'Wpisz w tabeli, ile zadań ma być (przynajmniej jedno).';
+    if (!this.everyone() && this.picked().size === 0) return 'Zaznacz przynajmniej jednego ucznia.';
+    return null;
+  });
   protected readonly points = computed(() =>
     this.entries().reduce((n, e) => n + e.item.version.points, 0),
   );
-  protected readonly canGive = computed(
-    () =>
-      this.entries().length > 0 &&
-      this.title().trim() !== '' &&
-      this.due() !== '' &&
-      (!this.later() || this.publishAt() !== '') &&
-      !this.busy(),
-  );
+  /** What still stops the Teacher from giving. */
+  protected readonly giveBlock = computed(() => {
+    if (this.entries().length === 0) return 'Praca nie ma zadań. Wróć do formularza i dobierz je.';
+    if (this.title().trim() === '') return 'Wróć do formularza i wpisz tytuł pracy.';
+    if (this.due() === '') return 'Wpisz termin oddania.';
+    if (this.later() && this.publishAt() === '') return 'Wpisz, kiedy wydać pracę w Teams.';
+    return null;
+  });
+
+  /** "1 zadanie", "3 zadania", "5 zadań". */
+  protected tasks(n: number): string {
+    const few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
+    return `${n} ${n === 1 ? 'zadanie' : few ? 'zadania' : 'zadań'}`;
+  }
+
+  /** "1 uczeń", "3 uczniów". */
+  protected students(n: number): string {
+    return n === 1 ? '1 uczeń' : `${n} uczniów`;
+  }
 
   protected label(section: string): string {
     return this.names().get(section) ?? section;
@@ -132,8 +149,12 @@ export class NewWork {
     return this.stock().get(`${row.section}|${level}`) ?? 0;
   }
 
-  protected addRow(section: string): void {
-    if (section) this.rows.update((r) => [...r, { section, easy: 0, medium: 0, hard: 0 }]);
+  /** Adds the section chosen in the list to the table, and leaves the list ready for the next. */
+  protected addChoice(): void {
+    const section = this.choice();
+    if (!section) return;
+    this.rows.update((r) => [...r, { section, easy: 0, medium: 0, hard: 0 }]);
+    this.choice.set('');
   }
 
   protected removeRow(section: string): void {
