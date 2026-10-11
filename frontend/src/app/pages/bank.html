@@ -42,13 +42,13 @@
         <button type="button" class="btn ghost" (click)="openTopics(topicsDialog)">
           Tematy z podstawy programowej
         </button>
-        @if (chosen(); as c) {
+        @for (c of chosen(); track c.id) {
           <span class="chosen">
             <cl-math [text]="c.name" />
             <button
               type="button"
-              aria-label="Wyczyść filtr tematu"
-              (click)="store.change({ section: null, topic: null })"
+              [attr.aria-label]="'Usuń filtr: ' + c.name"
+              (click)="pickTopics(c.ids, false)"
             >
               ×
             </button>
@@ -119,12 +119,7 @@
   </section>
 </div>
 
-<dialog
-  #topicsDialog
-  class="topics"
-  aria-labelledby="topics-title"
-  (click)="$event.target === topicsDialog && topicsDialog.close()"
->
+<dialog #topicsDialog class="topics" aria-labelledby="topics-title">
   <header>
     <h2 id="topics-title">Tematy z podstawy programowej</h2>
     <input
@@ -137,32 +132,34 @@
     <button
       type="button"
       class="btn ghost"
-      (click)="pick(topicsDialog, { section: null, topic: null })"
+      [disabled]="!criteria().topics.length"
+      (click)="clearTopics()"
     >
-      Wyczyść filtr
+      Wyczyść filtry
     </button>
     <button type="button" class="btn" (click)="topicsDialog.close()">Zamknij</button>
   </header>
-  <div class="columns">
+  <div class="sections">
     @for (s of sections(); track s.id) {
       <section>
-        <button
-          type="button"
-          class="section"
-          [class.on]="criteria().section === s.id"
-          (click)="pick(topicsDialog, { section: s.id, topic: null })"
-        >
+        <label class="section">
+          <input
+            type="checkbox"
+            [checked]="share(s.topics) === 'all'"
+            [indeterminate]="share(s.topics) === 'some'"
+            (change)="pickTopics(topicIds(s.topics), $any($event.target).checked)"
+          />
           {{ s.name }}
-        </button>
+        </label>
         @for (t of s.topics; track t.id) {
-          <button
-            type="button"
-            class="topic"
-            [class.on]="criteria().topic === t.id"
-            (click)="pick(topicsDialog, { section: null, topic: t.id })"
-          >
+          <label class="topic">
+            <input
+              type="checkbox"
+              [checked]="picked(t.id)"
+              (change)="pickTopics([t.id], $any($event.target).checked)"
+            />
             <cl-math [text]="t.name" />
-          </button>
+          </label>
         }
       </section>
     } @empty {

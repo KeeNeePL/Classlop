@@ -46,25 +46,39 @@ test('the filters narrow the list', async ({ page }) => {
   await expect(items(page)).toHaveCount(6);
   await page.getByLabel('Nie zadane klasie').selectOption({ label: 'dowolnej' });
 
-  // The Curriculum opens over the whole screen; choosing a section closes it.
+  // The Curriculum opens over the whole screen and stays open while topics are picked.
   await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
   const curriculum = page.getByRole('dialog', { name: 'Tematy z podstawy programowej' });
-  await expect(curriculum.getByRole('button', { name: 'Stereometria' })).toBeVisible();
-  await curriculum.getByRole('searchbox', { name: 'Szukaj tematu' }).fill('Funkcje');
-  await curriculum.getByRole('button', { name: 'Funkcje', exact: true }).click();
+  await expect(curriculum.getByRole('checkbox', { name: 'Stereometria' })).toBeVisible();
+  const list = curriculum.locator('.sections');
+  expect(await list.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+
+  await curriculum.getByRole('checkbox', { name: 'Funkcje', exact: true }).check();
+  await expect(items(page)).toHaveCount(1);
+  await curriculum.getByRole('checkbox', { name: 'Równania i nierówności', exact: true }).check();
+  await expect(curriculum).toBeVisible();
+  await expect(items(page)).toHaveCount(3);
+
+  // The search narrows the list of topics.
+  await curriculum.getByRole('searchbox', { name: 'Szukaj tematu' }).fill('Wykonuje działania');
+  await expect(curriculum.getByRole('checkbox', { name: 'Funkcje', exact: true })).toHaveCount(0);
+  await expect(curriculum.getByRole('checkbox', { name: 'Liczby rzeczywiste' })).toBeVisible();
+
+  // Clearing unticks everything and leaves the list open; Zamknij only closes it.
+  await curriculum.getByRole('button', { name: 'Wyczyść filtry' }).click();
+  await expect(curriculum).toBeVisible();
+  await expect(items(page)).toHaveCount(7);
+  await curriculum.getByRole('button', { name: 'Zamknij' }).click();
   await expect(curriculum).toBeHidden();
-  await expect(items(page)).toHaveCount(1);
 
-  // The chosen section is dropped from the page itself.
-  await page.getByRole('button', { name: 'Wyczyść filtr tematu' }).click();
-  await expect(items(page)).toHaveCount(7);
-
+  // What is picked shows on the page, and each can be dropped there.
   await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
-  await curriculum.getByRole('button', { name: 'Funkcje', exact: true }).click();
-  await expect(items(page)).toHaveCount(1);
-  await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
-  await curriculum.getByRole('button', { name: 'Wyczyść filtr' }).click();
-  await expect(items(page)).toHaveCount(7);
+  await curriculum.getByRole('checkbox', { name: 'Funkcje', exact: true }).check();
+  await curriculum.getByRole('checkbox', { name: 'Równania i nierówności', exact: true }).check();
+  await curriculum.getByRole('button', { name: 'Zamknij' }).click();
+  await expect(items(page)).toHaveCount(3);
+  await page.getByRole('button', { name: 'Usuń filtr: Funkcje' }).click();
+  await expect(items(page)).toHaveCount(2);
 });
 
 test('deleting an Item takes it out of the list, and the Teacher can bring it back', async ({

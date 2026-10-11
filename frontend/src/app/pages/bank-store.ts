@@ -5,11 +5,11 @@ import { Item, SearchPage } from '../api/models';
 
 type Difficulty = Item['version']['difficulty'];
 
-/** What narrows the Bank zadań list; a topic or a section, never both. */
+/** What narrows the Bank zadań list. */
 export interface Criteria {
   q: string;
-  section: string | null;
-  topic: string | null;
+  /** Curriculum topic ids; an Item with any of them fits. */
+  topics: string[];
   difficulty: Difficulty[];
   neverUsedWith: string | null;
   page: number;
@@ -25,8 +25,7 @@ export const DIFFICULTY: Record<Item['version']['difficulty'], string> = {
 
 const NONE: Criteria = {
   q: '',
-  section: null,
-  topic: null,
+  topics: [],
   difficulty: [],
   neverUsedWith: null,
   page: 1,
@@ -44,8 +43,7 @@ export class BankStore {
     loader: ({ params: c }) =>
       this.api.invoke(searchApiBankItemsGet, {
         q: c.q,
-        section: c.section ? [c.section] : [],
-        topic: c.topic ? [c.topic] : [],
+        topic: c.topics,
         difficulty: c.difficulty,
         never_used_with_class: c.neverUsedWith,
         page: c.page,

@@ -39,15 +39,16 @@ export class Bank {
       .filter((s) => s.topics.length);
   });
 
-  /** The section or topic the list is narrowed to, named for the chip. */
+  /** What the list is narrowed to, as chips: a whole section as one, otherwise each topic. */
   protected readonly chosen = computed(() => {
-    const { section, topic } = this.criteria();
+    const picked = new Set(this.criteria().topics);
+    const chips: { id: string; name: string; ids: string[] }[] = [];
     for (const s of this.store.filters()?.sections ?? []) {
-      if (s.id === section) return { name: s.name };
-      const t = s.topics.find((t) => t.id === topic);
-      if (t) return { name: t.name };
+      const ids = s.topics.map((t) => t.id).filter((id) => picked.has(id));
+      if (ids.length && ids.length === s.topics.length) chips.push({ id: s.id, name: s.name, ids });
+      else for (const t of s.topics) if (picked.has(t.id)) chips.push({ ...t, ids: [t.id] });
     }
-    return null;
+    return chips;
   });
 
   /** Searches a moment after the Teacher stops typing. */
@@ -72,13 +73,27 @@ export class Bank {
     dialog.showModal();
   }
 
-  /** Narrows the list to a topic or a section, or to everything, and closes the list. */
-  protected pick(
-    dialog: HTMLDialogElement,
-    patch: { section: string | null; topic: string | null },
-  ): void {
-    this.store.change(patch);
-    dialog.close();
+  protected picked(id: string): boolean {
+    return this.criteria().topics.includes(id);
+  }
+
+  /** How many of a section's topics are picked: all, some or none. */
+  protected share(topics: { id: string }[]): 'all' | 'some' | 'none' {
+    const n = topics.filter((t) => this.picked(t.id)).length;
+    return n === 0 ? 'none' : n === topics.length ? 'all' : 'some';
+  }
+
+  protected topicIds(topics: { id: string }[]): string[] {
+    return topics.map((t) => t.id);
+  }
+
+  protected pickTopics(ids: string[], on: boolean): void {
+    const rest = this.criteria().topics.filter((id) => !ids.includes(id));
+    this.store.change({ topics: on ? [...rest, ...ids] : rest });
+  }
+
+  protected clearTopics(): void {
+    this.store.change({ topics: [] });
   }
 }
 
