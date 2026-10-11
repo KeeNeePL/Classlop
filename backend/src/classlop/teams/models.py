@@ -62,6 +62,20 @@ class SlotRecord(Base):
     last_on: Mapped[date | None] = mapped_column(Date)
 
 
+class BreakRecord(Base):
+    """A date range a Class's Lessons were cancelled for, so a series started later keeps it."""
+
+    __tablename__ = "break"
+    __table_args__ = {"schema": "teams"}
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    class_id: Mapped[str] = mapped_column(
+        ForeignKey("teams.class.id", ondelete="CASCADE"), index=True
+    )
+    first: Mapped[date] = mapped_column(Date)
+    last: Mapped[date] = mapped_column(Date)
+
+
 class LessonRecord(Base):
     """A Lesson's topic. Occurrences are read from the calendar; a record exists once one has a
     topic. `single` marks Lessons added by hand."""
