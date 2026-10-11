@@ -29,8 +29,8 @@ const READING: Record<ItemView['reading'], string | null> = {
 
 type Editing = { item: string; field: 'transcription' | 'feedback' };
 
-/** One Submission Item by Item: the Item, the AI's reading of the work, its points and remark,
- * and the Teacher's changes, which `grading` carries out. */
+/** One Submission Item by Item: the Item, the AI's Transcription, its points and Feedback, and
+ * the Teacher's changes, which `grading` carries out. */
 @Component({
   imports: [Badge, FormsModule, Invented, MathText, Panel, RouterLink],
   templateUrl: './submission-page.html',
@@ -89,27 +89,36 @@ export class SubmissionPage {
   protected setPoints(i: ItemView, value: string) {
     const points = Number(value);
     if (value === '' || points === i.points) return;
-    return this.run(() =>
-      this.api.invoke(overrideApiSubmissionsSubmissionIdItemsItemIdOverridePost, {
-        ...this.ids(i),
-        body: { handed_in_at: this.handedIn(), points },
-      }),
+    return this.run(
+      () =>
+        this.api.invoke(overrideApiSubmissionsSubmissionIdItemsItemIdOverridePost, {
+          ...this.ids(i),
+          body: { handed_in_at: this.handedIn(), points },
+        }),
+      `Punkty za zadanie ${i.number} muszą być od 0 do ${i.max_points}.`,
     );
   }
 
   protected save(i: ItemView) {
     const field = this.editing()?.field;
     const body = { handed_in_at: this.handedIn() };
-    return this.run(() =>
-      field === 'transcription'
-        ? this.api.invoke(fixTranscriptionApiSubmissionsSubmissionIdItemsItemIdTranscriptionPost, {
-            ...this.ids(i),
-            body: { ...body, transcription: this.draft() },
-          })
-        : this.api.invoke(editFeedbackApiSubmissionsSubmissionIdItemsItemIdFeedbackPost, {
-            ...this.ids(i),
-            body: { ...body, feedback: this.draft() },
-          }),
+    return this.run(
+      () =>
+        field === 'transcription'
+          ? this.api.invoke(
+              fixTranscriptionApiSubmissionsSubmissionIdItemsItemIdTranscriptionPost,
+              {
+                ...this.ids(i),
+                body: { ...body, transcription: this.draft() },
+              },
+            )
+          : this.api.invoke(editFeedbackApiSubmissionsSubmissionIdItemsItemIdFeedbackPost, {
+              ...this.ids(i),
+              body: { ...body, feedback: this.draft() },
+            }),
+      field === 'feedback'
+        ? 'Uwagi się nie złożą do PDF: sprawdź, czy każdy wzór jest zamknięty między $...$.'
+        : undefined,
     );
   }
 
@@ -140,7 +149,7 @@ export class SubmissionPage {
   }
 
   /** One change through `grading`; afterwards the page shows the Submission as it now is. */
-  private async run(change: () => Promise<unknown>) {
+  private async run(change: () => Promise<unknown>, refused = 'Tej zmiany nie można wprowadzić.') {
     this.busy.set(true);
     this.error.set(null);
     try {
@@ -148,10 +157,13 @@ export class SubmissionPage {
       this.editing.set(null);
       this.page.reload();
     } catch (e) {
+      const status = e instanceof HttpErrorResponse ? e.status : 0;
       this.error.set(
-        e instanceof HttpErrorResponse && e.status === 409
-          ? 'Tej zmiany nie można wprowadzić: sprawdź liczbę punktów albo odśwież stronę.'
-          : 'Nie udało się zapisać zmiany. Spróbuj jeszcze raz.',
+        status === 409
+          ? refused
+          : status === 404
+            ? 'Uczeń oddał w międzyczasie nową wersję pracy. Strona pokazuje ją teraz.'
+            : 'Nie udało się zapisać zmiany. Spróbuj jeszcze raz.',
       );
       this.page.reload();
     } finally {

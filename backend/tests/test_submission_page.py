@@ -5,7 +5,7 @@ import pytest
 from e2e_app import create
 from fastapi.testclient import TestClient
 
-from classlop.dashboard import invented
+from classlop.dashboard import invented, submission
 
 # Closed, so changes are open: Damian R. on Zbiory liczbowe in 1A.
 PAGE = "/api/classes/1a/assignments/1a-0/submissions/1a-3"
@@ -153,7 +153,7 @@ def test_before_the_due_time_changes_are_refused(web):
 
 def test_previous_and_next_follow_the_assignment_pages_order(web):
     summary = web.get(SUMMARY).json()
-    order = [r["student_id"] for r in summary["rows"] if r["state"] != "missing"]
+    order = [r["student_id"] for r in summary["rows"] if r["state"] in submission.WITH_WORK]
     middle = web.get(f"/api/classes/1a/assignments/1a-0/submissions/{order[1]}").json()
 
     assert (middle["previous"]["student_id"], middle["next"]["student_id"]) == (order[0], order[2])
@@ -164,3 +164,48 @@ def test_previous_and_next_follow_the_assignment_pages_order(web):
 def test_unknown_submissions_are_not_found(web):
     assert web.get("/api/classes/1a/assignments/1a-0/submissions/9z-1").status_code == 404
     assert web.get("/api/classes/1a/assignments/2c-0/submissions/1a-3").status_code == 404
+
+
+def test_edited_feedback_that_will_not_typeset_is_refused(web):
+    view = web.get(PAGE).json()
+
+    response = web.post(
+        item_url(view, 1, "feedback"),
+        json={"handed_in_at": view["handed_in_at"], "feedback": "Sprawdź $x = 12."},
+    )
+    assert response.status_code == 409
+
+
+def test_a_change_to_a_hand_in_that_is_no_longer_current_is_not_found(web):
+    view = web.get(PAGE).json()
+
+    response = web.post(
+        item_url(view, 1, "override"),
+        json={"handed_in_at": "2026-01-01T12:00:00Z", "points": 0},
+    )
+    assert response.status_code == 404
+
+
+def test_an_empty_edit_shows_as_empty_not_as_the_ais(web):
+    view = web.get(PAGE).json()
+    web.post(
+        item_url(view, 3, "feedback"), json={"handed_in_at": view["handed_in_at"], "feedback": ""}
+    )
+
+    third = web.get(PAGE).json()["items"][2]
+    assert (third["feedback"], third["edited"]) == ("", True)
+
+
+def test_zatwierdz_does_not_wait_for_the_due_time(web):
+    summary = web.get("/api/classes/2c/assignments/2c-4").json()
+    student = next(r["student_id"] for r in summary["rows"] if r["held"])
+    url = f"/api/classes/2c/assignments/2c-4/submissions/{student}"
+    view = web.get(url).json()
+    assert not view["changeable"] and view["held"]
+
+    response = web.post(
+        f"/api/submissions/{view['submission_id']}/approve",
+        json={"handed_in_at": view["handed_in_at"]},
+    )
+    assert response.status_code == 204
+    assert not web.get(url).json()["held"]

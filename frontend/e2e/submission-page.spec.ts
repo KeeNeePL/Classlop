@@ -27,7 +27,7 @@ test('overriding one Item changes the total, here and on the Assignment page', a
   await expect(row).toContainText(`${before - was + now}/6`);
 });
 
-test('a fixed reading renders its maths, and its markup as plain text', async ({ page }) => {
+test('a fixed Transcription renders its maths, and its markup as plain text', async ({ page }) => {
   await page.goto(PAGE);
   const second = page.getByRole('article', { name: 'Zadanie 2' });
 

@@ -38,6 +38,11 @@ DESCRIPTIONS = [
     "Błąd rachunkowy w ostatnim kroku",
 ]
 POINTS = 2
+ITEM_TEXTS = {
+    1: "Rozwiąż równanie $3x - 7 = 2x + 5$.",
+    2: "Uprość wyrażenie $(a + 2)^2 - (a - 2)^2$.",
+    3: "Narysuj wykres funkcji $f(x) = 2x - 1$ i odczytaj jej miejsce zerowe.",
+}
 
 
 def class_name(class_id: str, now: datetime) -> str | None:
@@ -55,10 +60,22 @@ def class_data(class_id: str, name: str, now: datetime) -> ClassData:
     return data.model_copy(update={"assignments": assignments})
 
 
+def item_text(number: int) -> str:
+    """The text of the Item at `number` in any invented Assignment, until #83 reads `items`."""
+    return ITEM_TEXTS[number]
+
+
+def handed_in_at(assignment: Assignment, submission: Submission) -> datetime:
+    """When the Submission's current hand-in came in, which `teams` will know."""
+    return assignment.due + (timedelta(hours=2) if submission.late else -timedelta(days=1))
+
+
 def _made(class_id: str, name: str, now: datetime) -> ClassData:
     """Assignment n covers Curriculum section n and touches section n + 1, so five sections are
     assessed (more than Progress shows folded) and the rest show "brak danych". In each Class,
-    one Submission's grading failed."""
+    one Submission's grading failed. Times are on the hour, so a hand-in keeps its time from the
+    page to the Teacher's change."""
+    now = now.replace(minute=0, second=0, microsecond=0)
     rng = random.Random(class_id)
     # Its own sequence, so the flags never move the points.
     flags = random.Random(f"{class_id}-flags")
@@ -141,13 +158,13 @@ def _made(class_id: str, name: str, now: datetime) -> ClassData:
     )
 
 
-def _find(submission_id: uuid.UUID) -> tuple[Assignment, Submission] | None:
+def _find(submission_id: uuid.UUID) -> tuple[Assignment, Submission, datetime] | None:
     now = datetime.now(UTC)
     for c in home.invented(now).classes:
         for a in _made(c.id, c.name, now).assignments:
             for s in a.submissions:
                 if InventedGrading.submission_id(a.id, s.student_id) == submission_id:
-                    return a, s
+                    return a, s, handed_in_at(a, s)
     return None
 
 

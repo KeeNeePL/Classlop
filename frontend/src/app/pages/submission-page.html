@@ -52,7 +52,7 @@
         Oceń ponownie
       </button>
     </cl-panel>
-  } @else if (v.changeable && (v.held || v.spot_check)) {
+  } @else if (v.held || v.spot_check) {
     <div class="actions">
       <button class="btn" type="button" [disabled]="busy()" (click)="approve()">Zatwierdź</button>
       <span class="muted">
