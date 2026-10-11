@@ -1,6 +1,5 @@
 """The Submission view: one Submission Item by Item, and the Teacher's actions on it, which
-`grading` carries out. Until #82 the invented Classes are graded by their stand-in,
-invented.GRADING, which has `grading`'s interface."""
+`grading` carries out."""
 
 import uuid
 from datetime import UTC, datetime
@@ -10,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading
-from classlop.dashboard import auth, bank, invented
+from classlop.dashboard import auth, bank, grader, invented
 from classlop.dashboard.actions import carry_out
 from classlop.dashboard.reports import assignment_summary
 from classlop.dashboard.reports.records import SubmissionState
@@ -18,8 +17,7 @@ from classlop.items import ItemVersion
 
 router = APIRouter()
 Teacher = Annotated[auth.Me, Depends(auth.teacher)]
-
-WITH_WORK = ("handed_in", "graded", "returned")
+Grader = grader.TheGrader
 
 
 class ItemView(BaseModel):
@@ -102,12 +100,17 @@ def item(i: grading.ItemResult, version: ItemVersion) -> ItemView:
 
 @router.get("/api/classes/{class_id}/assignments/{assignment_id}/submissions/{student_id}")
 async def submission(
-    class_id: str, assignment_id: str, student_id: str, _: Teacher, pool: bank.TheBank
+    class_id: str,
+    assignment_id: str,
+    student_id: str,
+    _: Teacher,
+    pool: bank.TheBank,
+    graded: Grader,
 ) -> SubmissionPage:
     now = datetime.now(UTC)
-    if (read := await invented.read(class_id, now, pool)) is None:
+    if (read := await invented.read(class_id, now, pool, graded)) is None:
         raise HTTPException(404)
-    data, versions = read
+    data, versions, results = read
     assignment = next((a for a in data.assignments if a.id == assignment_id), None)
     if assignment is None:
         raise HTTPException(404)
@@ -115,14 +118,11 @@ async def submission(
     if mine is None:
         raise HTTPException(404)
     student = next(s for s in data.students if s.id == student_id)
-    result = await invented.GRADING.result(
-        invented.GRADING.submission_id(assignment_id, student_id),
-        invented.handed_in_at(assignment, mine),
-    )
+    result = results.get(invented.submission_id(assignment_id, student_id))
     order = [
         Neighbour(student_id=r.student_id, name=r.name)
         for r in assignment_summary(assignment, data.students, [], now).rows
-        if r.state in WITH_WORK
+        if r.state in invented.WITH_WORK
     ]
     at = next((n for n, r in enumerate(order) if r.student_id == student_id), None)
     pinned = versions[assignment_id]
@@ -177,38 +177,36 @@ ITEM = "/api/submissions/{submission_id}/items/{item_id}"
 
 @router.post(f"{ITEM}/override", status_code=204)
 async def override(
-    submission_id: uuid.UUID, item_id: uuid.UUID, body: Points, _: Teacher
+    submission_id: uuid.UUID, item_id: uuid.UUID, body: Points, _: Teacher, graded: Grader
 ) -> Response:
-    return await carry_out(
-        invented.GRADING.override(submission_id, body.handed_in_at, item_id, body.points)
-    )
+    return await carry_out(graded.override(submission_id, body.handed_in_at, item_id, body.points))
 
 
 @router.post(f"{ITEM}/transcription", status_code=204)
 async def fix_transcription(
-    submission_id: uuid.UUID, item_id: uuid.UUID, body: Transcription, _: Teacher
+    submission_id: uuid.UUID, item_id: uuid.UUID, body: Transcription, _: Teacher, graded: Grader
 ) -> Response:
     return await carry_out(
-        invented.GRADING.fix_transcription(
-            submission_id, body.handed_in_at, item_id, body.transcription
-        )
+        graded.fix_transcription(submission_id, body.handed_in_at, item_id, body.transcription)
     )
 
 
 @router.post(f"{ITEM}/feedback", status_code=204)
 async def edit_feedback(
-    submission_id: uuid.UUID, item_id: uuid.UUID, body: Feedback, _: Teacher
+    submission_id: uuid.UUID, item_id: uuid.UUID, body: Feedback, _: Teacher, graded: Grader
 ) -> Response:
     return await carry_out(
-        invented.GRADING.edit_feedback(submission_id, body.handed_in_at, item_id, body.feedback)
+        graded.edit_feedback(submission_id, body.handed_in_at, item_id, body.feedback)
     )
 
 
 @router.post("/api/submissions/{submission_id}/approve", status_code=204)
-async def approve(submission_id: uuid.UUID, body: HandIn, _: Teacher) -> Response:
-    return await carry_out(invented.GRADING.approve(submission_id, body.handed_in_at))
+async def approve(submission_id: uuid.UUID, body: HandIn, _: Teacher, graded: Grader) -> Response:
+    return await carry_out(graded.approve(submission_id, body.handed_in_at))
 
 
 @router.post("/api/submissions/{submission_id}/grade-again", status_code=204)
-async def grade_again(submission_id: uuid.UUID, body: HandIn, _: Teacher) -> Response:
-    return await carry_out(invented.GRADING.grade_again(submission_id, body.handed_in_at))
+async def grade_again(
+    submission_id: uuid.UUID, body: HandIn, _: Teacher, graded: Grader
+) -> Response:
+    return await carry_out(graded.grade_again(submission_id, body.handed_in_at))

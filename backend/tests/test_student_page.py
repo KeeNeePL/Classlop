@@ -5,14 +5,11 @@ import pytest
 from e2e_app import create
 from fastapi.testclient import TestClient
 
-from classlop.dashboard import invented
-
 REPORT = "/api/classes/2c/students/2c-0/report"
 
 
 @pytest.fixture
 def web():
-    invented.GRADING.reset()
     return TestClient(create())
 
 

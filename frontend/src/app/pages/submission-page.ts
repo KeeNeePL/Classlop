@@ -21,8 +21,8 @@ import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 
 const INVENTED =
-  'Prawdziwe: treść zadań i ich punkty z banku. Na razie zmyślone: uczeń, odczyt pracy, ' +
-  'punkty AI, informacja zwrotna i powody wstrzymania.';
+  'Prawdziwe: treść zadań i ich punkty z banku oraz odczyt pracy, punkty AI, informacja ' +
+  'zwrotna i powody wstrzymania. Na razie zmyślone: uczeń i termin oddania.';
 
 const READING: Record<ItemView['reading'], string | null> = {
   readable: null,

@@ -1,11 +1,11 @@
 """The Submission view and the Teacher's actions, over HTTP with the Teacher signed in, on the
-invented data and its stand-in for `grading`."""
+invented data and the in-memory `grading`."""
 
 import pytest
 from e2e_app import create
 from fastapi.testclient import TestClient
 
-from classlop.dashboard import invented, submission
+from classlop.dashboard import invented
 
 # Closed, so changes are open: Damian R. on Zbiory liczbowe in 1A.
 PAGE = "/api/classes/1a/assignments/1a-0/submissions/1a-3"
@@ -14,9 +14,7 @@ SUMMARY = "/api/classes/1a/assignments/1a-0"
 
 @pytest.fixture
 def web():
-    invented.GRADING.reset()
-    yield TestClient(create())
-    invented.GRADING.reset()
+    return TestClient(create())
 
 
 def test_a_submission_shows_each_item_with_its_transcription_points_and_feedback(web):
@@ -155,7 +153,7 @@ def test_before_the_due_time_changes_are_refused(web):
 
 def test_previous_and_next_follow_the_assignment_pages_order(web):
     summary = web.get(SUMMARY).json()
-    order = [r["student_id"] for r in summary["rows"] if r["state"] in submission.WITH_WORK]
+    order = [r["student_id"] for r in summary["rows"] if r["state"] in invented.WITH_WORK]
     middle = web.get(f"/api/classes/1a/assignments/1a-0/submissions/{order[1]}").json()
 
     assert (middle["previous"]["student_id"], middle["next"]["student_id"]) == (order[0], order[2])
