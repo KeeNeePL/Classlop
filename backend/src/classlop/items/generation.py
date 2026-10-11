@@ -83,17 +83,31 @@ class Request(BaseModel):
     origin: GenerationOrigin
 
 
+class Option(BaseModel):
+    letter: str
+    text: str
+
+
 class Draft(BaseModel):
     """What one generation pass writes; the tags come from the tagger."""
 
     item_format: ItemFormat
     text: str
     points: int
-    options: dict[str, str] = {}
+    # A list, not a dict by letter: strict structured output takes objects with fixed keys only.
+    options: list[Option] = []
     correct_options: list[str] = []
     answer: str | None = None
     model_solution: str | None = None
     rubric: list[RubricLevel] = []
+
+    def shown(self) -> str:
+        """The text the tagger reads: the Item with its options."""
+        return "\n".join([self.text, *(o.text for o in self.options)])
+
+    def fields(self) -> dict:
+        """The Draft as `ItemContent` fields, options by letter."""
+        return self.model_dump() | {"options": {o.letter: o.text for o in self.options}}
 
 
 class Score(BaseModel):
@@ -285,11 +299,10 @@ class Run:
             Draft,
             [SystemMessage(GENERATE), HumanMessage(json.dumps(brief, ensure_ascii=False))],
         )
-        shown = "\n".join([draft.text, *draft.options.values()])
-        tags = await self.tagger.tag(shown)
+        tags = await self.tagger.tag(draft.shown())
         try:
             content = ItemContent.model_validate(
-                draft.model_dump()
+                draft.fields()
                 | {
                     f: getattr(tags, f)
                     for f in ("difficulty", "curriculum_topics", "general_requirements")

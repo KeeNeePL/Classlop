@@ -9,12 +9,13 @@ from contextlib import suppress
 from pathlib import Path
 
 import pytest
+from openai.lib._pydantic import to_strict_json_schema
 from opensearchpy import NotFoundError
 from test_items import fake_vector
 
 from classlop import items
 from classlop.items import CurriculumTopic, embedding, exemplars, generation, index, tagging
-from classlop.items.generation import Draft, Ranking, Score
+from classlop.items.generation import Draft, Option, Ranking, Score
 from classlop.items.types import Tags
 from classlop.shared import jobs, llm, queue, search, storage, worker
 from classlop.shared.migrate import migrate
@@ -68,7 +69,7 @@ class FakeLLM:
                 item_format="closed",
                 text=text,
                 points=1,
-                options={"A": "$1$", "B": "$2$"},
+                options=[Option(letter="A", text="$1$"), Option(letter="B", text="$2$")],
                 correct_options=["A"],
             )
         return Draft(
@@ -167,6 +168,36 @@ async def test_a_request_lands_the_asked_items_in_the_bank_tagged_and_modelled(
     assert {i.id for i in bank} <= {i.id for i in page.items}
 
 
+def _objects(schema: dict):
+    if isinstance(schema, dict):
+        if schema.get("type") == "object":
+            yield schema
+        for value in schema.values():
+            yield from _objects(value)
+    elif isinstance(schema, list):
+        for value in schema:
+            yield from _objects(value)
+
+
+@pytest.mark.parametrize("schema", [Draft, Ranking])
+def test_the_model_replies_fit_strict_structured_output(schema):
+    # Strict mode takes only objects with fixed keys, all of them required.
+    for obj in _objects(to_strict_json_schema(schema)):
+        assert obj.get("additionalProperties") is False
+        assert sorted(obj.get("required", [])) == sorted(obj.get("properties", {}))
+
+
+async def test_a_closed_item_lands_with_its_options_by_letter(fake_llm, fake_tagger):
+    fake_llm.drafts = [fake_llm.fresh("closed")]
+    job = await run(spec(line(1, item_format="closed")))
+
+    assert job.status == "succeeded", job.error
+    (item,) = await landed(job)
+    assert item.version.options == {"A": "$1$", "B": "$2$"}
+    assert item.version.correct_options == ["A"]
+    assert "$2$" in fake_tagger.texts[-1]
+
+
 async def test_the_result_lists_item_ids_per_shortfall_line(fake_llm, fake_tagger):
     fake_tagger.default = tags("medium", SEQUENCE)
     class_id = uuid.uuid4()
@@ -223,7 +254,7 @@ async def test_the_third_failed_attempt_enters_the_bank_flagged(fake_llm, fake_t
 
 async def test_a_near_duplicate_of_a_banked_item_regenerates(fake_llm, fake_tagger):
     twin = fake_llm.fresh()
-    banked = items.ItemContent(**twin.model_dump(), **tags().model_dump())
+    banked = items.ItemContent(**twin.fields(), **tags().model_dump())
     banked_id = await items.create_item(banked, origin="upload")
     await index.reindex(banked_id)
     await search.client().indices.refresh(index=get_settings().items_index)
