@@ -1,0 +1,125 @@
+.job {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+}
+
+h3,
+h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.steps li::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1.5px solid var(--edge);
+  border-radius: 50%;
+}
+
+.steps .done {
+  color: var(--ink);
+}
+
+.steps .done::before {
+  background: #1d6b3c;
+  border-color: #1d6b3c;
+}
+
+.steps .now {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.steps .now::before {
+  background: var(--pen);
+  border-color: var(--pen);
+}
+
+.steps .failed {
+  color: var(--red);
+}
+
+.steps .failed::before {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.items,
+.pending {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item,
+.pending li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  justify-items: start;
+}
+
+.item.retired {
+  opacity: 0.6;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.text {
+  max-width: 100%;
+}
+
+details {
+  font-size: 14px;
+}
+
+summary {
+  cursor: pointer;
+  color: var(--pen);
+}
+
+details p {
+  margin: 6px 0;
+}
+
+.rubric {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.muted {
+  font-size: 13px;
+}

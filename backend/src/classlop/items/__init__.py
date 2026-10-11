@@ -1,6 +1,7 @@
 from classlop.items.chat import (
     Chat,
     ChatMessage,
+    chat_item_ids,
     chat_messages,
     chats,
     create_chat,
@@ -10,6 +11,7 @@ from classlop.items.chat import (
 )
 from classlop.items.chat_graph import Reply, delete_chat, take_turn
 from classlop.items.chat_graph import close as close_chats
+from classlop.items.chat_jobs import ChatJob, chat_jobs, running_jobs
 from classlop.items.curriculum import (
     CurriculumSection,
     GeneralRequirementText,
@@ -65,6 +67,7 @@ from classlop.items.upload import (
 
 __all__ = [
     "Chat",
+    "ChatJob",
     "ChatMessage",
     "Reply",
     "Entry",
@@ -73,6 +76,8 @@ __all__ = [
     "UploadLinks",
     "UploadSummary",
     "chat_messages",
+    "chat_item_ids",
+    "chat_jobs",
     "chats",
     "close_chats",
     "create_chat",
@@ -84,6 +89,7 @@ __all__ = [
     "pending_duplicates",
     "post_message",
     "request_upload",
+    "running_jobs",
     "upload_anyway",
     "upload_links",
     "CurriculumSection",

@@ -457,6 +457,347 @@
         }
       }
     },
+    "/api/chats": {
+      "get": {
+        "summary": "Chats",
+        "operationId": "chats_api_chats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChatEntry"
+                  },
+                  "type": "array",
+                  "title": "Response Chats Api Chats Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create",
+        "operationId": "create_api_chats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/NewChat"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Chat"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}": {
+      "patch": {
+        "summary": "Rename",
+        "operationId": "rename_api_chats__chat_id__patch",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/classlop__dashboard__chats__Rename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete",
+        "operationId": "delete_api_chats__chat_id__delete",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}/messages": {
+      "get": {
+        "summary": "Messages",
+        "operationId": "messages_api_chats__chat_id__messages_get",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessage"
+                  },
+                  "title": "Response Messages Api Chats  Chat Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Say",
+        "operationId": "say_api_chats__chat_id__messages_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_say_api_chats__chat_id__messages_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}/jobs": {
+      "get": {
+        "summary": "Jobs",
+        "description": "The Chat's jobs with the Items they added, oldest first.",
+        "operationId": "jobs_api_chats__chat_id__jobs_get",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobCard"
+                  },
+                  "title": "Response Jobs Api Chats  Chat Id  Jobs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/duplicates/{pending_id}/upload": {
+      "post": {
+        "summary": "Upload Anyway",
+        "description": "\"Wgraj mimo to\": the near-duplicate becomes an Item.",
+        "operationId": "upload_anyway_api_chats_duplicates__pending_id__upload_post",
+        "parameters": [
+          {
+            "name": "pending_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pending Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/duplicates/{pending_id}/drop": {
+      "post": {
+        "summary": "Drop Duplicate",
+        "description": "\"Pomi\u0144\": the near-duplicate is left out.",
+        "operationId": "drop_duplicate_api_chats_duplicates__pending_id__drop_post",
+        "parameters": [
+          {
+            "name": "pending_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pending Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/users": {
       "get": {
         "summary": "Users",
@@ -661,7 +1002,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Rename"
+                "$ref": "#/components/schemas/classlop__dashboard__classes__Rename"
               }
             }
           }
@@ -2268,6 +2609,29 @@
         "title": "BankFilters",
         "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
       },
+      "Body_say_api_chats__chat_id__messages_post": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "title": "Body_say_api_chats__chat_id__messages_post"
+      },
       "Break": {
         "properties": {
           "first": {
@@ -2310,6 +2674,104 @@
           "upn"
         ],
         "title": "Candidate"
+      },
+      "Chat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "Chat"
+      },
+      "ChatEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "running": {
+            "type": "integer",
+            "title": "Running",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "ChatEntry"
+      },
+      "ChatMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "chat_id": {
+            "type": "string",
+            "title": "Chat Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "assistant",
+              "user"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "chat_id",
+          "role",
+          "text",
+          "payload",
+          "created_at"
+        ],
+        "title": "ChatMessage"
       },
       "ClassLink": {
         "properties": {
@@ -3027,6 +3489,115 @@
         "title": "ItemChanges",
         "description": "What the Teacher changed; what is left out stays as it was."
       },
+      "ItemContent": {
+        "properties": {
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty"
+          },
+          "curriculum_topics": {
+            "items": {
+              "$ref": "#/components/schemas/CurriculumTopic"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Curriculum Topics"
+          },
+          "general_requirements": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "I",
+                "II",
+                "III",
+                "IV"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "General Requirements"
+          },
+          "item_format": {
+            "type": "string",
+            "enum": [
+              "closed",
+              "open"
+            ],
+            "title": "Item Format"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Points"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Options",
+            "default": {}
+          },
+          "correct_options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Correct Options",
+            "default": []
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "rubric": {
+            "items": {
+              "$ref": "#/components/schemas/RubricLevel"
+            },
+            "type": "array",
+            "title": "Rubric",
+            "default": []
+          },
+          "model_solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Solution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "difficulty",
+          "curriculum_topics",
+          "general_requirements",
+          "item_format",
+          "text",
+          "points"
+        ],
+        "title": "ItemContent",
+        "description": "What a version says; all mathematics is inline LaTeX."
+      },
       "ItemDetail": {
         "properties": {
           "item": {
@@ -3333,6 +3904,83 @@
         ],
         "title": "ItemView"
       },
+      "JobCard": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "generation",
+              "upload"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "item_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Item Ids",
+            "default": []
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/PendingDuplicate"
+            },
+            "type": "array",
+            "title": "Pending",
+            "default": []
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NumberedItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "progress",
+          "items"
+        ],
+        "title": "JobCard"
+      },
       "Line": {
         "properties": {
           "section": {
@@ -3470,6 +4118,23 @@
         ],
         "title": "Neighbour"
       },
+      "NewChat": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "title": "NewChat"
+      },
       "NewClass": {
         "properties": {
           "name": {
@@ -3586,6 +4251,23 @@
         ],
         "title": "Note"
       },
+      "NumberedItem": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "item": {
+            "$ref": "#/components/schemas/Item"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "item"
+        ],
+        "title": "NumberedItem"
+      },
       "OverviewResponse": {
         "properties": {
           "id": {
@@ -3648,6 +4330,74 @@
           "invented"
         ],
         "title": "OverviewResponse"
+      },
+      "PendingDuplicate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "chat_id": {
+            "type": "string",
+            "title": "Chat Id"
+          },
+          "content": {
+            "$ref": "#/components/schemas/ItemContent"
+          },
+          "source_page": {
+            "type": "integer",
+            "title": "Source Page"
+          },
+          "crop": {
+            "type": "string",
+            "title": "Crop"
+          },
+          "flag_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag Reason"
+          },
+          "nearest_item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nearest Item Id"
+          },
+          "cosine": {
+            "type": "number",
+            "title": "Cosine"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "upload_id",
+          "chat_id",
+          "content",
+          "source_page",
+          "crop",
+          "flag_reason",
+          "nearest_item_id",
+          "cosine",
+          "created_at"
+        ],
+        "title": "PendingDuplicate"
       },
       "PickRequest": {
         "properties": {
@@ -3837,20 +4587,6 @@
           "student_ids"
         ],
         "title": "Recipients"
-      },
-      "Rename": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "Rename"
       },
       "ReportRow": {
         "properties": {
@@ -5093,6 +5829,33 @@
         ],
         "title": "WeeklySlot",
         "description": "A slot as the Teacher enters it; weekday 0 is Monday, times are Warsaw wall-clock."
+      },
+      "classlop__dashboard__chats__Rename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Rename"
+      },
+      "classlop__dashboard__classes__Rename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Rename"
       }
     }
   }

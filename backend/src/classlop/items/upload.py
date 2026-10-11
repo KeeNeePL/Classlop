@@ -210,7 +210,7 @@ class Run:
         self.request, self.progress, self.tagger = request, progress, tagger
         self.prefix = _prefix(request.upload_id)
         self.file = self.prefix + request.filename
-        self.done = 0
+        self.done = self.pages = 0
         self._counting = asyncio.Lock()
 
     async def split(self, state: State) -> dict:
@@ -221,7 +221,9 @@ class Run:
             await asyncio.to_thread(
                 storage.put, f"{self.prefix}pages/{n}.jpg", _jpeg(page), "image/jpeg"
             )
-        return {"pages": min(len(pages), MAX_PAGES), "ignored": ignored}
+        self.pages = min(len(pages), MAX_PAGES)
+        await self.progress({"pages": self.pages, "pages_done": 0})
+        return {"pages": self.pages, "ignored": ignored}
 
     def fan_out(self, state: State) -> list[Send] | list[str]:
         return [Send("page", PageInput(number=n)) for n in range(1, state.get("pages", 0) + 1)] or [
@@ -256,7 +258,7 @@ class Run:
         ]
         async with self._counting:
             self.done += 1
-            await self.progress({"pages_done": self.done})
+            await self.progress({"pages": self.pages, "pages_done": self.done})
         return {"outcomes": [e.model_dump(mode="json") for e in entries]}
 
     async def exercise(self, page: int, n: int, exercise: Exercise, image: Image.Image) -> Entry:
