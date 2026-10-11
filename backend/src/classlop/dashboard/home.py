@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from classlop import teams
 from classlop.dashboard import auth, bank
+from classlop.dashboard.classes import TheTeams
 
 router = APIRouter()
 
@@ -166,13 +167,17 @@ async def failed_gives() -> list[Entry]:
 async def home(
     _: Annotated[auth.Me, Depends(auth.teacher)],
     items: bank.TheBank,
+    t: TheTeams,
     make: Annotated[Callable[[datetime], Home], Depends(stand_in)],
     failed: Annotated[list[Entry], Depends(failed_gives)],
 ) -> Home:
     view = make(datetime.now(UTC))
+    # The Teacher's own Classes follow the invented ones in the sidebar, until the rest is wired.
+    own = [ClassLink(id=c.id, name=c.name, graded=0) for c in await t.list_classes()]
     return view.model_copy(
         update={
             "entries": with_problems(view.entries, failed),
+            "classes": [*view.classes, *own],
             "flagged_items": await bank.flagged_count(items),
         }
     )

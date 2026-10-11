@@ -2,13 +2,14 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
+import { classTitle } from '../class-name';
 import { HomeStore } from '../shell/home-store';
 
 @Component({
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
     <div class="head">
-      <h1>Klasa {{ name() }}</h1>
+      <h1>{{ title() }}</h1>
       <a class="btn" [routerLink]="[base(), 'nowa-praca']">+ Nowa praca</a>
     </div>
     <div class="tabs">
@@ -56,7 +57,9 @@ export class ClassPage {
   private readonly home = inject(HomeStore).home;
 
   protected readonly base = computed(() => `/klasy/${this.id()}`);
-  protected readonly name = computed(
-    () => this.home()?.classes.find((c) => c.id === this.id())?.name ?? this.id().toUpperCase(),
+  protected readonly title = computed(() =>
+    classTitle(
+      this.home()?.classes.find((c) => c.id === this.id())?.name ?? this.id().toUpperCase(),
+    ),
   );
 }

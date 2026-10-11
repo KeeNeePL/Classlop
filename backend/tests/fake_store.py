@@ -18,6 +18,9 @@ class InMemoryStore:
     async def save_note(self, class_id: str, student_id: str, text: str) -> None:
         self._notes[(class_id, student_id)] = text
 
+    async def delete_class_notes(self, class_id: str) -> None:
+        self._notes = {k: v for k, v in self._notes.items() if k[0] != class_id}
+
     async def thresholds(self) -> list[int]:
         return list(self._thresholds)
 

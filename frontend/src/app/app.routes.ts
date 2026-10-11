@@ -25,7 +25,10 @@ export const routes: Routes = [
       },
     ],
   },
-  empty('klasy/nowa', 'Nowa klasa'),
+  {
+    path: 'klasy/nowa',
+    loadComponent: () => import('./pages/new-class').then((m) => m.NewClass),
+  },
   {
     path: 'klasy/:klasa',
     component: ClassPage,
@@ -36,7 +39,10 @@ export const routes: Routes = [
       },
       empty('lekcje', 'Lekcje', true),
       empty('lekcje/:lekcja', 'Lekcja', true),
-      empty('ustawienia', 'Ustawienia klasy', true),
+      {
+        path: 'ustawienia',
+        loadComponent: () => import('./pages/class-settings').then((m) => m.ClassSettingsTab),
+      },
     ],
   },
   {

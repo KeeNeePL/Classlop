@@ -1,0 +1,93 @@
+@if (settings.value(); as s) {
+  @if (s.state === 'team_deleted') {
+    <div class="gone" role="alert">
+      <div>
+        <strong>Zespół tej klasy usunięto w Teams.</strong>
+        Klasa jest tylko do odczytu. Przywróć zespół w Teams albo usuń klasę.
+      </div>
+      <button type="button" class="btn" [disabled]="busy()" (click)="restore()">
+        Przywróć zespół
+      </button>
+    </div>
+  }
+
+  @if (error(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+
+  <cl-panel>
+    <h2>Nazwa klasy</h2>
+    <form class="row" (ngSubmit)="rename(s)">
+      <input
+        class="text"
+        name="name"
+        aria-label="Nazwa klasy"
+        [disabled]="readOnly()"
+        [ngModel]="name()"
+        (ngModelChange)="name.set($event)"
+      />
+      <button
+        type="submit"
+        class="btn"
+        [disabled]="busy() || readOnly() || !name().trim() || name().trim() === s.name"
+      >
+        Zapisz nazwę
+      </button>
+    </form>
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Uczniowie</h2>
+    <ul class="members" aria-label="Uczniowie klasy">
+      @for (m of s.students; track m.id) {
+        <li>
+          <span>
+            {{ m.name }} <span class="muted">{{ m.upn }}</span>
+            @if (m.former) {
+              <cl-badge>były uczeń</cl-badge>
+            }
+          </span>
+          @if (!m.former) {
+            <button
+              type="button"
+              class="btn ghost"
+              [disabled]="busy() || readOnly()"
+              [attr.aria-label]="'Usuń ucznia: ' + m.name"
+              (click)="removeStudent(m)"
+            >
+              Usuń
+            </button>
+          }
+        </li>
+      }
+    </ul>
+    @if (!readOnly()) {
+      <h3>Dodaj ucznia</h3>
+      <cl-student-picker [skip]="current()" (picked)="addStudent($event)" />
+    }
+  </cl-panel>
+
+  <cl-panel class="danger">
+    <h2>Usuń klasę</h2>
+    <p>
+      Usuwa klasę razem z jej zespołem w Teams, przyszłymi lekcjami, folderami na prace i notatkami
+      o uczniach. Zadania i rozmowy z uczniami zostają. Tego nie da się cofnąć.
+    </p>
+    <form class="row" (ngSubmit)="remove(s)">
+      <input
+        class="text"
+        name="confirm"
+        autocomplete="off"
+        aria-label="Wpisz nazwę klasy, aby potwierdzić"
+        placeholder="Nazwa klasy"
+        [ngModel]="typed()"
+        (ngModelChange)="typed.set($event)"
+      />
+      <button type="submit" class="btn danger" [disabled]="busy() || typed().trim() !== s.name">
+        Usuń klasę
+      </button>
+    </form>
+  </cl-panel>
+} @else if (settings.error()) {
+  <p class="error" role="alert">Nie udało się wczytać ustawień klasy.</p>
+}

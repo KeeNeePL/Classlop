@@ -11,6 +11,7 @@ from classlop.dashboard import (
     assignment,
     auth,
     bank,
+    classes,
     events,
     home,
     new_work,
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(home.router)
     app.include_router(bank.router)
+    app.include_router(classes.router)
     app.include_router(overview.router)
     app.include_router(assignment.router)
     app.include_router(events.router)

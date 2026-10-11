@@ -3,7 +3,7 @@ screens reach them through `backend()`, which the Playwright app swaps for one i
 
 from typing import Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from classlop.dashboard.models import NoteRow, ThresholdsRow
@@ -14,6 +14,7 @@ from classlop.shared.db import sessions
 class Store(Protocol):
     async def note(self, class_id: str, student_id: str) -> str: ...
     async def save_note(self, class_id: str, student_id: str, text: str) -> None: ...
+    async def delete_class_notes(self, class_id: str) -> None: ...
     async def thresholds(self) -> list[int]: ...
     async def save_thresholds(self, percents: list[int]) -> None: ...
 
@@ -34,6 +35,10 @@ class PostgresStore:
                     set_={"text": text, "updated_at": func.now()},
                 )
             )
+
+    async def delete_class_notes(self, class_id: str) -> None:
+        async with sessions().begin() as session:
+            await session.execute(delete(NoteRow).where(NoteRow.class_id == class_id))
 
     async def thresholds(self) -> list[int]:
         async with sessions()() as session:
