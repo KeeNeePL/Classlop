@@ -21,12 +21,12 @@ from langchain_core.tracers.langchain import wait_for_all_tracers
 from langsmith.run_helpers import tracing_context
 from PIL import Image
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from classlop import grading, items
 from classlop.items import CurriculumTopic, ItemVersion, RubricLevel
 from classlop.shared import llm, queue, storage
-from classlop.shared.db import sessions
+from classlop.shared.db import engine, sessions
 from classlop.shared.migrate import migrate
 from classlop.shared.models import Job
 
@@ -1459,3 +1459,80 @@ async def test_nothing_is_traced_while_tracing_is_off(bank, fake_llm):
 
     wait_for_all_tracers()
     assert traces.sent == []
+
+
+async def test_results_read_every_submission_of_the_assignments_at_its_newest_hand_in(
+    bank, fake_llm
+):
+    quiz, test, other = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    item = closed(points=2, correct="B")
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    first = await hand_in(bank, [item], assignment_id=quiz, handed_in_at=days_from_now(-3))
+    fake_llm.transcribes(read(1, chosen="C", transcription="C"))
+    newer = await hand_in(
+        bank, [item], assignment_id=quiz, submission_id=first[0], handed_in_at=days_from_now(-2)
+    )
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    second = await hand_in(bank, [item], assignment_id=test)
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    await hand_in(bank, [item], assignment_id=other)
+
+    found = await grading.results([quiz, test])
+
+    assert sorted((r.submission_id, r.handed_in_at) for r in found) == sorted([newer, second])
+    points = {r.submission_id: [i.points for i in r.items] for r in found}
+    assert points == {newer[0]: [0], second[0]: [2]}
+    assert await grading.results([]) == []
+
+
+async def test_results_carry_overrides_and_zatwierdz(bank, fake_llm):
+    assignment_id, item = uuid.uuid4(), closed(points=2, correct="B")
+    fake_llm.transcribes(read(1, chosen="C", reading="unsure", transcription="C"))
+    key = await hand_in(
+        bank,
+        [item],
+        assignment_id=assignment_id,
+        handed_in_at=days_from_now(-2),
+        due_at=days_from_now(-1),
+    )
+    (held,) = await grading.results([assignment_id])
+    assert (held.held, held.spot_check, [i.points for i in held.items]) == (True, True, [0])
+
+    await grading.override(*key, item.id, 1)
+    await grading.approve(*key)
+
+    (approved,) = await grading.results([assignment_id])
+    assert (approved.held, approved.spot_check) == (False, False)
+    assert [(i.ai_points, i.override, i.points) for i in approved.items] == [(0, 1, 1)]
+
+
+async def test_a_failed_grading_comes_back_failed_with_no_items(bank, fake_llm):
+    assignment_id = uuid.uuid4()
+    await hand_in(bank, [closed()], assignment_id=assignment_id, attempt=3)
+
+    (failed,) = await grading.results([assignment_id])
+    assert (failed.status, failed.held, failed.items) == ("failed", True, [])
+
+
+async def test_results_take_the_same_queries_for_one_assignment_or_many(bank, fake_llm):
+    one, many = [uuid.uuid4()], [uuid.uuid4() for _ in range(4)]
+    for assignment_id in [*one, *many]:
+        for _ in range(2):
+            fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+            await hand_in(bank, [closed()], assignment_id=assignment_id)
+
+    async def queries(ids) -> int:
+        seen = []
+
+        def count(*_):
+            seen.append(1)
+
+        sync = engine().sync_engine
+        event.listen(sync, "before_cursor_execute", count)
+        try:
+            assert len(await grading.results(ids)) == 2 * len(ids)
+        finally:
+            event.remove(sync, "before_cursor_execute", count)
+        return len(seen)
+
+    assert await queries(many) == await queries(one)
