@@ -38,6 +38,12 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   }
   const funkcje = page.getByRole('link', { name: /^Funkcje, zadana .*, Zbieranie prac$/ });
   // Closed, with Submissions still Held for the Teacher: closed, not graded.
+  const equations = await (await page.request.get('/api/classes/2c/assignments/2c-2')).json();
+  expect([equations.title, equations.state, equations.counts.held > 0]).toEqual([
+    'Równania',
+    'closed',
+    true,
+  ]);
   await expect(page.getByRole('link', { name: /^Równania, zadana .*, Zamknięta$/ })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Legenda' })).not.toContainText('Ocenione');
   await funkcje.hover();
