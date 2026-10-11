@@ -1,0 +1,98 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h2 {
+  font-size: 20px;
+}
+
+h3 {
+  font-size: 16px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.back {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.text {
+  flex: 1;
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+select {
+  font: inherit;
+  padding: 3px 6px;
+  margin-right: 6px;
+}
+
+.unmatched {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.unmatched li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.unmatched li > span {
+  flex: 1;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}

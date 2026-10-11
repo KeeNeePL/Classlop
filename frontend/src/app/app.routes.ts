@@ -47,8 +47,11 @@ export const routes: Routes = [
         path: 'uczniowie',
         loadComponent: () => import('./pages/class-students').then((m) => m.ClassStudents),
       },
-      empty('lekcje', 'Lekcje', true),
-      empty('lekcje/:lekcja', 'Lekcja', true),
+      { path: 'lekcje', loadComponent: () => import('./pages/lessons').then((m) => m.Lessons) },
+      {
+        path: 'lekcje/:lekcja',
+        loadComponent: () => import('./pages/lesson-page').then((m) => m.LessonPage),
+      },
       {
         path: 'ustawienia',
         loadComponent: () => import('./pages/class-settings').then((m) => m.ClassSettingsTab),

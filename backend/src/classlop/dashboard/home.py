@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal, get_args
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -12,6 +13,7 @@ from classlop.dashboard import auth, bank
 from classlop.dashboard.classes import TheTeams
 
 router = APIRouter()
+WARSAW = ZoneInfo("Europe/Warsaw")
 
 # In the queue's order: the live Lesson, then the problems, then the rest as in #12.
 Kind = Literal[
@@ -19,6 +21,7 @@ Kind = Literal[
     "sign_in",
     "give_failed",
     "team_removed",
+    "calendar_question",
     "graded",
     "next_lesson",
     "deadline",
@@ -26,13 +29,23 @@ Kind = Literal[
 ORDER = get_args(Kind)
 
 
+class Choice(BaseModel):
+    """One answer to a question on the queue: `answer` is what `teams` is told."""
+
+    answer: str
+    label: str
+
+
 class Entry(BaseModel):
     kind: Kind
     title: str
     detail: str
     at: datetime | None = None
-    link: str
-    action: str
+    # A question is answered in place, by one of its `choices`, and has no page to open.
+    link: str = ""
+    action: str = ""
+    question_id: str | None = None
+    choices: list[Choice] = []
 
 
 class ClassLink(BaseModel):
@@ -53,11 +66,11 @@ def queue(entries: list[Entry]) -> list[Entry]:
     return sorted(entries, key=lambda e: ORDER.index(e.kind))
 
 
-def with_problems(entries: list[Entry], failed: list[Entry]) -> list[Entry]:
-    """The failed gives after the queue's own, where the problems end; the rest keeps its order."""
-    rank = ORDER.index("give_failed")
+def inserted(entries: list[Entry], extra: list[Entry], kind: Kind) -> list[Entry]:
+    """`extra`, all of `kind`, where that kind belongs; the rest keeps its order."""
+    rank = ORDER.index(kind)
     at = next((i for i, e in enumerate(entries) if ORDER.index(e.kind) > rank), len(entries))
-    return [*entries[:at], *failed, *entries[at:]]
+    return [*entries[:at], *extra, *entries[at:]]
 
 
 def invented(now: datetime) -> Home:
@@ -163,6 +176,30 @@ async def failed_gives() -> list[Entry]:
     return entries
 
 
+async def calendar_questions(t: TheTeams) -> list[Entry]:
+    """The Teams meetings the Teacher is asked to sort: which Class, or keep or hide."""
+    names = {c.id: c.name for c in await t.list_classes()}
+    entries = []
+    for q in await t.list_calendar_questions():
+        choices = [Choice(answer=c, label=names[c]) for c in q.candidates if c in names] or [
+            Choice(answer="keep", label="Zostaw w kalendarzu"),
+            Choice(answer="hide", label="Ukryj"),
+        ]
+        entries.append(
+            Entry(
+                kind="calendar_question",
+                title="Do której klasy należy to spotkanie?"
+                if q.candidates
+                else "Co zrobić z tym spotkaniem?",
+                detail=f"«{q.subject}», {q.start.astimezone(WARSAW):%d.%m %H:%M}",
+                at=q.start,
+                question_id=q.id,
+                choices=choices,
+            )
+        )
+    return entries
+
+
 @router.get("/api/home")
 async def home(
     _: Annotated[auth.Me, Depends(auth.teacher)],
@@ -170,13 +207,16 @@ async def home(
     t: TheTeams,
     make: Annotated[Callable[[datetime], Home], Depends(stand_in)],
     failed: Annotated[list[Entry], Depends(failed_gives)],
+    asked: Annotated[list[Entry], Depends(calendar_questions)],
 ) -> Home:
     view = make(datetime.now(UTC))
     # The Teacher's own Classes follow the invented ones in the sidebar, until the rest is wired.
     own = [ClassLink(id=c.id, name=c.name, graded=0) for c in await t.list_classes()]
     return view.model_copy(
         update={
-            "entries": with_problems(view.entries, failed),
+            "entries": inserted(
+                inserted(view.entries, failed, "give_failed"), asked, "calendar_question"
+            ),
             "classes": [*view.classes, *own],
             "flagged_items": await bank.flagged_count(items),
         }

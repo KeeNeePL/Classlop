@@ -3,7 +3,9 @@ import { Component, effect, inject, resource, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Api } from '../api/api';
 import {
+  latenessApiSettingsLatenessGet,
   saveThresholdsApiSettingsThresholdsPut,
+  setLatenessApiSettingsLatenessPut,
   thresholdsApiSettingsThresholdsGet,
 } from '../api/functions';
 import { Panel } from '../ui/panel';
@@ -16,7 +18,7 @@ const GRADES = [
   'celujący (6)',
 ];
 
-/** Ustawienia: the Suggested grade thresholds, one set for every Class. */
+/** Ustawienia: the Suggested grade thresholds and the lateness threshold, one set for every Class. */
 @Component({
   imports: [FormsModule, Panel],
   template: `
@@ -56,6 +58,41 @@ const GRADES = [
             }
             @case ('failed') {
               <span class="error" role="alert">Nie udało się zapisać progów.</span>
+            }
+          }
+        </div>
+      </form>
+    </cl-panel>
+    <cl-panel>
+      <h2>Spóźnienie</h2>
+      <p class="muted">
+        Uczeń, który dołączył do lekcji później niż tyle minut po jej planowym początku, jest
+        spóźniony. Jedno ustawienie dla wszystkich klas.
+      </p>
+      <form (submit)="$event.preventDefault(); saveLateness()">
+        <label>
+          <span>Próg spóźnienia</span>
+          <input
+            type="number"
+            min="0"
+            max="60"
+            name="lateness"
+            aria-label="Próg spóźnienia w minutach"
+            [ngModel]="lateness()"
+            (ngModelChange)="setLateness($event)"
+          />
+          min
+        </label>
+        <div class="buttons">
+          <button class="btn" type="submit" [disabled]="latenessState() === 'saving'">
+            Zapisz próg spóźnienia
+          </button>
+          @switch (latenessState()) {
+            @case ('saved') {
+              <span class="muted" role="status">Zapisano.</span>
+            }
+            @case ('failed') {
+              <span class="error" role="alert">Podaj liczbę minut od 0 do 60.</span>
             }
           }
         </div>
@@ -110,12 +147,39 @@ export class Settings {
   protected readonly grades = GRADES;
   protected readonly percents = signal<number[]>([]);
   protected readonly state = signal<'idle' | 'saving' | 'saved' | 'refused' | 'failed'>('idle');
+  private readonly storedLateness = resource({
+    loader: () => this.api.invoke(latenessApiSettingsLatenessGet, {}),
+  });
+
+  protected readonly lateness = signal(5);
+  protected readonly latenessState = signal<'idle' | 'saving' | 'saved' | 'failed'>('idle');
 
   constructor() {
     effect(() => {
       const v = this.stored.hasValue() ? this.stored.value() : undefined;
       if (v) this.percents.set(v.percents);
     });
+    effect(() => {
+      const v = this.storedLateness.hasValue() ? this.storedLateness.value() : undefined;
+      if (v) this.lateness.set(v.minutes);
+    });
+  }
+
+  protected setLateness(value: number) {
+    this.lateness.set(Number(value));
+    this.latenessState.set('idle');
+  }
+
+  protected async saveLateness() {
+    this.latenessState.set('saving');
+    try {
+      await this.api.invoke(setLatenessApiSettingsLatenessPut, {
+        body: { minutes: this.lateness() },
+      });
+      this.latenessState.set('saved');
+    } catch {
+      this.latenessState.set('failed');
+    }
   }
 
   protected set(at: number, value: number) {
