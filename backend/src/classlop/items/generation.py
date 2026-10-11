@@ -4,6 +4,7 @@ generation pass, tags it, checks the tags and the near-duplicate rule, and regen
 failure; the last of three attempts enters the bank as a Flagged item. Graph state holds ids
 only, and each Item commits on its own."""
 
+import asyncio
 import json
 import operator
 import uuid
@@ -178,6 +179,7 @@ class Run:
         # Exemplars the branches took so far, so the batch spreads over them.
         self.claimed: Counter[str] = Counter()
         self.landed = 0
+        self._saving = asyncio.Lock()
 
     def fan_out(self, _: State) -> list[Send]:
         return [
@@ -333,8 +335,9 @@ class Run:
         # Searchable now, so a sibling branch's near-duplicate check sees this Item.
         await index.reindex(item_id)
         await client().indices.refresh(index=get_settings().items_index)
-        self.landed += 1
-        await self.progress({"landed": self.landed, "total": self.total})
+        async with self._saving:  # saves in the order of the count, not of their commits
+            self.landed += 1
+            await self.progress({"landed": self.landed, "total": self.total})
         return {"item_id": item_id}
 
     async def run(self) -> dict:
