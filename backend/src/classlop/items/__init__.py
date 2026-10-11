@@ -1,4 +1,15 @@
-from classlop.items.chat import ChatMessage, chat_messages, post_message
+from classlop.items.chat import (
+    Chat,
+    ChatMessage,
+    chat_messages,
+    chats,
+    create_chat,
+    get_chat,
+    post_message,
+    rename_chat,
+)
+from classlop.items.chat_graph import Reply, delete_chat, take_turn
+from classlop.items.chat_graph import close as close_chats
 from classlop.items.curriculum import (
     CurriculumSection,
     GeneralRequirementText,
@@ -53,13 +64,22 @@ from classlop.items.upload import (
 )
 
 __all__ = [
+    "Chat",
     "ChatMessage",
+    "Reply",
     "Entry",
     "PendingDuplicate",
     "Started",
     "UploadLinks",
     "UploadSummary",
     "chat_messages",
+    "chats",
+    "close_chats",
+    "create_chat",
+    "delete_chat",
+    "get_chat",
+    "rename_chat",
+    "take_turn",
     "drop_duplicate",
     "pending_duplicates",
     "post_message",

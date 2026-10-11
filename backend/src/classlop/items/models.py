@@ -138,3 +138,12 @@ class ChatMessageRow(Base):
     # What the screen renders beside the text, such as an upload summary.
     payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatRow(Base):
+    __tablename__ = "chat"
+    __table_args__ = {"schema": "items"}
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
