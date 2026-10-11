@@ -46,7 +46,7 @@ async def test_a_turn_relays_the_chats_events_one_to_one(tab):
     assert frames(sent.text)[-1] == ("done", "{}")
 
 
-async def test_a_failing_turn_ends_with_failed_not_done(tab, monkeypatch):
+async def test_a_turn_that_fails_is_raised_not_swallowed(tab, monkeypatch):
     client, fake = tab
     chat = (await client.post("/api/chats")).json()
 

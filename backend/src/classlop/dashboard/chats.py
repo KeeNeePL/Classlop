@@ -88,7 +88,9 @@ class ItemsChats:
             cards.append(
                 JobCard(
                     **job.model_dump(),
-                    items=[NumberedItem(number=numbers[i.id], item=i) for i in added],
+                    items=[
+                        NumberedItem(number=numbers[i.id], item=i) for i in added if i.id in numbers
+                    ],
                 )
             )
         return cards
@@ -182,7 +184,6 @@ def frame(event: str, data: str) -> str:
 async def stream(
     chats: Chats, chat_id: str, text: str, file: tuple[str, bytes] | None
 ) -> AsyncIterator[str]:
-    """The Chat's events as they come, one frame each."""
     try:
         async for reply in chats.turn(chat_id, text, file):
             yield frame("reply", reply.model_dump_json())

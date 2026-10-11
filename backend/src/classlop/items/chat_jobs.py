@@ -44,7 +44,6 @@ def _of_chat(chat_id: str) -> ColumnElement[bool]:
 
 
 async def chat_jobs(chat_id: str) -> list[ChatJob]:
-    """The Chat's jobs, oldest first."""
     async with sessions()() as session:
         rows = list(
             await session.scalars(
