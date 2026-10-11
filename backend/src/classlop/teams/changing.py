@@ -13,7 +13,6 @@ from ulid import ULID
 from classlop.shared import jobs, schedule, storage
 from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
-from classlop.shared.settings import get_settings
 from classlop.teams import amendments, assignments, lifecycle
 from classlop.teams import submissions as rules
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
@@ -136,9 +135,8 @@ class Changing:
         amendments.check_deletable(submissions, uploaded)
         # Every step tolerates what is already gone, so a repeat finishes what one began.
         if row.post_id:
-            teacher = get_settings().m365_teacher_oid
             post = f"/teams/{klass.team_id}/channels/{row.post_channel_id}/messages/{row.post_id}"
-            await or_gone(self._graph.request("POST", f"/users/{teacher}{post}/softDelete"))
+            await or_gone(self._graph.request("POST", f"{post}/softDelete"))
         if row.folder_id:
             await self._discard(f"/me/drive/items/{row.folder_id}")
         for name in lifecycle.schedule_names(assignment_id):
