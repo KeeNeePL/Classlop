@@ -64,11 +64,6 @@
   </div>
 
   <form class="composer" (submit)="$event.preventDefault(); send()">
-    <div class="tools">
-      <button type="button" class="btn ghost" (click)="picker.click()">Dołącz plik</button>
-      <input #picker type="file" accept=".pdf,image/*" hidden (change)="attach($event)" />
-      <button type="button" class="btn ghost" (click)="ask()">Wygeneruj zadania</button>
-    </div>
     @if (file(); as f) {
       <p class="attached">
         Plik: <b>{{ f.name }}</b>
@@ -78,7 +73,6 @@
       </p>
     }
     <textarea
-      #box
       rows="2"
       aria-label="Wiadomość"
       placeholder="Napisz do Classlop AI"
@@ -87,7 +81,11 @@
       name="message"
       (keydown)="key($event)"
     ></textarea>
-    <button type="submit" class="btn send" [disabled]="sending()">Wyślij</button>
+    <div class="buttons">
+      <button type="button" class="btn ghost" (click)="picker.click()">Dołącz plik</button>
+      <input #picker type="file" accept=".pdf,image/*" hidden (change)="attach($event)" />
+      <button type="submit" class="btn send" [disabled]="sending()">Wyślij</button>
+    </div>
   </form>
 </div>
 

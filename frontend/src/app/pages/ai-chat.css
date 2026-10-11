@@ -5,10 +5,15 @@
   align-items: start;
 }
 
+/* The Chat is a sheet of its own, so its messages do not float on the squared paper. */
 .chat {
   display: grid;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
+  padding: 16px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
 }
 
 /* The panel stays in view while a long Chat scrolls. */
@@ -36,7 +41,7 @@ aside {
   padding: 10px 14px;
   border: 1.5px solid var(--line);
   border-radius: 4px;
-  background: var(--card);
+  background: var(--grid);
   overflow-wrap: anywhere;
 }
 
@@ -99,11 +104,13 @@ aside {
 .composer {
   display: grid;
   gap: 8px;
+  padding-top: 14px;
+  border-top: 1.5px solid var(--line);
 }
 
-.tools {
+.buttons {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -140,7 +147,6 @@ textarea:focus {
 }
 
 .send {
-  justify-self: end;
   background: var(--pen);
   border-color: var(--pen);
   color: #fff;

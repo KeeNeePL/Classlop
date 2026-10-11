@@ -19,10 +19,6 @@ test('the Teacher asks for Items and follows the job in the results panel', asyn
   const menu = page.getByRole('button', { name: /^Czat:/ });
   await expect(menu).toHaveAccessibleName(/Potrzebuję zadań z równań/);
 
-  // "Wygeneruj zadania" starts a Generation request in the box.
-  await page.getByRole('button', { name: 'Wygeneruj zadania' }).click();
-  await expect(page.getByLabel('Wiadomość')).toBeFocused();
-  await expect(page.getByLabel('Wiadomość')).toHaveValue(/^Wygeneruj /);
   await page.getByLabel('Wiadomość').fill('Wygeneruj 3 łatwe zadania zamknięte');
   await page.getByRole('button', { name: 'Wyślij' }).click();
   await expect(log.getByText('Zaczynam generować 3 zadania.')).toBeVisible();
