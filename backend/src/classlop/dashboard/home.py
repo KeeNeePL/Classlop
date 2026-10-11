@@ -181,20 +181,21 @@ async def calendar_questions(t: TheTeams) -> list[Entry]:
     names = {c.id: c.name for c in await t.list_classes()}
     entries = []
     for q in await t.list_calendar_questions():
-        choices = [Choice(answer=c, label=names[c]) for c in q.candidates if c in names] or [
-            Choice(answer="keep", label="Zostaw w kalendarzu"),
-            Choice(answer="hide", label="Ukryj"),
-        ]
+        which = [Choice(answer=c, label=names[c]) for c in q.candidates if c in names]
         entries.append(
             Entry(
                 kind="calendar_question",
                 title="Do której klasy należy to spotkanie?"
-                if q.candidates
+                if which
                 else "Co zrobić z tym spotkaniem?",
                 detail=f"«{q.subject}», {q.start.astimezone(WARSAW):%d.%m %H:%M}",
                 at=q.start,
                 question_id=q.id,
-                choices=choices,
+                choices=which
+                or [
+                    Choice(answer="keep", label="Zostaw w kalendarzu"),
+                    Choice(answer="hide", label="Ukryj"),
+                ],
             )
         )
     return entries

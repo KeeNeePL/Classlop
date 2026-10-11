@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from classlop import teams
 from classlop.dashboard.actions import carry_out, refusing
@@ -60,6 +60,12 @@ class NewLesson(BaseModel):
     start: datetime
     end: datetime
     topic: Name
+
+    @model_validator(mode="after")
+    def ends_after_it_starts(self) -> "NewLesson":
+        if self.end <= self.start:
+            raise ValueError("a Lesson ends after it starts")
+        return self
 
 
 class Topic(BaseModel):

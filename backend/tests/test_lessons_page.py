@@ -66,6 +66,7 @@ def test_a_single_lesson_needs_a_topic_and_is_listed_with_it(web):
     class_id = linked_class(web)
 
     assert add_lesson(web, class_id, "  ").status_code == 422
+    assert add_lesson(web, class_id, "Funkcje liniowe", at(0, 1), at(-5, 1)).status_code == 422
     assert add_lesson(web, class_id, "Funkcje liniowe", at(0, 1)).status_code == 204
 
     [lesson] = web.get(f"/api/classes/{class_id}/lessons").json()["lessons"]

@@ -50,68 +50,72 @@
         Odśwież frekwencję
       </button>
     </div>
-    @if (l.fetched_at) {
-      <p class="muted">Pobrano z Teams: {{ at(l.fetched_at) }}</p>
+    @if (l.cancelled) {
+      <p class="muted">Lekcja odwołana, więc nie ma frekwencji.</p>
     } @else {
-      <p class="muted">Frekwencja jeszcze nie została pobrana z Teams.</p>
-    }
-    <table aria-label="Frekwencja">
-      <thead>
-        <tr>
-          <th>Uczeń</th>
-          <th>Stan</th>
-          <th class="num">Minuty</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (s of l.students; track s.id) {
+      @if (l.fetched_at) {
+        <p class="muted">Pobrano z Teams: {{ at(l.fetched_at) }}</p>
+      } @else {
+        <p class="muted">Frekwencja jeszcze nie została pobrana z Teams.</p>
+      }
+      <table aria-label="Frekwencja">
+        <thead>
           <tr>
-            <td>
-              {{ s.name }}
-              @if (s.former) {
-                <cl-badge>były uczeń</cl-badge>
-              }
-            </td>
-            <td>
-              <select
-                [attr.aria-label]="'Frekwencja: ' + s.name"
-                [disabled]="busy() || l.read_only"
-                [ngModel]="s.state"
-                (ngModelChange)="override(s, $event)"
-              >
-                @if (!s.state) {
-                  <option [ngValue]="null">&mdash;</option>
-                }
-                @for (o of states; track o.value) {
-                  <option [ngValue]="o.value">{{ o.label }}</option>
-                }
-              </select>
-              @if (s.overridden) {
-                <cl-badge tone="warn">zmienione</cl-badge>
-              }
-            </td>
-            <td class="num">{{ s.minutes }}</td>
-            <td>
-              @if (s.overridden) {
-                <button
-                  type="button"
-                  class="btn ghost"
-                  [disabled]="busy() || l.read_only"
-                  [attr.aria-label]="'Cofnij zmianę: ' + s.name"
-                  (click)="override(s, null)"
-                >
-                  Cofnij
-                </button>
-              }
-            </td>
+            <th>Uczeń</th>
+            <th>Stan</th>
+            <th class="num">Minuty</th>
+            <th></th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (s of l.students; track s.id) {
+            <tr>
+              <td>
+                {{ s.name }}
+                @if (s.former) {
+                  <cl-badge>były uczeń</cl-badge>
+                }
+              </td>
+              <td>
+                <select
+                  [attr.aria-label]="'Frekwencja: ' + s.name"
+                  [disabled]="busy() || l.read_only"
+                  [ngModel]="s.state"
+                  (ngModelChange)="override(s, $event)"
+                >
+                  @if (!s.state) {
+                    <option [ngValue]="null">&mdash;</option>
+                  }
+                  @for (o of states; track o.value) {
+                    <option [ngValue]="o.value">{{ o.label }}</option>
+                  }
+                </select>
+                @if (s.overridden) {
+                  <cl-badge tone="warn">zmienione</cl-badge>
+                }
+              </td>
+              <td class="num">{{ s.minutes }}</td>
+              <td>
+                @if (s.overridden) {
+                  <button
+                    type="button"
+                    class="btn ghost"
+                    [disabled]="busy() || l.read_only"
+                    [attr.aria-label]="'Cofnij zmianę: ' + s.name"
+                    (click)="override(s, null)"
+                  >
+                    Cofnij
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
   </cl-panel>
 
-  @if (l.unmatched.length) {
+  @if (l.unmatched.length && !l.cancelled) {
     <cl-panel>
       <h3>Niepołączeni uczestnicy</h3>
       <p class="muted">

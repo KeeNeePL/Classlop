@@ -68,12 +68,12 @@ def create() -> FastAPI:
         Piotr never, and a guest called Piotrek W. joins unlinked."""
         fake: FakeTeams = app.state.teams
         users = {s.display_name: s.user_id for s in await fake.list_students(class_id)}
+        who = [
+            (users["Jan Kowalski"], "Jan Kowalski", 1),
+            (users["Ewa Zielinska"], "Ewa Zielinska", 9),
+            (None, "Piotrek W.", 2),
+        ]
         for lesson in await fake.list_lessons(class_id):
-            who = [
-                (users["Jan Kowalski"], "Jan Kowalski", 1),
-                (users["Ewa Zielinska"], "Ewa Zielinska", 9),
-                (None, "Piotrek W.", 2),
-            ]
             fake.attend(
                 lesson.join_url,
                 [(u, n, lesson.start + timedelta(minutes=m), lesson.end) for u, n, m in who],
