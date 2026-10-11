@@ -1,0 +1,308 @@
+@if (detail.error()) {
+  <cl-panel><p class="muted">Nie ma takiego zadania.</p></cl-panel>
+} @else if (detail.value(); as d) {
+  @let v = d.item.version;
+  <cl-panel>
+    <div class="top">
+      <div class="tags">
+        <cl-badge>{{ difficulty[v.difficulty] }}</cl-badge>
+        <cl-badge>{{ v.points }} pkt</cl-badge>
+        @if (d.item.retired) {
+          <cl-badge tone="danger">usunięte</cl-badge>
+        }
+        <span class="muted">wersja {{ v.number }}</span>
+      </div>
+      <div class="actions">
+        @if (!draft()) {
+          <button type="button" class="btn ghost" [disabled]="busy()" (click)="edit(d)">
+            Edytuj
+          </button>
+        }
+        @if (d.item.retired) {
+          <button type="button" class="btn ghost" [disabled]="busy()" (click)="restore(d)">
+            Przywróć
+          </button>
+        } @else {
+          @if (confirming()) {
+            <span class="ask">Usunąć to zadanie?</span>
+            <button type="button" class="btn danger" [disabled]="busy()" (click)="remove(d)">
+              Tak, usuń
+            </button>
+            <button type="button" class="btn ghost" (click)="confirming.set(false)">Anuluj</button>
+          } @else {
+            <button
+              type="button"
+              class="btn ghost"
+              [disabled]="busy()"
+              (click)="confirming.set(true)"
+            >
+              Usuń zadanie
+            </button>
+          }
+        }
+      </div>
+    </div>
+
+    @if (offer()) {
+      <div class="note offer" role="status">
+        <div>
+          <b>Zadanie zmieniono.</b> Rozwiązanie wzorcowe mogło przestać do niego pasować. AI może
+          napisać je od nowa.
+        </div>
+        <button
+          type="button"
+          class="btn"
+          disabled
+          title="Jeszcze niedostępne: tu nic się nie zmieni"
+        >
+          Napisz od nowa
+        </button>
+        <button type="button" class="btn ghost" (click)="offer.set(false)">Nie teraz</button>
+      </div>
+    }
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    @if (draft(); as f) {
+      <div class="edit">
+        <label class="wide">
+          Treść
+          <textarea rows="4" [(ngModel)]="f.text"></textarea>
+        </label>
+        <cl-math class="preview" [text]="f.text" />
+
+        <div class="row">
+          <label>
+            Punkty
+            <input type="number" min="0" [(ngModel)]="f.points" />
+          </label>
+          <label>
+            Trudność
+            <select [(ngModel)]="f.difficulty">
+              @for (level of levels; track level) {
+                <option [value]="level">{{ difficulty[level] }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>Jakie umiejętności sprawdza zadanie</legend>
+          <p class="muted hint">
+            To wymagania ogólne z podstawy programowej. Najedź na nazwę, żeby zobaczyć opis.
+          </p>
+          @for (s of skills(); track s.id) {
+            <label class="check" [title]="s.description">
+              <input
+                type="checkbox"
+                [checked]="has(f.general, s.id)"
+                (change)="toggle(f.general, s.id, $any($event.target).checked)"
+              />
+              {{ s.name }}
+            </label>
+          }
+        </fieldset>
+
+        <fieldset class="topics">
+          <legend>Tematy</legend>
+          @for (id of f.topics; track id) {
+            <div class="picked">
+              <cl-math [text]="topicName(id)" />
+              <button
+                type="button"
+                class="btn ghost"
+                [attr.aria-label]="'Usuń temat: ' + topicName(id)"
+                (click)="toggle(f.topics, id, false)"
+              >
+                Usuń
+              </button>
+            </div>
+          }
+          <button type="button" class="btn ghost choose" (click)="picker.open()">
+            Wybierz tematy
+          </button>
+          <cl-topic-picker
+            #picker
+            [sections]="sections()"
+            [picked]="f.topics"
+            (pickedChange)="f.topics = $event"
+          />
+        </fieldset>
+
+        @if (v.item_format === 'closed') {
+          <fieldset>
+            <legend>Odpowiedzi</legend>
+            @for (o of f.options; track o.key) {
+              <div class="option">
+                <b>{{ o.key }}</b>
+                <input class="grow" [(ngModel)]="o.text" [attr.aria-label]="'Odpowiedź ' + o.key" />
+                <label class="check">
+                  <input
+                    type="checkbox"
+                    [checked]="has(f.correct, o.key)"
+                    (change)="toggle(f.correct, o.key, $any($event.target).checked)"
+                  />
+                  poprawna
+                </label>
+              </div>
+            }
+          </fieldset>
+        } @else {
+          <label class="wide">
+            Odpowiedź
+            <input [(ngModel)]="f.answer" />
+          </label>
+          <label class="wide">
+            Rozwiązanie wzorcowe
+            <textarea rows="5" [(ngModel)]="f.solution"></textarea>
+          </label>
+          <fieldset>
+            <legend>Kryteria oceniania</legend>
+            @for (level of f.rubric; track $index) {
+              <div class="option">
+                <input
+                  class="points"
+                  type="number"
+                  min="0"
+                  [(ngModel)]="level.points"
+                  [attr.aria-label]="'Punkty poziomu ' + ($index + 1)"
+                />
+                <input
+                  class="grow"
+                  [(ngModel)]="level.description"
+                  [attr.aria-label]="'Opis poziomu ' + ($index + 1)"
+                />
+                <button
+                  type="button"
+                  class="btn ghost"
+                  (click)="f.rubric.splice($index, 1)"
+                  [attr.aria-label]="'Usuń poziom ' + ($index + 1)"
+                >
+                  Usuń
+                </button>
+              </div>
+            }
+            <button type="button" class="btn ghost" (click)="addLevel(f)">Dodaj poziom</button>
+          </fieldset>
+        }
+
+        <div class="buttons">
+          <button type="button" class="btn" [disabled]="busy()" (click)="save(d)">Zapisz</button>
+          <button type="button" class="btn ghost" (click)="cancel()">Anuluj</button>
+        </div>
+      </div>
+    } @else {
+      <p class="statement"><cl-math [text]="v.text" /></p>
+
+      @if (v.item_format === 'closed') {
+        <ul class="options">
+          @for (o of options(v); track o[0]) {
+            <li [class.correct]="v.correct_options?.includes(o[0])">
+              <b>{{ o[0] }}.</b>
+              <cl-math [text]="o[1]" />
+              @if (v.correct_options?.includes(o[0])) {
+                <cl-badge tone="ok">poprawna</cl-badge>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <h2>Odpowiedź</h2>
+        <p><cl-math [text]="v.answer ?? ''" /></p>
+        <h2>Rozwiązanie wzorcowe</h2>
+        <p><cl-math [text]="v.model_solution ?? ''" /></p>
+        <h2>Kryteria oceniania</h2>
+        <table class="rubric">
+          <thead>
+            <tr>
+              <th>Punkty</th>
+              <th>Co trzeba pokazać</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (level of v.rubric; track level.points) {
+              <tr>
+                <td>
+                  <span class="pts">{{ level.points }}</span>
+                </td>
+                <td><cl-math [text]="level.description" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      <h2>Tagi</h2>
+      <dl class="tagged">
+        <dt>Umiejętności</dt>
+        <dd>
+          <ul>
+            @for (id of v.general_requirements; track id) {
+              <li>{{ skillName(id) }}</li>
+            }
+          </ul>
+        </dd>
+        <dt>Tematy</dt>
+        <dd>
+          <ul>
+            @for (t of v.curriculum_topics; track t.id) {
+              <li><cl-math [text]="t.name" /></li>
+            }
+          </ul>
+        </dd>
+      </dl>
+    }
+  </cl-panel>
+
+  <cl-panel class="usage">
+    <h2>Historia użycia</h2>
+    @if (d.usage.length) {
+      <table>
+        <thead>
+          <tr>
+            <th>Praca</th>
+            <th>Klasa</th>
+            <th>Zadano</th>
+            <th>Średni wynik</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of d.usage; track $index) {
+            <tr>
+              <td>
+                @if (u.title) {
+                  <a [routerLink]="['/klasy', u.class_id, 'prace', u.assignment_id]">{{
+                    u.title
+                  }}</a>
+                } @else {
+                  <span class="muted">praca usunięta</span>
+                }
+              </td>
+              <td>
+                @if (u.class_name) {
+                  <a [routerLink]="['/klasy', u.class_id]">{{ u.class_name }}</a>
+                } @else {
+                  <span class="muted">klasa usunięta</span>
+                }
+              </td>
+              <td>{{ date(u.given_at) }}</td>
+              <td>
+                @if (u.average === null) {
+                  <span class="muted">brak danych</span>
+                } @else {
+                  <cl-percent [value]="percent(u.average)" />
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="muted">To zadanie nie zostało jeszcze zadane żadnej klasie.</p>
+    }
+  </cl-panel>
+} @else {
+  <p class="muted">Wczytuję…</p>
+}

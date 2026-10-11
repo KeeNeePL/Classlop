@@ -14,8 +14,17 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', component: DoZrobienia },
   empty('ai', 'Classlop AI'),
   empty('ai/:czat', 'Classlop AI'),
-  empty('bank', 'Bank zadań'),
-  empty('bank/:zadanie', 'Bank zadań'),
+  {
+    path: 'bank',
+    loadComponent: () => import('./pages/bank').then((m) => m.Bank),
+    children: [
+      { path: '', loadComponent: () => import('./pages/bank').then((m) => m.BankEmpty) },
+      {
+        path: ':zadanie',
+        loadComponent: () => import('./pages/bank-item').then((m) => m.BankItem),
+      },
+    ],
+  },
   empty('klasy/nowa', 'Nowa klasa'),
   {
     path: 'klasy/:klasa',
