@@ -231,10 +231,10 @@ async def _revise(state: State, config: RunnableConfig) -> dict:
         Draft,
         [SystemMessage(REVISE), HumanMessage(json.dumps(brief, ensure_ascii=False))],
     )
-    tags = await tagging.default_tagger().tag("\n".join([draft.text, *draft.options.values()]))
+    tags = await tagging.default_tagger().tag(draft.shown())
     try:
         content = ItemContent.model_validate(
-            draft.model_dump()
+            draft.fields()
             | {
                 f: getattr(tags, f)
                 for f in ("difficulty", "curriculum_topics", "general_requirements")
