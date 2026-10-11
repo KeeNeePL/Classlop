@@ -95,15 +95,19 @@ def cancelled(web, class_id) -> list[date]:
     ]
 
 
+def cancel_break(web, class_id, first, last):
+    return web.post(
+        f"/api/classes/{class_id}/breaks",
+        json={"first": first.isoformat(), "last": last.isoformat()},
+    )
+
+
 def test_a_break_cancels_every_lesson_in_its_dates(web):
     class_id = make_class(web)
     enter(web, class_id, [MONDAY_8, THURSDAY_10])
     first, last = today() + timedelta(days=7), today() + timedelta(days=13)
 
-    response = web.post(
-        f"/api/classes/{class_id}/breaks",
-        json={"first": first.isoformat(), "last": last.isoformat()},
-    )
+    response = cancel_break(web, class_id, first, last)
 
     assert response.status_code == 204
     days = cancelled(web, class_id)
@@ -117,10 +121,7 @@ def test_a_break_ends_on_or_after_its_first_day(web):
     enter(web, class_id, [MONDAY_8])
     first, last = today() + timedelta(days=7), today() + timedelta(days=6)
 
-    response = web.post(
-        f"/api/classes/{class_id}/breaks",
-        json={"first": first.isoformat(), "last": last.isoformat()},
-    )
+    response = cancel_break(web, class_id, first, last)
 
     assert response.status_code == 422
     assert cancelled(web, class_id) == []
@@ -157,4 +158,16 @@ def test_a_slot_change_needs_a_current_slot_and_a_date_after_its_first_lesson(we
         == 404
     )
     assert change(web, class_id, MONDAY_8, THURSDAY_10, today()).status_code == 409
+    assert timetable(web, class_id)["slots"] == [MONDAY_8]
+
+
+def test_a_break_or_a_slot_change_starts_today_at_the_earliest(web):
+    """Past Lessons keep what they had: the screen previews only Lessons from today on."""
+    class_id = make_class(web)
+    enter(web, class_id, [MONDAY_8])
+    yesterday = today() - timedelta(days=1)
+
+    assert cancel_break(web, class_id, yesterday, today() + timedelta(days=7)).status_code == 422
+    assert change(web, class_id, MONDAY_8, THURSDAY_10, yesterday).status_code == 422
+    assert cancelled(web, class_id) == []
     assert timetable(web, class_id)["slots"] == [MONDAY_8]

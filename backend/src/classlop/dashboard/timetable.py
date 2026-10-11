@@ -3,22 +3,28 @@ mid-year slot changes. `teams` writes each change to Teams; the upcoming Lessons
 show which ones a change will affect before the Teacher confirms."""
 
 from datetime import date, datetime, time
-from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field, model_validator
 
 from classlop import teams
-from classlop.dashboard import auth, classes
 from classlop.dashboard.actions import carry_out, refusing
+from classlop.dashboard.classes import Teacher, TheTeams
 
 router = APIRouter()
 
 WARSAW = ZoneInfo("Europe/Warsaw")
 
-TheTeams = Annotated[teams.Teams, Depends(classes.backend)]
-Teacher = Annotated[auth.Me, Depends(auth.teacher)]
+
+def today() -> date:
+    return datetime.now(WARSAW).date()
+
+
+def from_today(day: date) -> None:
+    """Past Lessons keep their state: a change the screen could not preview is refused."""
+    if day < today():
+        raise HTTPException(422, "a change starts today at the earliest")
 
 
 class UpcomingLesson(BaseModel):
@@ -60,7 +66,6 @@ class NewTimetable(BaseModel):
 
 @router.get("/api/classes/{class_id}/timetable")
 async def timetable(class_id: str, _: Teacher, t: TheTeams) -> Timetable:
-    today = datetime.now(WARSAW).date()
     with refusing():
         klass = await t.get_class(class_id)
         slots = await t.list_slots(class_id)
@@ -71,7 +76,7 @@ async def timetable(class_id: str, _: Teacher, t: TheTeams) -> Timetable:
         lessons=[
             UpcomingLesson(**x.model_dump())
             for x in sorted(lessons, key=lambda x: x.start)
-            if x.start.astimezone(WARSAW).date() >= today
+            if x.start.astimezone(WARSAW).date() >= today()
         ],
     )
 
@@ -102,11 +107,13 @@ class SlotChange(BaseModel):
 
 @router.post("/api/classes/{class_id}/breaks", status_code=204)
 async def cancel_break(class_id: str, body: Break, _: Teacher, t: TheTeams) -> Response:
+    from_today(body.first)
     return await carry_out(t.cancel_lessons(class_id, body.first, body.last))
 
 
 @router.post("/api/classes/{class_id}/timetable/change", status_code=204)
 async def change_slot(class_id: str, body: SlotChange, _: Teacher, t: TheTeams) -> Response:
+    from_today(body.from_date)
     return await carry_out(
         t.change_slot(class_id, body.old.slot(), body.new.slot(), body.from_date)
     )

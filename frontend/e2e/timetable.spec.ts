@@ -49,6 +49,9 @@ test('the Teacher enters a Timetable with an added slot, then a break', async ({
   await expect(
     page.getByRole('list', { name: 'Lekcje do zastąpienia' }).getByRole('listitem'),
   ).toHaveCount(2);
+  await expect(page.getByRole('status')).toContainText(
+    'Lekcje nowego slotu do końca roku szkolnego: 2',
+  );
   await page.getByRole('button', { name: 'Zmień slot' }).click();
   await expect(slots.getByRole('listitem')).toHaveText([
     'wtorek 08:00–08:45',

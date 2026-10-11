@@ -86,6 +86,7 @@
             <input
               type="date"
               name="breakFirst"
+              [min]="today"
               aria-label="Przerwa od"
               [ngModel]="breakFirst()"
               (ngModelChange)="breakFirst.set($event)"
@@ -96,6 +97,7 @@
             <input
               type="date"
               name="breakLast"
+              [min]="today"
               aria-label="Przerwa do"
               [ngModel]="breakLast()"
               (ngModelChange)="breakLast.set($event)"
@@ -108,7 +110,7 @@
         @if (breakFirst()) {
           <ul class="affected" aria-label="Lekcje do odwołania">
             @for (l of inBreak(); track l.id) {
-              <li>{{ warsaw(l.start) }}{{ l.topic ? ' · ' + l.topic : '' }}</li>
+              <li>{{ lessonLabel(l) }}</li>
             } @empty {
               <li class="muted">W tych dniach nie ma lekcji.</li>
             }
@@ -118,14 +120,15 @@
         <h3>Zmiana slotu</h3>
         <p class="muted">
           Od wybranego dnia stary slot się kończy, a jego dalsze lekcje zastępuje nowy. Wcześniejsze
-          lekcje zostają z tematami i frekwencją. Zmienić można od dnia po pierwszej lekcji slotu.
+          lekcje zostają z tematami i frekwencją. Zmienić można od dnia po pierwszej lekcji slotu, i
+          najwcześniej od dziś.
         </p>
         <form class="row wrap" (ngSubmit)="changeSlot()">
           <select
             aria-label="Slot do zmiany"
             name="oldSlot"
-            [ngModel]="oldSlot()"
-            (ngModelChange)="oldSlot.set($event)"
+            [ngModel]="oldIndex()"
+            (ngModelChange)="oldIndex.set($event)"
           >
             <option [ngValue]="null" disabled>Wybierz slot</option>
             @for (s of t.slots; track $index; let i = $index) {
@@ -136,7 +139,7 @@
             aria-label="Nowy dzień"
             name="newWeekday"
             [ngModel]="newSlot().weekday"
-            (ngModelChange)="newSlot.set({ ...newSlot(), weekday: $event })"
+            (ngModelChange)="setNewSlot({ weekday: $event })"
           >
             @for (d of weekdays; track $index; let w = $index) {
               <option [ngValue]="w">{{ d }}</option>
@@ -147,20 +150,21 @@
             aria-label="Nowy początek"
             name="newStart"
             [ngModel]="newSlot().start"
-            (ngModelChange)="newSlot.set({ ...newSlot(), start: $event })"
+            (ngModelChange)="setNewSlot({ start: $event })"
           />
           <input
             type="time"
             aria-label="Nowy koniec"
             name="newEnd"
             [ngModel]="newSlot().end"
-            (ngModelChange)="newSlot.set({ ...newSlot(), end: $event })"
+            (ngModelChange)="setNewSlot({ end: $event })"
           />
           <label class="field">
             od
             <input
               type="date"
               name="changeFrom"
+              [min]="today"
               aria-label="Zmiana od"
               [ngModel]="changeFrom()"
               (ngModelChange)="changeFrom.set($event)"
@@ -168,14 +172,22 @@
           </label>
           <button type="submit" class="btn" [disabled]="busy() || !canChange()">Zmień slot</button>
         </form>
-        @if (oldSlot() !== null && changeFrom()) {
+        @if (oldIndex() !== null && changeFrom()) {
           <ul class="affected" aria-label="Lekcje do zastąpienia">
             @for (l of replaced(); track l.id) {
-              <li>{{ warsaw(l.start) }}{{ l.topic ? ' · ' + l.topic : '' }}</li>
+              <li>{{ lessonLabel(l) }}</li>
             } @empty {
               <li class="muted">Od tego dnia ten slot nie ma już lekcji.</li>
             }
           </ul>
+          <p class="added" role="status">
+            @if (added().length) {
+              Lekcje nowego slotu do końca roku szkolnego: {{ added().length }}, pierwsza
+              {{ added()[0] }}.
+            } @else {
+              Nowy slot nie da żadnej lekcji przed końcem roku szkolnego.
+            }
+          </p>
         }
       }
     }
