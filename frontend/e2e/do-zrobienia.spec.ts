@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
 
+// The server shares its invented job between tests; one that finishes it puts it back.
+test.afterEach(({ request }) => request.post('/api/e2e/reset'));
+
 test('Do zrobienia opens with the sidebar and its queue', async ({ page }) => {
   await page.goto('/');
 
@@ -26,6 +29,24 @@ test('Do zrobienia opens with the sidebar and its queue', async ({ page }) => {
   }
   await expect(sidebar.getByRole('link', { name: '+ Nowa klasa' })).toBeVisible();
   await expect(sidebar.getByRole('link', { name: 'Ustawienia' })).toBeVisible();
+});
+
+test('a job finishing in the worker changes Do zrobienia without a reload', async ({
+  page,
+  request,
+}) => {
+  const queue = page.getByRole('list', { name: 'Do zrobienia' }).getByRole('listitem');
+  const sidebar = page.getByRole('navigation');
+  const stream = page.waitForResponse('**/api/events');
+  await page.goto('/');
+  await expect(queue).toHaveCount(8);
+  await stream;
+
+  await request.post('/api/e2e/grade');
+
+  await expect(queue).toHaveCount(9);
+  await expect(queue.locator('.title').last()).toHaveText('Ocenione przez AI: Pierwiastki (1A)');
+  await expect(sidebar.getByRole('link', { name: /^Do zrobienia\s*9$/ })).toBeVisible();
 });
 
 const routes = [
