@@ -1,16 +1,20 @@
 import asyncio
 import logging
 import secrets
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+from classlop import items
 from classlop.dashboard import (
     assignment,
     auth,
     bank,
+    chats,
     classes,
     events,
     home,
@@ -30,7 +34,12 @@ FRONTEND = Path(__file__).resolve().parents[3] / "frontend"
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Classlop")
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        await items.close_chats()
+
+    app = FastAPI(title="Classlop", lifespan=lifespan)
     key = get_settings().session_key
     app.add_middleware(
         SessionMiddleware,
@@ -42,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(home.router)
     app.include_router(bank.router)
+    app.include_router(chats.router)
     app.include_router(classes.router)
     app.include_router(overview.router)
     app.include_router(assignment.router)
