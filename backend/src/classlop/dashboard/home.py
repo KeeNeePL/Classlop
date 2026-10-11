@@ -6,7 +6,7 @@ from typing import Annotated, Literal, get_args
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from classlop.dashboard import auth
+from classlop.dashboard import auth, bank
 
 router = APIRouter()
 
@@ -121,11 +121,12 @@ def invented(now: datetime) -> Home:
             ClassLink(id="2c", name="2C", graded=1),
             ClassLink(id="3b", name="3B", graded=1),
         ],
-        flagged_items=4,
+        flagged_items=0,
         sidebar_invented=True,
     )
 
 
 @router.get("/api/home")
-async def home(_: Annotated[auth.Me, Depends(auth.teacher)]) -> Home:
-    return invented(datetime.now(UTC))
+async def home(_: Annotated[auth.Me, Depends(auth.teacher)], items: bank.TheBank) -> Home:
+    view = invented(datetime.now(UTC))
+    return view.model_copy(update={"flagged_items": await bank.flagged_count(items)})

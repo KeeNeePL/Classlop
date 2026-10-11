@@ -1,6 +1,7 @@
 """`teams` enqueues `grading.grade` and `grading.common_mistakes`; `teams` and `dashboard` read
-`result` and `common_mistakes`; `dashboard` calls the Teacher's actions."""
+`result`, `common_mistakes` and `item_averages`; `dashboard` calls the Teacher's actions."""
 
+from classlop.grading.averages import item_averages
 from classlop.grading.common_mistakes import (
     ItemMistakes,
     Mistake,
@@ -32,6 +33,7 @@ __all__ = [
     "gather_common_mistakes",
     "grade",
     "grade_again",
+    "item_averages",
     "override",
     "request_common_mistakes",
     "result",

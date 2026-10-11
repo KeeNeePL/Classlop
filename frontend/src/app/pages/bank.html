@@ -1,0 +1,164 @@
+<header>
+  <h1>Bank zadań</h1>
+</header>
+
+<div class="bank">
+  <section class="list" aria-label="Szukaj w banku">
+    <input
+      type="search"
+      class="search"
+      placeholder="Szukaj zadań"
+      aria-label="Szukaj zadań"
+      [value]="criteria().q"
+      (input)="type($any($event.target).value)"
+    />
+
+    <div class="filters">
+      <div class="levels" role="group" aria-label="Trudność">
+        @for (level of levels; track level) {
+          <button
+            type="button"
+            class="chip"
+            [class.on]="criteria().difficulty.includes(level)"
+            [attr.aria-pressed]="criteria().difficulty.includes(level)"
+            (click)="toggleLevel(level)"
+          >
+            {{ difficulty[level] }}
+          </button>
+        }
+      </div>
+      <label>
+        Rodzaj
+        <select (change)="setFormat($event)" [value]="criteria().format ?? ''">
+          <option value="">wszystkie</option>
+          <option value="closed">zamknięte</option>
+          <option value="open">otwarte</option>
+        </select>
+      </label>
+      @if (store.filters(); as f) {
+        <label>
+          Nie zadane klasie
+          <select (change)="setNeverUsedWith($event)" [value]="criteria().neverUsedWith ?? ''">
+            <option value="">dowolnej</option>
+            @for (c of f.classes; track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="criteria().flagged"
+          (change)="store.change({ flagged: $any($event.target).checked })"
+        />
+        Tylko do sprawdzenia
+      </label>
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="criteria().showRetired"
+          (change)="store.change({ showRetired: $any($event.target).checked })"
+        />
+        Pokaż wycofane
+      </label>
+    </div>
+
+    <details class="topics">
+      <summary>
+        Tematy z podstawy programowej
+        @if (criteria().section || criteria().topic) {
+          <cl-badge tone="warn">filtr</cl-badge>
+        }
+      </summary>
+      <button
+        type="button"
+        class="all"
+        [class.on]="!criteria().section && !criteria().topic"
+        (click)="store.change({ section: null, topic: null })"
+      >
+        Wszystkie działy
+      </button>
+      @for (s of store.filters()?.sections ?? []; track s.id) {
+        <button
+          type="button"
+          class="section"
+          [class.on]="criteria().section === s.id"
+          (click)="store.change({ section: s.id, topic: null })"
+        >
+          {{ s.name }}
+        </button>
+        @for (t of s.topics; track t.id) {
+          <button
+            type="button"
+            class="topic"
+            [class.on]="criteria().topic === t.id"
+            (click)="store.change({ topic: t.id, section: null })"
+          >
+            <cl-math [text]="t.name" />
+          </button>
+        }
+      }
+    </details>
+
+    @if (store.results(); as page) {
+      <p class="muted count" aria-live="polite">
+        @if (page.total === 0) {
+          Nic nie znaleziono.
+        } @else {
+          Znaleziono: {{ page.total }}
+        }
+      </p>
+      <ol aria-label="Zadania">
+        @for (item of page.items; track item.id) {
+          <li>
+            <a
+              class="card"
+              [routerLink]="['/bank', item.id]"
+              routerLinkActive="on"
+              [class.retired]="item.retired"
+            >
+              <span class="text"><cl-math [text]="item.version.text" /></span>
+              <span class="tags">
+                <cl-badge>{{ format[item.version.item_format] }}</cl-badge>
+                <cl-badge>{{ difficulty[item.version.difficulty] }}</cl-badge>
+                <cl-badge>{{ item.version.points }} pkt</cl-badge>
+                @if (item.flagged) {
+                  <cl-badge tone="warn">do sprawdzenia</cl-badge>
+                }
+                @if (item.retired) {
+                  <cl-badge tone="danger">wycofane</cl-badge>
+                }
+              </span>
+            </a>
+          </li>
+        }
+      </ol>
+      @if (pages() > 1) {
+        <nav class="pager" aria-label="Strony">
+          <button
+            type="button"
+            class="btn ghost"
+            [disabled]="criteria().page <= 1"
+            (click)="store.change({ page: criteria().page - 1 })"
+          >
+            Poprzednia
+          </button>
+          <span class="muted">Strona {{ criteria().page }} z {{ pages() }}</span>
+          <button
+            type="button"
+            class="btn ghost"
+            [disabled]="criteria().page >= pages()"
+            (click)="store.change({ page: criteria().page + 1 })"
+          >
+            Następna
+          </button>
+        </nav>
+      }
+    }
+  </section>
+
+  <section class="detail">
+    <router-outlet />
+  </section>
+</div>

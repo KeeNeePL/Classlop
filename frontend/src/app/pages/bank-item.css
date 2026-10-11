@@ -1,0 +1,203 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+h2 {
+  font-size: 15px;
+  margin: 16px 0 6px;
+}
+
+.usage h2 {
+  margin-top: 0;
+}
+
+p {
+  margin: 0;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.tags,
+.actions,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.note > div {
+  flex: 1;
+}
+
+.flag {
+  background: var(--marker);
+}
+
+.offer {
+  background: var(--grid);
+  border: 1px solid var(--line);
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.statement {
+  font-size: 17px;
+}
+
+.options {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.options .correct {
+  font-weight: 600;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+th,
+td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--grid);
+  vertical-align: top;
+}
+
+.rubric td:first-child {
+  width: 70px;
+}
+
+.tagged {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.tagged dt {
+  color: var(--muted);
+}
+
+.tagged dd {
+  margin: 0;
+}
+
+.tagged ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.edit {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.edit label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.edit .check {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.edit input:not([type='checkbox']),
+.edit textarea,
+.edit select {
+  font: inherit;
+  font-weight: 400;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.preview {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+legend {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 4px;
+}
+
+.topics {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.topics .section {
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.points {
+  width: 70px;
+}
