@@ -48,21 +48,23 @@ def _node(node: Tag | NavigableString | BeautifulSoup) -> str:
         return "".join(OPERATORS.get(ch, ch) for ch in node.strip() if ch not in INVISIBLE)
     name = node.name
     args = _args(node) if isinstance(node, Tag) else []
+    # ZPE's editor sometimes drops a script or a denominator; it stays empty.
+    arg = [*args, "", "", ""]
     match name:
         case "mfrac":
-            return rf"\frac{{{args[0]}}}{{{args[1]}}}"
+            return rf"\frac{{{arg[0]}}}{{{arg[1]}}}"
         case "msup":
-            return f"{_group(args[0])}^{{{args[1]}}}"
+            return f"{_group(arg[0])}^{{{arg[1]}}}"
         case "msub":
-            return f"{_group(args[0])}_{{{args[1]}}}"
+            return f"{_group(arg[0])}_{{{arg[1]}}}"
         case "msubsup":
-            return f"{_group(args[0])}_{{{args[1]}}}^{{{args[2]}}}"
+            return f"{_group(arg[0])}_{{{arg[1]}}}^{{{arg[2]}}}"
         case "msqrt":
             return rf"\sqrt{{{''.join(args)}}}"
         case "mroot":
-            return rf"\sqrt[{args[1]}]{{{args[0]}}}"
+            return rf"\sqrt[{arg[1]}]{{{arg[0]}}}"
         case "mover":
-            return rf"\overline{{{args[0]}}}" if args[1] in ("¯", "‾", "-") else args[0]
+            return rf"\overline{{{arg[0]}}}" if arg[1] in ("¯", "‾", "-") else arg[0]
         case "mfenced":
             opening, closing = node.get("open", "("), node.get("close", ")")
             return f"{opening}{(node.get('separators') or ',')[0].join(args)}{closing}"
