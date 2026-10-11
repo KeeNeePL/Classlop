@@ -110,9 +110,45 @@ _Avoid_: Test, sprawdzian (as a distinct entity)
 Said of an assignment once Teams has accepted its publication, now or at a scheduled time; from then on its items are frozen.
 _Avoid_: Sent, assigned, published (Teams' own term)
 
+**Draft**:
+The state of an assignment not yet given.
+_Avoid_: Unsent, unpublished
+
+**Scheduled**:
+The state of a given assignment that will appear in Teams at a time the teacher set.
+_Avoid_: Planned, queued
+
+**Open**:
+The state of a given assignment that students can hand in to.
+_Avoid_: Active, live, published
+
+**Closed**:
+The state of an assignment past its close time; it takes no more hand-ins.
+_Avoid_: Finished, ended, graded (that is a submission state)
+
 **Submission**:
-One student's completed work on one assignment, handed in through Teams or scanned from paper.
-_Avoid_: Answer, hand-in, attempt
+One student's part in one assignment, from the moment it reaches them; it holds their newest hand-in, if any.
+_Avoid_: Answer, attempt
+
+**Hand-in**:
+One set of files a student has handed in for a submission; a newer hand-in replaces the earlier one and is graded afresh.
+_Avoid_: Upload, resubmission, attempt
+
+**Not handed in**:
+The state of a submission with no hand-in yet.
+_Avoid_: Pending, unsubmitted
+
+**Handed in**:
+The state of a submission whose newest hand-in is not yet graded.
+_Avoid_: Submitted, turned in (Teams' own term)
+
+**Graded**:
+The state of a submission whose newest hand-in the AI has graded, not yet returned to the student.
+_Avoid_: Marked, checked
+
+**Returned**:
+The state of a submission whose feedback has gone back to the student; it takes no more hand-ins.
+_Avoid_: Sent back, released
 
 **Reminder**:
 A post to the whole class a day before an assignment's due time, saying how many students have not handed it in yet, never who.
