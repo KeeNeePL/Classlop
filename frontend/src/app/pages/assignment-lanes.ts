@@ -1,4 +1,5 @@
 import { Component, computed, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AssignmentRow } from '../api/models';
 import { shortDate, warsaw } from '../time';
 
@@ -19,9 +20,11 @@ export const STATUS: Record<Status, string> = {
 const DAY = 86_400_000;
 
 /** When each Assignment was given, on a time axis, in one lane per Assignment type. The mark
- * is an icon of its type coloured by its status; hovering or focusing it shows the details. */
+ * is an icon of its type coloured by its status, linking to the Assignment page; hovering or
+ * focusing it shows the details. */
 @Component({
   selector: 'cl-assignment-lanes',
+  imports: [RouterLink],
   templateUrl: './assignment-lanes.html',
   styleUrl: './assignment-lanes.css',
 })

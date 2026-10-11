@@ -1,0 +1,247 @@
+@if (view(); as v) {
+  <a class="back" [routerLink]="back()">← Klasa {{ v.class_name }}</a>
+  <h1>{{ v.title }}</h1>
+  <p class="meta">
+    <cl-badge>{{ kind[v.type] }}</cl-badge>
+    <span>zadana {{ shortDate(v.given_at) }}</span>
+    <span>termin {{ warsaw(v.due) }}</span>
+    <span>zamknięcie {{ warsaw(v.close) }}</span>
+    <span>{{ v.items.length }} zad., {{ v.points }} pkt</span>
+    @if (v.invented) {
+      <cl-invented />
+    }
+  </p>
+
+  <div class="actions">
+    <button
+      class="btn"
+      type="button"
+      [disabled]="!v.changeable"
+      [title]="v.changeable ? '' : 'Termin zmienia się tylko przed zamknięciem pracy'"
+      (click)="open('times')"
+    >
+      Zmień termin
+    </button>
+    <button
+      class="btn"
+      type="button"
+      [disabled]="!v.changeable || !v.addable.length"
+      [title]="
+        !v.changeable
+          ? 'Uczniów dodaje się tylko przed zamknięciem pracy'
+          : v.addable.length
+            ? ''
+            : 'Wszyscy uczniowie klasy już ją dostali'
+      "
+      (click)="open('add')"
+    >
+      Dodaj uczniów
+    </button>
+    <button
+      class="btn danger"
+      type="button"
+      [disabled]="!v.deletable"
+      [title]="v.deletable ? '' : 'Ktoś już oddał tę pracę, więc nie można jej usunąć'"
+      (click)="open('delete')"
+    >
+      Usuń pracę
+    </button>
+    <a class="btn ghost csv" [href]="csv()" download>Pobierz CSV</a>
+  </div>
+
+  @switch (form()) {
+    @case ('times') {
+      <cl-panel>
+        <form class="change" (submit)="$event.preventDefault(); saveTimes()">
+          <label>
+            Termin oddania
+            <input type="datetime-local" name="due" [(ngModel)]="due" required />
+          </label>
+          <label>
+            Zamknięcie
+            <input type="datetime-local" name="close" [(ngModel)]="close" required />
+          </label>
+          <p class="muted">Uczniowie dostaną w wątku pracy wiadomość o nowym terminie.</p>
+          <div class="buttons">
+            <button class="btn" type="submit" [disabled]="busy()">Zapisz</button>
+            <button class="btn ghost" type="button" (click)="form.set(null)">Anuluj</button>
+          </div>
+        </form>
+      </cl-panel>
+    }
+    @case ('add') {
+      <cl-panel>
+        <form class="change" (submit)="$event.preventDefault(); addStudents()">
+          <fieldset>
+            <legend>Komu jeszcze dać tę pracę?</legend>
+            @for (s of v.addable; track s.id) {
+              <label class="check">
+                <input type="checkbox" [checked]="chosen().has(s.id)" (change)="toggle(s.id)" />
+                {{ s.name }}
+              </label>
+            }
+          </fieldset>
+          <div class="buttons">
+            <button class="btn" type="submit" [disabled]="busy() || !chosen().size">Dodaj</button>
+            <button class="btn ghost" type="button" (click)="form.set(null)">Anuluj</button>
+          </div>
+        </form>
+      </cl-panel>
+    }
+    @case ('delete') {
+      <cl-panel>
+        <p>
+          Usunąć pracę «{{ v.title }}»? Zniknie z Teams, a uczniowie, do których dotarła, dostaną
+          wiadomość, że została anulowana.
+        </p>
+        <div class="buttons">
+          <button class="btn danger" type="button" [disabled]="busy()" (click)="remove()">
+            Usuń
+          </button>
+          <button class="btn ghost" type="button" (click)="form.set(null)">Anuluj</button>
+        </div>
+      </cl-panel>
+    }
+  }
+  @if (error(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+
+  <cl-panel>
+    <h2>Podsumowanie<cl-hint [text]="hints.summary" /></h2>
+    <dl class="counts">
+      <div>
+        <dt>Oddane</dt>
+        <dd>{{ v.counts.handed_in }}/{{ v.counts.total }}</dd>
+      </div>
+      <div>
+        <dt>Spóźnione</dt>
+        <dd>{{ v.counts.late }}</dd>
+      </div>
+      <div>
+        <dt>Brak pracy</dt>
+        <dd>{{ v.counts.missing }}</dd>
+      </div>
+      <div>
+        <dt>Zwolnieni</dt>
+        <dd>{{ v.counts.excused }}</dd>
+      </div>
+      <div>
+        <dt>Czeka na sprawdzenie</dt>
+        <dd>{{ v.counts.held }}</dd>
+      </div>
+      @if (v.figures) {
+        <div>
+          <dt>Średnia</dt>
+          <dd>{{ v.average == null ? '—' : v.average + '%' }}</dd>
+        </div>
+      }
+    </dl>
+    @if (v.figures) {
+      <div class="histogram">
+        <div class="plot">
+          <ol class="bins" aria-label="Rozkład wyników">
+            @for (b of bins(); track b.label) {
+              <li [attr.aria-label]="b.label + '%: ' + b.count">
+                <span class="count">{{ b.count || '' }}</span>
+                <i [style.height.%]="b.height"></i>
+              </li>
+            }
+          </ol>
+          @for (m of marks(); track m.grade) {
+            <span class="threshold" aria-hidden="true" [style.left.%]="m.at"
+              ><span>{{ m.grade }}</span></span
+            >
+          }
+        </div>
+        <div class="labels" aria-hidden="true">
+          @for (b of bins(); track b.label) {
+            <span>{{ b.label }}</span>
+          }
+        </div>
+      </div>
+    } @else {
+      <p class="muted">Wyniki pojawią się w terminie oddania, {{ warsaw(v.due) }}.</p>
+    }
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Zadania<cl-hint [text]="hints.items" /></h2>
+    <ol class="items" aria-label="Zadania">
+      @for (i of v.items; track i.number) {
+        <li>
+          <div class="item">
+            <b>Zadanie {{ i.number }}</b>
+            <span class="muted">{{ i.points }} pkt</span>
+            @if (v.figures) {
+              <cl-percent [value]="i.average" />
+            }
+          </div>
+          @if (i.mistakes.length) {
+            <ul class="mistakes">
+              @for (m of i.mistakes; track m.description) {
+                <li>
+                  {{ m.description }} <span class="muted">({{ m.count }} prac)</span>
+                </li>
+              }
+            </ul>
+          }
+        </li>
+      }
+    </ol>
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Prace uczniów<cl-hint [text]="hints.students" /></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Uczeń</th>
+          <th>Stan</th>
+          <th>Punkty</th>
+          <th>Wynik</th>
+          <th>Proponowana ocena</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of v.rows; track r.student_id) {
+          <tr [class.flagged]="r.flagged">
+            <td>
+              @if (r.state === 'not_handed_in' || r.state === 'missing' || r.state === 'excused') {
+                <span>{{ r.name }}</span>
+              } @else {
+                <a [routerLink]="link(r.student_id)">{{ r.name }}</a>
+              }
+              @if (r.former) {
+                <cl-badge>były uczeń</cl-badge>
+              }
+            </td>
+            <td class="state">
+              <div>
+                <cl-badge [tone]="tone(r)">{{ state(r) }}</cl-badge>
+                @if (r.flagged && !r.held) {
+                  <cl-badge tone="warn">do sprawdzenia</cl-badge>
+                }
+                @if (r.late) {
+                  <cl-badge>spóźniona</cl-badge>
+                }
+              </div>
+            </td>
+            @if (r.percent != null) {
+              <td>{{ r.earned }}/{{ r.available }}</td>
+              <td><cl-percent [value]="r.percent" /></td>
+              <td class="grade">{{ r.grade }}</td>
+            } @else {
+              <td class="muted">—</td>
+              <td></td>
+              <td></td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </cl-panel>
+} @else if (missing()) {
+  <h1>Nie ma takiej pracy</h1>
+  <p class="muted">Mogła zostać usunięta. <a [routerLink]="back()">Wróć do klasy</a>.</p>
+}

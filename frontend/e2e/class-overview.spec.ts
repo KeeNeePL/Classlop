@@ -36,8 +36,8 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   for (const lane of ['Sprawdzian', 'Kartkówka', 'Praca domowa']) {
     await expect(page.getByRole('list', { name: lane })).toBeVisible();
   }
-  const funkcje = page.getByRole('button', { name: /^Funkcje, zadana .*, Zbieranie prac$/ });
-  await expect(page.getByRole('button', { name: /^Równania, zadana .*, Ocenione$/ })).toBeVisible();
+  const funkcje = page.getByRole('link', { name: /^Funkcje, zadana .*, Zbieranie prac$/ });
+  await expect(page.getByRole('link', { name: /^Równania, zadana .*, Ocenione$/ })).toBeVisible();
   await funkcje.hover();
   await expect(page.getByRole('tooltip').filter({ hasText: 'Funkcje' })).toContainText(
     /oddane \d+\/8/,

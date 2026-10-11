@@ -5,7 +5,7 @@
       <div class="track" role="list" [attr.aria-label]="lane.label">
         @for (a of marks(lane.type); track a.id) {
           <div class="mark" role="listitem" [style.left.%]="at(a.given_at)">
-            <button type="button" [class]="status(a)" [attr.aria-label]="label(a)">
+            <a [routerLink]="['prace', a.id]" [class]="status(a)" [attr.aria-label]="label(a)">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 @switch (a.type) {
                   @case ('exam') {
@@ -19,7 +19,7 @@
                   }
                 }
               </svg>
-            </button>
+            </a>
             <div class="card" role="tooltip">
               <b>{{ a.title }}</b>
               <div>zadana {{ given(a) }}, termin {{ due(a) }}</div>
