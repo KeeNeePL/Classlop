@@ -3,7 +3,8 @@ import { RouterLink } from '@angular/router';
 import { AssignmentRow } from '../api/models';
 import { shortDate, warsaw } from '../time';
 
-type Status = 'scheduled' | 'open' | 'graded';
+/** The glossary's Assignment states; the Class overview shows only Given Assignments. */
+type Status = Exclude<AssignmentRow['state'], 'draft'>;
 
 const LANES: { type: AssignmentRow['type']; label: string }[] = [
   { type: 'exam', label: 'Sprawdzian' },
@@ -14,7 +15,8 @@ const LANES: { type: AssignmentRow['type']; label: string }[] = [
 export const STATUS: Record<Status, string> = {
   scheduled: 'Zaplanowana',
   open: 'Zbieranie prac',
-  graded: 'Ocenione',
+  // Closed takes no more hand-ins; its Submissions may still be ungraded or Held.
+  closed: 'Zamknięta',
 };
 
 const DAY = 86_400_000;
@@ -59,9 +61,8 @@ export class AssignmentLanes {
   protected readonly marks = (type: AssignmentRow['type']) =>
     this.assignments().filter((a) => a.type === type);
 
-  /** AI grades every Submission as it comes in, so a closed Assignment counts as graded. */
   protected readonly status = (a: AssignmentRow): Status =>
-    a.state === 'closed' ? 'graded' : a.state === 'open' ? 'open' : 'scheduled';
+    a.state === 'draft' ? 'scheduled' : a.state;
 
   protected readonly statusLabel = (a: AssignmentRow) => STATUS[this.status(a)];
   protected readonly given = (a: AssignmentRow) => shortDate(a.given_at);

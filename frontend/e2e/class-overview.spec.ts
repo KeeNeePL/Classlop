@@ -37,7 +37,9 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
     await expect(page.getByRole('list', { name: lane })).toBeVisible();
   }
   const funkcje = page.getByRole('link', { name: /^Funkcje, zadana .*, Zbieranie prac$/ });
-  await expect(page.getByRole('link', { name: /^Równania, zadana .*, Ocenione$/ })).toBeVisible();
+  // Closed, with Submissions still Held for the Teacher: closed, not graded.
+  await expect(page.getByRole('link', { name: /^Równania, zadana .*, Zamknięta$/ })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Legenda' })).not.toContainText('Ocenione');
   await funkcje.hover();
   await expect(page.getByRole('tooltip').filter({ hasText: 'Funkcje' })).toContainText(
     /oddane \d+\/8/,

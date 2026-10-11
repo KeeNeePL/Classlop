@@ -5,7 +5,7 @@ test('an Assignment opens from the Class overview, shows its summary and downloa
   page,
 }) => {
   await page.goto('/klasy/2c');
-  await page.getByRole('link', { name: /^Równania, zadana .*, Ocenione$/ }).click();
+  await page.getByRole('link', { name: /^Równania, zadana .*, Zamknięta$/ }).click();
 
   await expect(page).toHaveURL('/klasy/2c/prace/2c-2');
   await expect(page.getByRole('heading', { name: 'Równania' })).toBeVisible();

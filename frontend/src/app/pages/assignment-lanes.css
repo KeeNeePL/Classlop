@@ -91,7 +91,7 @@ svg {
   --status: var(--pen);
 }
 
-.graded {
+.closed {
   --status: #1d6b3c;
 }
 
