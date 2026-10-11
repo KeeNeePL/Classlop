@@ -18,6 +18,7 @@ from classlop.dashboard import (
     classes,
     events,
     home,
+    lessons,
     new_work,
     overview,
     student,
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(events.router)
     app.include_router(submission.router)
     app.include_router(student.router)
+    app.include_router(lessons.router)
     app.include_router(new_work.router)
     app.include_router(timetable.router)
 

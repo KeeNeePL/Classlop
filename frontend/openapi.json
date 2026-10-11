@@ -1910,6 +1910,426 @@
         }
       }
     },
+    "/api/classes/{class_id}/lessons": {
+      "get": {
+        "summary": "Lessons",
+        "description": "Opening the tab brings the Lessons in step with the Teacher's Teams calendar first.",
+        "operationId": "lessons_api_classes__class_id__lessons_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add Lesson",
+        "operationId": "add_lesson_api_classes__class_id__lessons_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewLesson"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/lessons/{lesson_id}": {
+      "get": {
+        "summary": "Lesson",
+        "operationId": "lesson_api_classes__class_id__lessons__lesson_id__get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/lessons/{lesson_id}/topic": {
+      "put": {
+        "summary": "Set Topic",
+        "operationId": "set_topic_api_classes__class_id__lessons__lesson_id__topic_put",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Topic"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/lessons/{lesson_id}/refresh": {
+      "post": {
+        "summary": "Refresh",
+        "operationId": "refresh_api_classes__class_id__lessons__lesson_id__refresh_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/lessons/{lesson_id}/attendance/{student_id}": {
+      "put": {
+        "summary": "Override",
+        "operationId": "override_api_classes__class_id__lessons__lesson_id__attendance__student_id__put",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Override"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/lessons/{lesson_id}/attendees": {
+      "post": {
+        "summary": "Link Attendee",
+        "operationId": "link_attendee_api_classes__class_id__lessons__lesson_id__attendees_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Link"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/lateness": {
+      "get": {
+        "summary": "Lateness",
+        "operationId": "lateness_api_settings_lateness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lateness"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set Lateness",
+        "operationId": "set_lateness_api_settings_lateness_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lateness"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/calendar-questions/{question_id}": {
+      "post": {
+        "summary": "Answer Question",
+        "operationId": "answer_question_api_calendar_questions__question_id__post",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Answer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/classes/{class_id}/new-work": {
       "get": {
         "summary": "Form",
@@ -2287,6 +2707,19 @@
   },
   "components": {
     "schemas": {
+      "Answer": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "title": "Answer"
+      },
       "AssignmentPage": {
         "properties": {
           "id": {
@@ -2532,6 +2965,56 @@
           "percent"
         ],
         "title": "Attendance"
+      },
+      "AttendanceRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "present",
+                  "late",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "overridden": {
+            "type": "boolean",
+            "title": "Overridden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "former",
+          "state",
+          "minutes",
+          "overridden"
+        ],
+        "title": "AttendanceRow"
       },
       "Attention": {
         "properties": {
@@ -2786,6 +3269,25 @@
         ],
         "title": "ChatRename"
       },
+      "Choice": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "label"
+        ],
+        "title": "Choice",
+        "description": "One answer to a question on the queue: `answer` is what `teams` is told."
+      },
       "ClassLink": {
         "properties": {
           "id": {
@@ -3002,6 +3504,7 @@
               "sign_in",
               "give_failed",
               "team_removed",
+              "calendar_question",
               "graded",
               "next_lesson",
               "deadline"
@@ -3030,20 +3533,39 @@
           },
           "link": {
             "type": "string",
-            "title": "Link"
+            "title": "Link",
+            "default": ""
           },
           "action": {
             "type": "string",
-            "title": "Action"
+            "title": "Action",
+            "default": ""
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array",
+            "title": "Choices",
+            "default": []
           }
         },
         "type": "object",
         "required": [
           "kind",
           "title",
-          "detail",
-          "link",
-          "action"
+          "detail"
         ],
         "title": "Entry"
       },
@@ -3994,6 +4516,185 @@
         ],
         "title": "JobCard"
       },
+      "Lateness": {
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 0.0,
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minutes"
+        ],
+        "title": "Lateness"
+      },
+      "LessonList": {
+        "properties": {
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/LessonRow"
+            },
+            "type": "array",
+            "title": "Lessons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_name",
+          "read_only",
+          "lessons"
+        ],
+        "title": "LessonList"
+      },
+      "LessonPage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "cancelled": {
+            "type": "boolean",
+            "title": "Cancelled"
+          },
+          "missing_topic": {
+            "type": "boolean",
+            "title": "Missing Topic"
+          },
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only"
+          },
+          "join_url": {
+            "type": "string",
+            "title": "Join Url"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceRow"
+            },
+            "type": "array",
+            "title": "Students"
+          },
+          "unmatched": {
+            "items": {
+              "$ref": "#/components/schemas/Unmatched"
+            },
+            "type": "array",
+            "title": "Unmatched"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end",
+          "topic",
+          "cancelled",
+          "missing_topic",
+          "class_name",
+          "read_only",
+          "join_url",
+          "fetched_at",
+          "students",
+          "unmatched"
+        ],
+        "title": "LessonPage"
+      },
+      "LessonRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "cancelled": {
+            "type": "boolean",
+            "title": "Cancelled"
+          },
+          "missing_topic": {
+            "type": "boolean",
+            "title": "Missing Topic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end",
+          "topic",
+          "cancelled",
+          "missing_topic"
+        ],
+        "title": "LessonRow"
+      },
       "Line": {
         "properties": {
           "section": {
@@ -4024,6 +4725,24 @@
         ],
         "title": "Line",
         "description": "What the Teacher asked of one cell of the table: `count` Items of a Curriculum section at\none Difficulty."
+      },
+      "Link": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "student_id"
+        ],
+        "title": "Link"
       },
       "LinkTeam": {
         "properties": {
@@ -4170,6 +4889,32 @@
         ],
         "title": "NewClass"
       },
+      "NewLesson": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Topic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "topic"
+        ],
+        "title": "NewLesson"
+      },
       "NewStudent": {
         "properties": {
           "user_id": {
@@ -4280,6 +5025,32 @@
           "item"
         ],
         "title": "NumberedItem"
+      },
+      "Override": {
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "present",
+                  "late",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "Override",
+        "description": "None takes the Teacher's state away, back to the one derived from Teams."
       },
       "OverviewResponse": {
         "properties": {
@@ -5588,6 +6359,20 @@
         ],
         "title": "Timetable"
       },
+      "Topic": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Topic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic"
+        ],
+        "title": "Topic"
+      },
       "TopicBar": {
         "properties": {
           "earned": {
@@ -5685,6 +6470,29 @@
         ],
         "title": "TypeProgress",
         "description": "Progress on one Assignment type; `average` is its points earned over available."
+      },
+      "Unmatched": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "minutes"
+        ],
+        "title": "Unmatched"
       },
       "UpcomingLesson": {
         "properties": {

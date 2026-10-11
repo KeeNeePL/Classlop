@@ -3,6 +3,8 @@ frontend/e2e. The Item bank is a few invented Items in memory; one invented job 
 the Classlop AI tab talks to a fake Chat. `teams` for the Classes screens is FakeTeams with its
 demo tenant."""
 
+from datetime import UTC, datetime, timedelta
+
 from fake_bank import InMemoryBank
 from fake_chats import InMemoryChats
 from fake_events import InMemoryFeed
@@ -59,6 +61,36 @@ def create() -> FastAPI:
         talk.reset()
         app.state.teams = demo()
         kept.reset()
+
+    @app.post("/api/e2e/attend", include_in_schema=False)
+    async def attend(class_id: str) -> None:
+        """A call record for each Lesson of the Class: Jan joins on time, Ewa 9 minutes late,
+        Piotr never, and a guest called Piotrek W. joins unlinked."""
+        fake: FakeTeams = app.state.teams
+        users = {s.display_name: s.user_id for s in await fake.list_students(class_id)}
+        who = [
+            (users["Jan Kowalski"], "Jan Kowalski", 1),
+            (users["Ewa Zielinska"], "Ewa Zielinska", 9),
+            (None, "Piotrek W.", 2),
+        ]
+        for lesson in await fake.list_lessons(class_id):
+            fake.attend(
+                lesson.join_url,
+                [(u, n, lesson.start + timedelta(minutes=m), lesson.end) for u, n, m in who],
+            )
+
+    @app.post("/api/e2e/meeting", include_in_schema=False)
+    async def meeting(class_id: str) -> None:
+        """A Teams meeting that the Class's Students and a stranger were invited to."""
+        fake: FakeTeams = app.state.teams
+        invited = [s.upn for s in await fake.list_students(class_id)]
+        start = datetime.now(UTC) + timedelta(days=2)
+        fake.add_meeting(
+            "Wycieczka do muzeum",
+            start,
+            start + timedelta(hours=1),
+            attendees=[*invited[:1], "gosc@example.org"],
+        )
 
     @app.post("/api/e2e/grade", include_in_schema=False)
     async def grade() -> None:
