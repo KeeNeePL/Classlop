@@ -124,6 +124,8 @@ export class NewWork {
   /** What still stops the Teacher from giving. */
   protected readonly giveBlock = computed(() => {
     if (this.entries().length === 0) return 'Praca nie ma zadań. Wróć do formularza i dobierz je.';
+    if (this.shortfalls().length)
+      return 'W banku zabrakło zadań. Dodaj je do banku albo zmniejsz liczbę w formularzu i dobierz zadania ponownie.';
     if (this.title().trim() === '') return 'Wróć do formularza i wpisz tytuł pracy.';
     if (this.due() === '') return 'Wpisz termin oddania.';
     if (this.later() && this.publishAt() === '') return 'Wpisz, kiedy wydać pracę w Teams.';
@@ -221,7 +223,7 @@ export class NewWork {
 
   /** "brakuje 2 z 3: I. Liczby rzeczywiste, łatwe". */
   protected lacking(s: Shortfall): string {
-    return `${s.wanted - s.got} z ${s.wanted}: ${this.label(s.section)}, ${DIFFICULTY[s.difficulty]}`;
+    return `brakuje ${s.wanted - s.got} z ${s.wanted}: ${this.label(s.section)}, ${DIFFICULTY[s.difficulty]}`;
   }
 
   protected async give(): Promise<void> {
