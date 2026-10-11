@@ -20,8 +20,8 @@ B1 = SECTIONS[1].topics[0].id
 START = datetime(2026, 9, 1, 12, tzinfo=UTC)
 
 
-def item(earned: int, available: int, *topics: str) -> ScoredItem:
-    return ScoredItem(topic_ids=topics, earned=earned, available=available)
+def item(earned: int, available: int, *topics: str, number: int = 1) -> ScoredItem:
+    return ScoredItem(number=number, topic_ids=topics, earned=earned, available=available)
 
 
 def sub(
@@ -42,7 +42,9 @@ def work(
         type=type,
         given_at=START + timedelta(days=n),
         due=START + timedelta(days=n + 7),
+        close=START + timedelta(days=n + 7),
         state=state,
+        items=(),
         submissions=subs,
     )
 

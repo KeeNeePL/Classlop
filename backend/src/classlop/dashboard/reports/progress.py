@@ -32,10 +32,13 @@ def bar(earned: int, available: int) -> Bar:
     return Bar(earned=earned, available=available, percent=percent)
 
 
+def scored(s: Submission) -> bool:
+    """Graded and not Held: its points count."""
+    return s.state in ("graded", "returned") and not s.held
+
+
 def counted(submissions: Iterable[Submission]) -> list[ScoredItem]:
-    return [
-        i for s in submissions if s.state in ("graded", "returned") and not s.held for i in s.items
-    ]
+    return [i for s in submissions if scored(s) for i in s.items]
 
 
 def overall(items: Iterable[ScoredItem]) -> Bar:

@@ -80,6 +80,215 @@
         }
       }
     },
+    "/api/classes/{class_id}/assignments/{assignment_id}": {
+      "get": {
+        "summary": "Assignment",
+        "operationId": "assignment_api_classes__class_id__assignments__assignment_id__get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/assignments/{assignment_id}/csv": {
+      "get": {
+        "summary": "Assignment Csv",
+        "description": "One row per recipient in the Class's order, for typing the grades into the e-gradebook.\nSemicolons and a BOM, so Excel opens it in Polish.",
+        "operationId": "assignment_csv_api_classes__class_id__assignments__assignment_id__csv_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assignments/{assignment_id}/times": {
+      "post": {
+        "summary": "Change Times",
+        "operationId": "change_times_api_assignments__assignment_id__times_post",
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Times"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assignments/{assignment_id}/recipients": {
+      "post": {
+        "summary": "Add Recipients",
+        "operationId": "add_recipients_api_assignments__assignment_id__recipients_post",
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Recipients"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assignments/{assignment_id}": {
+      "delete": {
+        "summary": "Delete Assignment",
+        "operationId": "delete_assignment_api_assignments__assignment_id__delete",
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Healthz",
@@ -105,6 +314,149 @@
   },
   "components": {
     "schemas": {
+      "AssignmentPage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "homework",
+              "quiz",
+              "exam"
+            ],
+            "title": "Type"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "scheduled",
+              "open",
+              "closed"
+            ],
+            "title": "State"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Given At"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "close": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Close"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "figures": {
+            "type": "boolean",
+            "title": "Figures"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "thresholds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Thresholds"
+          },
+          "histogram": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Histogram"
+          },
+          "deletable": {
+            "type": "boolean",
+            "title": "Deletable"
+          },
+          "changeable": {
+            "type": "boolean",
+            "title": "Changeable"
+          },
+          "addable": {
+            "items": {
+              "$ref": "#/components/schemas/StudentChoice"
+            },
+            "type": "array",
+            "title": "Addable"
+          },
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "invented": {
+            "type": "boolean",
+            "title": "Invented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "type",
+          "state",
+          "given_at",
+          "due",
+          "close",
+          "points",
+          "figures",
+          "average",
+          "counts",
+          "rows",
+          "items",
+          "thresholds",
+          "histogram",
+          "deletable",
+          "changeable",
+          "addable",
+          "class_name",
+          "invented"
+        ],
+        "title": "AssignmentPage"
+      },
       "AssignmentRow": {
         "properties": {
           "id": {
@@ -244,6 +596,44 @@
         ],
         "title": "ClassLink"
       },
+      "Counts": {
+        "properties": {
+          "handed_in": {
+            "type": "integer",
+            "title": "Handed In"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "late": {
+            "type": "integer",
+            "title": "Late"
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing"
+          },
+          "excused": {
+            "type": "integer",
+            "title": "Excused"
+          },
+          "held": {
+            "type": "integer",
+            "title": "Held"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handed_in",
+          "total",
+          "late",
+          "missing",
+          "excused",
+          "held"
+        ],
+        "title": "Counts"
+      },
       "Entry": {
         "properties": {
           "kind": {
@@ -350,6 +740,44 @@
         ],
         "title": "Home"
       },
+      "ItemSummary": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "mistakes": {
+            "items": {
+              "$ref": "#/components/schemas/Mistake"
+            },
+            "type": "array",
+            "title": "Mistakes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "points",
+          "average",
+          "mistakes"
+        ],
+        "title": "ItemSummary"
+      },
       "MeView": {
         "properties": {
           "name": {
@@ -367,6 +795,30 @@
           "sign_in_lapsed"
         ],
         "title": "MeView"
+      },
+      "Mistake": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "description",
+          "count"
+        ],
+        "title": "Mistake",
+        "description": "A Common mistake on one Item, as `grading` found it."
       },
       "OverviewResponse": {
         "properties": {
@@ -431,6 +883,22 @@
         ],
         "title": "OverviewResponse"
       },
+      "Recipients": {
+        "properties": {
+          "student_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Student Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_ids"
+        ],
+        "title": "Recipients"
+      },
       "SectionBar": {
         "properties": {
           "earned": {
@@ -479,6 +947,24 @@
         ],
         "title": "SectionBar"
       },
+      "StudentChoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StudentChoice"
+      },
       "StudentRow": {
         "properties": {
           "id": {
@@ -513,6 +999,135 @@
           "percent"
         ],
         "title": "StudentRow"
+      },
+      "SummaryRow": {
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_handed_in",
+              "handed_in",
+              "graded",
+              "returned",
+              "missing",
+              "excused"
+            ],
+            "title": "State"
+          },
+          "late": {
+            "type": "boolean",
+            "title": "Late"
+          },
+          "held": {
+            "type": "boolean",
+            "title": "Held"
+          },
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged"
+          },
+          "earned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned"
+          },
+          "available": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "suggested_grade": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Grade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_id",
+          "name",
+          "former",
+          "state",
+          "late",
+          "held",
+          "flagged",
+          "earned",
+          "available",
+          "percent",
+          "suggested_grade"
+        ],
+        "title": "SummaryRow"
+      },
+      "Times": {
+        "properties": {
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "close_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Close At"
+          }
+        },
+        "type": "object",
+        "title": "Times"
       },
       "TopicBar": {
         "properties": {
