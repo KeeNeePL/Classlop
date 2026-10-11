@@ -76,3 +76,7 @@ def test_thresholds_that_leave_a_grade_without_a_range_are_refused(web, percents
 def test_unknown_students_are_not_found(web):
     assert web.get("/api/classes/2c/students/9z-1/report").status_code == 404
     assert web.get("/api/classes/9z/students/2c-0/report").status_code == 404
+
+
+def test_a_note_for_an_unknown_student_is_not_found(web):
+    assert web.put("/api/classes/2c/students/9z-1/note", json={"text": "x"}).status_code == 404
