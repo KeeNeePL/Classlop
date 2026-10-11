@@ -2,16 +2,37 @@
 
 import uuid
 
+from sqlalchemy import delete, select
+
 from classlop.items.curriculum import curriculum
-from classlop.items.records import create_item
+from classlop.items.models import ItemRow, UsageRow
+from classlop.items.records import create_item, retire_item
 from classlop.items.types import Difficulty, ItemContent
+from classlop.shared.db import sessions
 
 DIFFICULTIES: tuple[Difficulty, ...] = ("easy", "medium", "hard")
 SECTIONS = 3
+ORIGIN_REF = "demo"
 
 
 async def write_demo_items(per_cell: int = 4) -> list[uuid.UUID]:
-    """`per_cell` closed Items for each of the first Curriculum sections at each Difficulty."""
+    """`per_cell` closed Items for each of the first Curriculum sections at each Difficulty. Every
+    Class and Assignment of the demo school is rewritten, so nothing is Given any more; Items
+    from an earlier run are kept, as versions cannot be deleted."""
+    expected = SECTIONS * len(DIFFICULTIES) * per_cell
+    async with sessions().begin() as session:
+        await session.execute(delete(UsageRow))
+        kept = list(
+            await session.scalars(
+                select(ItemRow.id)
+                .where(ItemRow.origin_ref == ORIGIN_REF, ItemRow.retired.is_(False))
+                .order_by(ItemRow.created_at, ItemRow.id)
+            )
+        )
+    if len(kept) == expected:
+        return kept
+    for item_id in kept:
+        await retire_item(item_id)
     ids = []
     for section in curriculum()[:SECTIONS]:
         for difficulty in DIFFICULTIES:
@@ -31,5 +52,5 @@ async def write_demo_items(per_cell: int = 4) -> list[uuid.UUID]:
                     },
                     correct_options=["B"],
                 )
-                ids.append(await create_item(content, origin="chat"))
+                ids.append(await create_item(content, origin="chat", origin_ref=ORIGIN_REF))
     return ids
