@@ -1,0 +1,252 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+p {
+  margin: 0;
+}
+
+h2 {
+  margin: 0 0 12px;
+}
+
+.back {
+  font-weight: 600;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  color: var(--muted);
+}
+
+.actions,
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.actions .csv {
+  margin-left: auto;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.btn.danger {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+
+.change {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.change label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.change input {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+legend {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.change label.check {
+  display: flex;
+  gap: 8px;
+  font-weight: 400;
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0 0 16px;
+}
+
+.counts dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.counts dd {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.histogram {
+  max-width: 560px;
+}
+
+.plot {
+  position: relative;
+  height: 140px;
+  margin-top: 18px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.bins {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bins li {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.bins i {
+  display: block;
+  width: 100%;
+  background: var(--pen);
+  border-radius: 2px 2px 0 0;
+}
+
+.bins .count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* a grade threshold: grade n starts here */
+.threshold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px dashed var(--red);
+  pointer-events: none;
+}
+
+/* the grade, above the plot */
+.threshold span {
+  position: absolute;
+  top: -18px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.labels {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.items,
+.mistakes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.items > li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 100px 60px minmax(200px, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.mistakes {
+  margin: 4px 0 0 176px;
+  font-size: 13px;
+}
+
+.mistakes li::before {
+  content: '– ';
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+
+td.state div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+td cl-percent {
+  min-width: 180px;
+}
+
+td.grade {
+  font-weight: 700;
+  text-align: center;
+}
+
+tr.flagged td:first-child {
+  box-shadow: inset 3px 0 var(--tape);
+  padding-left: 8px;
+}

@@ -57,14 +57,12 @@
 }
 
 /* the type is the icon, the status its colour; the legend shows the colours */
-button {
+.mark a {
   display: block;
   padding: 3px;
-  border: 0;
   border-radius: 6px;
   background: var(--card);
   color: var(--status);
-  cursor: pointer;
 }
 
 svg {
@@ -97,8 +95,8 @@ svg {
   --status: #1d6b3c;
 }
 
-button:hover,
-button:focus-visible {
+.mark a:hover,
+.mark a:focus-visible {
   transform: scale(1.25);
 }
 
