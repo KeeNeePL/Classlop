@@ -159,9 +159,7 @@ class FilesRoutes:
             return self._message(m[1], m[3], request)
         if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)/replies", path):
             return self._reply(m[1], m[3], json.loads(request.content))
-        if m := re.fullmatch(
-            r"/users/[^/]+/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)/softDelete", path
-        ):
+        if m := re.fullmatch(r"/teams/([^/]+)/channels/([^/]+)/messages/([^/]+)/softDelete", path):
             return self._soft_delete(m[1], m[3])
         if m := re.fullmatch(r"/me/drive/root:/(.+)", path):
             found = self._by_path(m[1])

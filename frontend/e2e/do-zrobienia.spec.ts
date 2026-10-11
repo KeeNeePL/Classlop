@@ -62,7 +62,7 @@ const routes = [
   ['/klasy/1a/uczniowie/ala-k', 'Uczeń'],
   ['/klasy/1a/nowa-praca', 'Nowa praca'],
   ['/klasy/1a/prace/1a-0', 'Zbiory liczbowe'],
-  ['/klasy/1a/prace/wzory/ala-k', 'Praca ucznia'],
+  ['/klasy/1a/prace/1a-0/1a-0', 'Ala K.'],
   ['/ustawienia', 'Ustawienia'],
 ] as const;
 

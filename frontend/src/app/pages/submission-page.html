@@ -1,0 +1,178 @@
+@if (view(); as v) {
+  <nav class="crumbs">
+    <a [routerLink]="back()">← {{ v.assignment_title }} ({{ v.class_name }})</a>
+    <span class="neighbours">
+      @if (v.previous; as p) {
+        <a [routerLink]="link(p.student_id)" rel="prev">← {{ p.name }}</a>
+      }
+      @if (v.next; as n) {
+        <a [routerLink]="link(n.student_id)" rel="next">{{ n.name }} →</a>
+      }
+    </span>
+  </nav>
+
+  <div class="head">
+    <h1>{{ v.name }}</h1>
+    @if (v.earned != null) {
+      <span class="total" aria-label="Suma punktów"
+        ><b>{{ v.earned }}</b
+        >/{{ v.available }} pkt</span
+      >
+    }
+  </div>
+  <p class="meta">
+    @if (v.former) {
+      <cl-badge>były uczeń</cl-badge>
+    }
+    @if (v.held) {
+      <cl-badge tone="warn">czeka na sprawdzenie</cl-badge>
+    } @else if (v.spot_check) {
+      <cl-badge tone="warn">do przejrzenia</cl-badge>
+    }
+    @if (v.late) {
+      <cl-badge>spóźniona</cl-badge>
+    }
+    @for (r of v.held_reasons.concat(v.spot_check_reasons); track $index) {
+      <span>{{ r.reason }}: zad. {{ r.items.join(', ') }}</span>
+    }
+    @if (v.invented) {
+      <cl-invented />
+    }
+  </p>
+
+  @if (!v.changeable) {
+    <p class="muted">
+      Punkty, odczyt i uwagi można zmieniać od terminu oddania, {{ warsaw(v.due) }}.
+    </p>
+  }
+  @if (v.status === 'failed') {
+    <cl-panel class="failed">
+      <p>Ocenianie tej pracy nie powiodło się.</p>
+      <button class="btn" type="button" [disabled]="busy()" (click)="gradeAgain()">
+        Oceń ponownie
+      </button>
+    </cl-panel>
+  } @else if (v.held || v.spot_check) {
+    <div class="actions">
+      <button class="btn" type="button" [disabled]="busy()" (click)="approve()">Zatwierdź</button>
+      <span class="muted">
+        @if (v.held) {
+          Praca wróci do ucznia z obecnymi punktami; nieczytelne zadania dostaną 0.
+        } @else {
+          Zdejmuje oznaczenie do przejrzenia.
+        }
+      </span>
+    </div>
+  }
+  @if (error(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+
+  @for (i of v.items; track i.item_id) {
+    <cl-panel>
+      <article class="item" [attr.aria-label]="'Zadanie ' + i.number">
+        <div class="body">
+          <h2>Zadanie {{ i.number }}</h2>
+          <cl-math class="text" [text]="i.text" />
+          <div class="flags">
+            @if (reading[i.reading]; as r) {
+              <cl-badge tone="warn">{{ r }}</cl-badge>
+            }
+            @if (i.drawing) {
+              <cl-badge>rysunek</cl-badge>
+            }
+            @if (i.doubt) {
+              <cl-badge tone="warn">AI ma wątpliwości</cl-badge>
+            }
+          </div>
+
+          <h3>
+            Odczyt AI
+            @if (i.fixed) {
+              <span class="muted">(poprawiony)</span>
+            }
+          </h3>
+          @if (isEditing(i, 'transcription')) {
+            <textarea
+              aria-label="Poprawiony odczyt"
+              rows="3"
+              [ngModel]="draft()"
+              (ngModelChange)="draft.set($event)"
+            ></textarea>
+            <div class="buttons">
+              <button class="btn" type="button" [disabled]="busy()" (click)="save(i)">
+                Oceń zadanie ponownie
+              </button>
+              <button class="btn ghost" type="button" (click)="editing.set(null)">Anuluj</button>
+            </div>
+          } @else {
+            <cl-math class="work" [text]="i.transcription" />
+            @if (v.changeable) {
+              <button class="link" type="button" (click)="edit(i, 'transcription')">
+                Popraw odczyt
+              </button>
+            }
+          }
+          @if (i.verification_note) {
+            <p class="muted note"><cl-math [text]="i.verification_note" /></p>
+          }
+
+          <h3>
+            Uwagi dla ucznia
+            @if (i.edited) {
+              <span class="muted">(zmienione)</span>
+            }
+          </h3>
+          @if (isEditing(i, 'feedback')) {
+            <textarea
+              aria-label="Uwagi dla ucznia"
+              rows="3"
+              [ngModel]="draft()"
+              (ngModelChange)="draft.set($event)"
+            ></textarea>
+            <div class="buttons">
+              <button class="btn" type="button" [disabled]="busy()" (click)="save(i)">
+                Zapisz uwagi
+              </button>
+              <button class="btn ghost" type="button" (click)="editing.set(null)">Anuluj</button>
+            </div>
+          } @else {
+            <cl-math [text]="i.feedback" />
+            @if (v.changeable) {
+              <button class="link" type="button" (click)="edit(i, 'feedback')">Edytuj uwagi</button>
+            }
+          }
+          @if (i.mistake) {
+            <p class="muted">Błąd: {{ i.mistake }}</p>
+          }
+        </div>
+
+        <div class="points">
+          <span class="muted">AI: {{ i.ai_points }}/{{ i.max_points }}</span>
+          <label>
+            <input
+              type="number"
+              min="0"
+              [max]="i.max_points"
+              [value]="i.points"
+              [disabled]="!v.changeable || busy()"
+              [attr.aria-label]="'Punkty za zadanie ' + i.number"
+              (change)="setPoints(i, $any($event.target).value)"
+            />
+            / {{ i.max_points }}
+          </label>
+          @if (i.override != null) {
+            <span class="muted">zmienione przez ciebie</span>
+          }
+        </div>
+      </article>
+    </cl-panel>
+  }
+
+  @if (!v.items.length && v.status !== 'failed') {
+    <p class="muted">Ta praca nie została jeszcze oceniona.</p>
+  }
+} @else if (missing()) {
+  <h1>Nie ma takiej pracy ucznia</h1>
+  <p class="muted"><a [routerLink]="back()">Wróć do pracy</a>.</p>
+}

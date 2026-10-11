@@ -257,3 +257,17 @@ async def test_a_request_beyond_basic_level_is_refused(fake_llm, fake_tagger):
     with pytest.raises(ValueError, match="basic"):
         await items.request_generation(spec(line(), level="extended"), CHAT)
     assert fake_llm.generated == 0
+
+
+async def test_progress_is_written_in_the_order_the_items_land(fake_llm, fake_tagger):
+    written = []
+
+    async def slow_first_save(progress: dict) -> None:
+        # The branch that lands first is the slowest to save; the others must wait their turn.
+        await asyncio.sleep(0.5 if progress["landed"] == 1 else 0)
+        written.append(progress["landed"])
+
+    request = generation.Request(spec=spec(line(3, curriculum_topics=[INEQUALITY.id])), origin=CHAT)
+    await generation.generate(request, slow_first_save)
+
+    assert written == [0, 1, 2, 3]
