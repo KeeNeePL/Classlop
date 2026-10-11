@@ -10,7 +10,7 @@ from classlop.grading.common_mistakes import (
 )
 from classlop.grading.handlers import gather_common_mistakes, grade
 from classlop.grading.models import Reading, Status
-from classlop.grading.result import ItemResult, Reason, Result, result
+from classlop.grading.result import ItemResult, Reason, Result, result, results
 from classlop.grading.teacher import (
     TooEarly,
     approve,
@@ -40,4 +40,5 @@ __all__ = [
     "override",
     "request_common_mistakes",
     "result",
+    "results",
 ]

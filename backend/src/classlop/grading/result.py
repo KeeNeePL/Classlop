@@ -2,8 +2,9 @@ import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
+from sqlalchemy import and_, select
 
-from classlop.grading.models import GradedSubmission, Reading, Status
+from classlop.grading.models import GradedSubmission, Reading, Status, newest_hand_ins
 from classlop.shared.db import sessions
 
 
@@ -65,3 +66,24 @@ async def result(submission_id: uuid.UUID, handed_in_at: datetime) -> Result | N
     async with sessions()() as session:
         row = await session.get(GradedSubmission, (submission_id, handed_in_at))
     return Result.model_validate(row) if row else None
+
+
+async def results(assignment_ids: list[uuid.UUID]) -> list[Result]:
+    """The current result of every Submission of these Assignments: per Submission, its newest
+    graded hand-in's. A newer hand-in still being graded has no result yet, so its older one
+    comes back: compare `handed_in_at` with `teams`' newest. Results graded before
+    `assignment_id` was stored have none and are left out."""
+    if not assignment_ids:
+        return []
+    newest = newest_hand_ins(GradedSubmission.assignment_id.in_(assignment_ids))
+    async with sessions()() as session:
+        rows = await session.scalars(
+            select(GradedSubmission).join(
+                newest,
+                and_(
+                    GradedSubmission.submission_id == newest.c.submission_id,
+                    GradedSubmission.handed_in_at == newest.c.at,
+                ),
+            )
+        )
+        return [Result.model_validate(row) for row in rows]

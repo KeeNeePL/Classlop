@@ -2,7 +2,17 @@ import uuid
 from datetime import datetime
 from typing import Literal, get_args
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKeyConstraint, Integer, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    ColumnElement,
+    DateTime,
+    ForeignKeyConstraint,
+    Integer,
+    Subquery,
+    Text,
+    func,
+    select,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -136,3 +146,14 @@ class Override(Base):
     item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     points: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+def newest_hand_ins(*where: ColumnElement[bool]) -> Subquery:
+    """Per Submission, its newest hand-in's time (`at`): a newer hand-in replaces the result of
+    the one before it."""
+    return (
+        select(GradedSubmission.submission_id, func.max(GradedSubmission.handed_in_at).label("at"))
+        .where(*where)
+        .group_by(GradedSubmission.submission_id)
+        .subquery()
+    )
