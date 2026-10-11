@@ -11,14 +11,14 @@ from classlop.dashboard.reports.grades import THRESHOLDS
 from classlop.shared.db import sessions
 
 
-class Records(Protocol):
+class Store(Protocol):
     async def note(self, class_id: str, student_id: str) -> str: ...
     async def save_note(self, class_id: str, student_id: str, text: str) -> None: ...
     async def thresholds(self) -> list[int]: ...
     async def save_thresholds(self, percents: list[int]) -> None: ...
 
 
-class PostgresRecords:
+class PostgresStore:
     async def note(self, class_id: str, student_id: str) -> str:
         async with sessions()() as session:
             row = await session.get(NoteRow, (class_id, student_id))
@@ -49,5 +49,5 @@ class PostgresRecords:
             )
 
 
-def backend() -> Records:
-    return PostgresRecords()
+def backend() -> Store:
+    return PostgresStore()

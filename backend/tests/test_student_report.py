@@ -108,12 +108,12 @@ def test_the_chart_has_a_point_per_given_assignment_with_gaps_and_the_class_aver
         work(5, sub("s1", 5), sub("s2", 7), type="exam"),
     )
 
-    assert [(p.title, p.type, p.percent, p.gap, p.class_average) for p in view.points] == [
-        ("Praca 1", "quiz", 80, None, 60),
-        ("Praca 2", "quiz", None, "missing", 60),
-        # The Held Submission is out of the Class average too.
-        ("Praca 3", "quiz", None, "excused", None),
-        ("Praca 5", "exam", 50, None, 60),
+    # Missing and Excused leave a gap; the Held Submission is out of the Class average too.
+    assert [(p.title, p.type, p.percent, p.class_average) for p in view.points] == [
+        ("Praca 1", "quiz", 80, 60),
+        ("Praca 2", "quiz", None, 60),
+        ("Praca 3", "quiz", None, None),
+        ("Praca 5", "exam", 50, 60),
     ]
 
 

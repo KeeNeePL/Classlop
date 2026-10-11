@@ -4,7 +4,7 @@ without a database."""
 from classlop.dashboard.reports.grades import THRESHOLDS
 
 
-class InMemoryRecords:
+class InMemoryStore:
     def __init__(self):
         self.reset()
 

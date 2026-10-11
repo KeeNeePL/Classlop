@@ -2,21 +2,19 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel
 
 from classlop.dashboard.reports.grades import THRESHOLDS, suggested_grade
 from classlop.dashboard.reports.overview import TYPES, TypeProgress, recent_sections, type_progress
-from classlop.dashboard.reports.progress import bar, counted, overall, scored
+from classlop.dashboard.reports.progress import HANDED_IN, bar, counted, overall, scored
 from classlop.dashboard.reports.records import (
     Assignment,
-    AssignmentState,
     AssignmentType,
     ClassData,
+    Submission,
     SubmissionState,
 )
-from classlop.dashboard.reports.summary import HANDED_IN
 from classlop.items import CurriculumSection
 
 
@@ -24,7 +22,6 @@ class ReportRow(BaseModel):
     id: str
     title: str
     type: AssignmentType
-    state: AssignmentState
     due: datetime
     submission_state: SubmissionState
     late: bool
@@ -57,7 +54,6 @@ class Point(BaseModel):
     type: AssignmentType
     due: datetime
     percent: int | None
-    gap: Literal["missing", "excused"] | None
     # Over the Assignment's recipients only.
     class_average: int | None
 
@@ -93,17 +89,18 @@ def student_report(
     def within(at: datetime) -> bool:
         return (start is None or at >= start) and (end is None or at <= end)
 
-    own: list[Assignment] = []
+    # The Student's Assignments, each with their Submission alone, for Progress.
+    alone: list[Assignment] = []
     rows: list[ReportRow] = []
     points: list[Point] = []
-    mine = []
+    submissions: list[Submission] = []
     given = (a for a in data.assignments if a.state != "draft" and within(a.due))
     for a in sorted(given, key=lambda a: a.due, reverse=True):
         s = next((s for s in a.submissions if s.student_id == student_id), None)
         if s is None:
             continue
-        mine.append(s)
-        own.append(a.model_copy(update={"submissions": (s,)}))
+        submissions.append(s)
+        alone.append(a.model_copy(update={"submissions": (s,)}))
         result = overall(s.items) if scored(s) else None
         points.append(
             Point(
@@ -112,7 +109,6 @@ def student_report(
                 type=a.type,
                 due=a.due,
                 percent=result.percent if result else None,
-                gap=s.state if s.state in ("missing", "excused") else None,
                 class_average=overall(counted(a.submissions)).percent,
             )
         )
@@ -121,7 +117,6 @@ def student_report(
                 id=a.id,
                 title=a.title,
                 type=a.type,
-                state=a.state,
                 due=a.due,
                 submission_state=s.state,
                 late=s.late,
@@ -135,7 +130,7 @@ def student_report(
             )
         )
     # Progress as in the Class overview, over the Student's own Submissions.
-    alone = data.model_copy(update={"assignments": tuple(own)})
+    own = data.model_copy(update={"assignments": tuple(alone)})
     lessons = [lesson for lesson in data.lessons if within(lesson.start)]
     absent = sum(student_id in lesson.absent for lesson in lessons)
     present = bar(len(lessons) - absent, len(lessons))
@@ -145,15 +140,15 @@ def student_report(
         former=student.former,
         start=start,
         end=end,
-        result=overall(counted(mine)).percent,
+        result=overall(counted(submissions)).percent,
         attendance=Attendance(lessons=len(lessons), absent=absent, percent=present.percent),
         counts=SubmissionCounts(
-            late=sum(s.late and s.state in HANDED_IN for s in mine),
-            missing=sum(s.state == "missing" for s in mine),
-            excused=sum(s.state == "excused" for s in mine),
+            late=sum(s.late and s.state in HANDED_IN for s in submissions),
+            missing=sum(s.state == "missing" for s in submissions),
+            excused=sum(s.state == "excused" for s in submissions),
         ),
-        progress=[type_progress(kind, alone, sections) for kind in TYPES],
-        recent_sections=recent_sections(alone, sections),
+        progress=[type_progress(kind, own, sections) for kind in TYPES],
+        recent_sections=recent_sections(own, sections),
         points=points[::-1],
         assignments=rows,
     )

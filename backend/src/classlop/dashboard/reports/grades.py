@@ -1,6 +1,7 @@
 """The Suggested grade: a school grade 1 to 6 from a percent, under the Teacher's thresholds."""
 
 from collections.abc import Sequence
+from itertools import pairwise
 
 # The lowest percent for grades 2 to 6, until the Teacher sets their own.
 THRESHOLDS = (30, 50, 70, 85, 100)
@@ -15,6 +16,6 @@ def check_thresholds(percents: Sequence[int]) -> None:
     """Five percents, each above the one before, from above 0 up to 100: every grade has a range."""
     if len(percents) != len(THRESHOLDS):
         raise ValueError(f"{len(THRESHOLDS)} thresholds, for grades 2 to 6")
-    rising = all(a < b for a, b in zip([0, *percents], percents, strict=False))
+    rising = all(a < b for a, b in pairwise([0, *percents]))
     if not rising or percents[-1] > 100:
         raise ValueError("thresholds rise from above 0 to at most 100")

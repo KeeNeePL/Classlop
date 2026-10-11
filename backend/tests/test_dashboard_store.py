@@ -5,8 +5,8 @@ import os
 
 import pytest
 
-from classlop.dashboard.records import PostgresRecords
 from classlop.dashboard.reports.grades import THRESHOLDS
+from classlop.dashboard.store import PostgresStore
 from classlop.shared.migrate import migrate
 
 
@@ -21,22 +21,22 @@ async def stack():
 
 
 async def test_a_note_is_kept_per_student_of_a_class_and_replaced_on_saving():
-    records = PostgresRecords()
-    assert await records.note("1a", "s1") == ""
+    store = PostgresStore()
+    assert await store.note("1a", "s1") == ""
 
-    await records.save_note("1a", "s1", "Rozmowa z rodzicami w listopadzie.")
-    await records.save_note("1a", "s2", "Inna notatka.")
-    await records.save_note("1a", "s1", "Poprawił kartkówkę.")
+    await store.save_note("1a", "s1", "Rozmowa z rodzicami w listopadzie.")
+    await store.save_note("1a", "s2", "Inna notatka.")
+    await store.save_note("1a", "s1", "Poprawił kartkówkę.")
 
-    assert await records.note("1a", "s1") == "Poprawił kartkówkę."
-    assert await records.note("2c", "s1") == ""
+    assert await store.note("1a", "s1") == "Poprawił kartkówkę."
+    assert await store.note("2c", "s1") == ""
 
 
 async def test_thresholds_start_at_the_defaults_and_keep_the_teachers():
-    records = PostgresRecords()
+    store = PostgresStore()
     # Each run has a database of its own, so nothing is saved yet.
-    assert await records.thresholds() == list(THRESHOLDS)
+    assert await store.thresholds() == list(THRESHOLDS)
 
-    await records.save_thresholds([40, 55, 70, 90, 100])
-    assert await records.thresholds() == [40, 55, 70, 90, 100]
-    await records.save_thresholds(list(THRESHOLDS))
+    await store.save_thresholds([40, 55, 70, 90, 100])
+    assert await store.thresholds() == [40, 55, 70, 90, 100]
+    await store.save_thresholds(list(THRESHOLDS))

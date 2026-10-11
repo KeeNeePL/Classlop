@@ -6,14 +6,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, field_validator
 
-from classlop.dashboard import auth, invented, records
+from classlop.dashboard import auth, invented, store
 from classlop.dashboard.reports import StudentReport, student_report
 from classlop.dashboard.reports.grades import check_thresholds
 from classlop.items import curriculum
 
 router = APIRouter()
 Teacher = Annotated[auth.Me, Depends(auth.teacher)]
-Records = Annotated[records.Records, Depends(records.backend)]
+Kept = Annotated[store.Store, Depends(store.backend)]
 
 
 class StudentPage(StudentReport):
@@ -27,7 +27,7 @@ class StudentPage(StudentReport):
 async def report(
     class_id: str,
     student_id: str,
-    own: Records,
+    kept: Kept,
     _: Teacher,
     start: datetime | None = None,
     end: datetime | None = None,
@@ -39,11 +39,11 @@ async def report(
     data = invented.class_data(class_id, name, now)
     if student_id not in {s.id for s in data.students}:
         raise HTTPException(404)
-    view = student_report(data, student_id, curriculum(), start, end, await own.thresholds())
+    view = student_report(data, student_id, curriculum(), start, end, await kept.thresholds())
     return StudentPage(
         **view.model_dump(),
         class_name=name,
-        note=await own.note(class_id, student_id),
+        note=await kept.note(class_id, student_id),
         invented=True,
     )
 
@@ -53,10 +53,13 @@ class Note(BaseModel):
 
 
 @router.put("/api/classes/{class_id}/students/{student_id}/note", status_code=204)
-async def save_note(
-    class_id: str, student_id: str, body: Note, own: Records, _: Teacher
-) -> Response:
-    await own.save_note(class_id, student_id, body.text)
+async def save_note(class_id: str, student_id: str, body: Note, kept: Kept, _: Teacher) -> Response:
+    now = datetime.now(UTC)
+    if (name := invented.class_name(class_id, now)) is None or student_id not in {
+        s.id for s in invented.class_data(class_id, name, now).students
+    }:
+        raise HTTPException(404)
+    await kept.save_note(class_id, student_id, body.text)
     return Response(status_code=204)
 
 
@@ -73,11 +76,11 @@ class Thresholds(BaseModel):
 
 
 @router.get("/api/settings/thresholds")
-async def thresholds(own: Records, _: Teacher) -> Thresholds:
-    return Thresholds(percents=await own.thresholds())
+async def thresholds(kept: Kept, _: Teacher) -> Thresholds:
+    return Thresholds(percents=await kept.thresholds())
 
 
 @router.put("/api/settings/thresholds", status_code=204)
-async def save_thresholds(body: Thresholds, own: Records, _: Teacher) -> Response:
-    await own.save_thresholds(body.percents)
+async def save_thresholds(body: Thresholds, kept: Kept, _: Teacher) -> Response:
+    await kept.save_thresholds(body.percents)
     return Response(status_code=204)

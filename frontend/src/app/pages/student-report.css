@@ -97,6 +97,30 @@ h2 {
   padding: 4px 0;
 }
 
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.progress-head h2 {
+  margin: 0;
+}
+
+.cols.heading {
+  margin-top: 12px;
+  font-weight: 700;
+}
+
+.cols.topic {
+  font-size: 13px;
+}
+
+.cols.topic cl-math {
+  padding-left: 16px;
+}
+
 .colhead {
   color: var(--muted);
   font-size: 12px;

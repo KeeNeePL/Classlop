@@ -6,7 +6,14 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from classlop.dashboard.reports.progress import Bar, SectionBar, counted, overall, progress
+from classlop.dashboard.reports.progress import (
+    HANDED_IN,
+    Bar,
+    SectionBar,
+    counted,
+    overall,
+    progress,
+)
 from classlop.dashboard.reports.records import (
     Assignment,
     AssignmentState,
@@ -18,7 +25,6 @@ from classlop.items import CurriculumSection
 
 # The order of the Progress columns.
 TYPES: tuple[AssignmentType, ...] = ("quiz", "exam", "homework")
-HANDED_IN = ("handed_in", "graded", "returned")
 # Wymagają uwagi: the fixed thresholds of #13.
 MISSING_OF, MISSING_AT = 5, 2
 LOW_PERCENT = 30

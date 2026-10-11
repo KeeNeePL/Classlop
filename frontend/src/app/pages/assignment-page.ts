@@ -12,27 +12,13 @@ import {
   deleteAssignmentApiAssignmentsAssignmentIdDelete,
 } from '../api/functions';
 import { AssignmentPage as Page, SummaryRow } from '../api/models';
+import { KIND, stateLabel } from '../labels';
 import { fromInput, shortDate, toInput, warsaw } from '../time';
 import { Badge } from '../ui/badge';
 import { Hint } from '../ui/hint';
 import { Invented } from '../ui/invented';
 import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
-
-const KIND: Record<Page['type'], string> = {
-  quiz: 'Kartkówka',
-  exam: 'Sprawdzian',
-  homework: 'Praca domowa',
-};
-
-const STATE: Record<SummaryRow['state'], string> = {
-  not_handed_in: 'nie oddano',
-  handed_in: 'oddano, ocenia AI',
-  graded: 'ocenione',
-  returned: 'zwrócone',
-  missing: 'brak pracy',
-  excused: 'zwolniony',
-};
 
 const HINTS = {
   summary:
@@ -98,7 +84,7 @@ export class AssignmentPage {
     student,
   ];
 
-  protected readonly state = (r: SummaryRow) => (r.held ? 'czeka na sprawdzenie' : STATE[r.state]);
+  protected readonly state = (r: SummaryRow) => stateLabel(r.state, r.held);
   /** "6 prac", "4 prace", "3 prace". */
   protected readonly works = (n: number) =>
     `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'prace' : 'prac'}`;

@@ -1,14 +1,21 @@
 import { Component, ElementRef, effect, input, OnDestroy, viewChild } from '@angular/core';
 import type { ECharts } from 'echarts';
+import { shortDate } from '../time';
+
+export interface ChartPoint {
+  /** ISO 8601 UTC: the point sits at this time on the axis. */
+  at: string;
+  title: string;
+}
 
 export interface Line {
   name: string;
-  /** One value per label; null leaves a gap, never a 0. */
+  /** One value per point; null leaves a gap, never a 0. */
   values: (number | null)[];
-  dashed?: boolean;
+  faint?: boolean;
 }
 
-/** Percent lines over the same labels, drawn with ECharts, which loads on first use. */
+/** Percent lines over time, drawn with ECharts, which loads on first use. */
 @Component({
   selector: 'cl-line-chart',
   template: '<div #box class="box" role="img" [attr.aria-label]="label()"></div>',
@@ -20,7 +27,7 @@ export interface Line {
   `,
 })
 export class LineChart implements OnDestroy {
-  readonly labels = input.required<string[]>();
+  readonly points = input.required<ChartPoint[]>();
   readonly lines = input.required<Line[]>();
   readonly label = input.required<string>();
 
@@ -30,7 +37,7 @@ export class LineChart implements OnDestroy {
 
   constructor() {
     effect(async () => {
-      const labels = this.labels();
+      const points = this.points();
       const lines = this.lines();
       const box = this.box().nativeElement;
       const echarts = await import('echarts');
@@ -38,18 +45,30 @@ export class LineChart implements OnDestroy {
       this.chart.setOption(
         {
           animation: false,
-          grid: { left: 40, right: 16, top: 32, bottom: 48 },
+          grid: { left: 40, right: 16, top: 32, bottom: 32 },
           legend: { top: 0 },
-          tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => (v == null ? '—' : `${v}%`) },
-          xAxis: { type: 'category', data: labels, axisLabel: { interval: 0, rotate: 20 } },
+          tooltip: {
+            trigger: 'axis',
+            formatter: (
+              params: { dataIndex: number; seriesName: string; value: [string, number | null] }[],
+            ) => {
+              const point = points[params[0].dataIndex];
+              const rows = params.map(
+                (p) => `${p.seriesName}: ${p.value[1] == null ? '—' : `${p.value[1]}%`}`,
+              );
+              return [`${shortDate(point.at)} ${point.title}`, ...rows].join('<br>');
+            },
+          },
+          xAxis: { type: 'time', axisLabel: { formatter: (t: number) => shortDate(t) } },
           yAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%' } },
           series: lines.map((l) => ({
             name: l.name,
             type: 'line',
-            data: l.values,
+            data: l.values.map((v, i) => [points[i].at, v]),
             connectNulls: false,
-            symbolSize: 8,
-            lineStyle: { type: l.dashed ? 'dashed' : 'solid' },
+            symbolSize: l.faint ? 5 : 8,
+            lineStyle: { type: l.faint ? 'dashed' : 'solid', opacity: l.faint ? 0.5 : 1 },
+            itemStyle: { opacity: l.faint ? 0.5 : 1 },
           })),
         },
         { notMerge: true },

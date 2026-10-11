@@ -2567,21 +2567,6 @@
             ],
             "title": "Percent"
           },
-          "gap": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "missing",
-                  "excused"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Gap"
-          },
           "class_average": {
             "anyOf": [
               {
@@ -2601,7 +2586,6 @@
           "type",
           "due",
           "percent",
-          "gap",
           "class_average"
         ],
         "title": "Point",
@@ -2683,16 +2667,6 @@
             ],
             "title": "Type"
           },
-          "state": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "scheduled",
-              "open",
-              "closed"
-            ],
-            "title": "State"
-          },
           "due": {
             "type": "string",
             "format": "date-time",
@@ -2768,7 +2742,6 @@
           "id",
           "title",
           "type",
-          "state",
           "due",
           "submission_state",
           "late",

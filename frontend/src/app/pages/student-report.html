@@ -12,21 +12,13 @@
 
   <div class="filters">
     <div class="seg" role="radiogroup" aria-label="Okres">
-      @for (
-        p of [
-          ['all', 'Wszystko'],
-          ['school-year', 'Od 1 września'],
-          ['last-30', 'Ostatnie 30 dni'],
-          ['custom', 'Własny'],
-        ];
-        track p[0]
-      ) {
+      @for (p of periods; track p[0]) {
         <button
           type="button"
           role="radio"
           [attr.aria-checked]="period() === p[0]"
           [class.on]="period() === p[0]"
-          (click)="period.set($any(p[0]))"
+          (click)="period.set(p[0])"
         >
           {{ p[1] }}
         </button>
@@ -91,9 +83,9 @@
 
   <cl-panel>
     <h2>Wyniki w czasie<cl-hint [text]="hints.chart" /></h2>
-    @if (labels().length) {
+    @if (chartPoints().length) {
       <cl-line-chart
-        [labels]="labels()"
+        [points]="chartPoints()"
         [lines]="lines()"
         label="Wynik ucznia z każdej pracy na tle średniej klasy"
       />
@@ -103,7 +95,27 @@
   </cl-panel>
 
   <cl-panel>
-    <h2>Postęp<cl-hint [text]="hints.progress" /></h2>
+    <div class="progress-head">
+      <h2>Postęp<cl-hint [text]="hints.progress" /></h2>
+      <div class="seg" role="tablist">
+        <button
+          role="tab"
+          [attr.aria-selected]="tab() === 'sections'"
+          [class.on]="tab() === 'sections'"
+          (click)="tab.set('sections')"
+        >
+          Działy
+        </button>
+        <button
+          role="tab"
+          [attr.aria-selected]="tab() === 'topics'"
+          [class.on]="tab() === 'topics'"
+          (click)="tab.set('topics')"
+        >
+          Tematy
+        </button>
+      </div>
+    </div>
     <div class="cols colhead">
       <span></span>
       @for (c of v.progress; track c.type) {
@@ -117,12 +129,22 @@
       }
     </div>
     @for (r of progress(); track r.id) {
-      <div class="cols">
+      <div class="cols" [class.heading]="tab() === 'topics'">
         <span>{{ r.name }}</span>
         @for (cell of r.cells; track $index) {
           <cl-percent [value]="cell" />
         }
       </div>
+      @if (tab() === 'topics') {
+        @for (t of r.topics; track t.id) {
+          <div class="cols topic">
+            <cl-math [text]="t.name" />
+            @for (cell of t.cells; track $index) {
+              <cl-percent [value]="cell" />
+            }
+          </div>
+        }
+      }
     } @empty {
       <p class="muted">Nic jeszcze nie oceniono.</p>
     }
@@ -165,7 +187,13 @@
                 <span class="muted">—</span>
               }
             </td>
-            <td class="grade">{{ r.suggested_grade ?? '' }}</td>
+            <td class="grade">
+              @if (r.held) {
+                <span class="muted">do sprawdzenia</span>
+              } @else {
+                {{ r.suggested_grade ?? '' }}
+              }
+            </td>
           </tr>
         } @empty {
           <tr>
@@ -198,7 +226,7 @@
       }
     </div>
   </cl-panel>
-} @else if (missing()) {
+} @else if (notFound()) {
   <h1>Nie ma takiego ucznia</h1>
   <p class="muted"><a [routerLink]="back()">Wróć do klasy</a>.</p>
 }

@@ -6,6 +6,7 @@ import { map } from 'rxjs';
 import { Api } from '../api/api';
 import { overviewApiClassesClassIdOverviewGet } from '../api/functions';
 import { AssignmentRow } from '../api/models';
+import { KINDS } from '../labels';
 import { AssignmentLanes } from './assignment-lanes';
 import { Badge } from '../ui/badge';
 import { Hint } from '../ui/hint';
@@ -15,12 +16,6 @@ import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
 
 const RECENT = 4;
-
-const KIND: Record<AssignmentRow['type'], string> = {
-  quiz: 'Kartkówki',
-  exam: 'Sprawdziany',
-  homework: 'Prace domowe',
-};
 
 const HINTS = {
   progress:
@@ -76,7 +71,7 @@ export class ClassOverview {
   }).value;
 
   protected readonly hints = HINTS;
-  protected readonly kind = KIND;
+  protected readonly kind = KINDS;
   protected readonly tab = signal<'sections' | 'topics'>('sections');
 
   protected readonly expanded = signal(false);

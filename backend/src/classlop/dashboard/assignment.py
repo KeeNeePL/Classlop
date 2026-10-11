@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from classlop import grading, teams
-from classlop.dashboard import auth, invented, records
+from classlop.dashboard import auth, invented, store
 from classlop.dashboard.actions import carry_out
 from classlop.dashboard.reports import AssignmentSummary, Mistake, Student, assignment_summary
 
@@ -61,10 +61,10 @@ def page(
 async def assignment(
     class_id: str,
     assignment_id: str,
-    own: Annotated[records.Records, Depends(records.backend)],
+    kept: Annotated[store.Store, Depends(store.backend)],
     _: Annotated[auth.Me, Depends(auth.teacher)],
 ) -> AssignmentPage:
-    return page(class_id, assignment_id, await own.thresholds())[0]
+    return page(class_id, assignment_id, await kept.thresholds())[0]
 
 
 @router.get(
@@ -75,12 +75,12 @@ async def assignment(
 async def assignment_csv(
     class_id: str,
     assignment_id: str,
-    own: Annotated[records.Records, Depends(records.backend)],
+    kept: Annotated[store.Store, Depends(store.backend)],
     _: Annotated[auth.Me, Depends(auth.teacher)],
 ) -> Response:
     """One row per recipient in the Class's order, for typing the grades into the e-gradebook.
     Semicolons and a BOM, so Excel opens it in Polish."""
-    view, students = page(class_id, assignment_id, await own.thresholds())
+    view, students = page(class_id, assignment_id, await kept.thresholds())
     order = {s.id: n for n, s in enumerate(students)}
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
