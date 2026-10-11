@@ -3,6 +3,7 @@ with a file starts an Item upload; any other is read by the model, which asks, s
 Generation request, writes a new version of one of the Chat's Items or retires one. Graph state
 holds the conversation only; Items and messages are records of `items`."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Annotated, Any, Literal, Self, TypedDict
@@ -94,22 +95,24 @@ class State(TypedDict):
 
 _pool: AsyncConnectionPool[Any] | None = None
 _graph: CompiledStateGraph | None = None
+_opening = asyncio.Lock()
 
 
 async def graph() -> CompiledStateGraph:
     global _pool, _graph
-    if _graph is None:
-        conninfo = get_settings().database_url.replace("+psycopg", "", 1)
-        pool: AsyncConnectionPool[Any] = AsyncConnectionPool(
-            conninfo,
-            kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
-            open=False,
-        )
-        await pool.open()
-        saver = AsyncPostgresSaver(pool)  # type: ignore[arg-type]
-        await saver.setup()
-        _pool, _graph = pool, _build().compile(checkpointer=saver)
-    return _graph
+    async with _opening:
+        if _graph is None:
+            conninfo = get_settings().database_url.replace("+psycopg", "", 1)
+            pool: AsyncConnectionPool[Any] = AsyncConnectionPool(
+                conninfo,
+                kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+                open=False,
+            )
+            await pool.open()
+            saver = AsyncPostgresSaver(pool)  # type: ignore[arg-type]
+            await saver.setup()
+            _pool, _graph = pool, _build().compile(checkpointer=saver)
+        return _graph
 
 
 async def close() -> None:
