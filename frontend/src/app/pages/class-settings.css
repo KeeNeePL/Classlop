@@ -1,0 +1,85 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 15px;
+  margin: 20px 0 8px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.text {
+  flex: 1;
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.text:disabled {
+  opacity: 0.6;
+}
+
+.members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.members li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.gone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--red);
+  border-radius: 4px;
+  background: var(--red-soft);
+}
+
+.danger {
+  border-color: var(--red);
+}
+
+.btn.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+  font-weight: 600;
+}

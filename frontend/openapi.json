@@ -457,6 +457,387 @@
         }
       }
     },
+    "/api/users": {
+      "get": {
+        "summary": "Users",
+        "description": "Tenant users to pick as Students, by name.",
+        "operationId": "users_api_users_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Candidate"
+                  },
+                  "title": "Response Users Api Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams": {
+      "get": {
+        "summary": "Owned Teams",
+        "description": "The teams the Teacher owns and has not linked yet.",
+        "operationId": "owned_teams_api_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Team"
+                  },
+                  "type": "array",
+                  "title": "Response Owned Teams Api Teams Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes": {
+      "post": {
+        "summary": "Create Class",
+        "operationId": "create_class_api_classes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewClass"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/link": {
+      "post": {
+        "summary": "Link Team",
+        "operationId": "link_team_api_classes_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkTeam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/settings": {
+      "get": {
+        "summary": "Class Settings",
+        "description": "The roster is brought in step with the team first, as when the Class page opens.",
+        "operationId": "class_settings_api_classes__class_id__settings_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}": {
+      "patch": {
+        "summary": "Rename Class",
+        "operationId": "rename_class_api_classes__class_id__patch",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Rename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Class",
+        "description": "Deletes the Class and its team once its name is typed, then its Notes. The Notes go last, so\na refused deletion loses nothing.",
+        "operationId": "delete_class_api_classes__class_id__delete",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/students": {
+      "post": {
+        "summary": "Add Student",
+        "operationId": "add_student_api_classes__class_id__students_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewStudent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/students/{student_id}": {
+      "delete": {
+        "summary": "Remove Student",
+        "operationId": "remove_student_api_classes__class_id__students__student_id__delete",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/restore-team": {
+      "post": {
+        "summary": "Restore Team",
+        "operationId": "restore_team_api_classes__class_id__restore_team_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/classes/{class_id}/overview": {
       "get": {
         "summary": "Overview",
@@ -1324,6 +1705,29 @@
         "title": "BankFilters",
         "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
       },
+      "Candidate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "upn": {
+            "type": "string",
+            "title": "Upn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name",
+          "upn"
+        ],
+        "title": "Candidate"
+      },
       "ClassLink": {
         "properties": {
           "id": {
@@ -1366,6 +1770,54 @@
         ],
         "title": "ClassOption"
       },
+      "ClassSettings": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "team_deleted"
+            ],
+            "title": "State"
+          },
+          "team_deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Deleted At"
+          },
+          "students": {
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "type": "array",
+            "title": "Students"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "team_deleted_at",
+          "students"
+        ],
+        "title": "ClassSettings"
+      },
       "Counts": {
         "properties": {
           "handed_in": {
@@ -1403,6 +1855,24 @@
           "held"
         ],
         "title": "Counts"
+      },
+      "Created": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Created"
       },
       "CurriculumSection": {
         "properties": {
@@ -2185,6 +2655,19 @@
         ],
         "title": "ItemView"
       },
+      "LinkTeam": {
+        "properties": {
+          "team_id": {
+            "type": "string",
+            "title": "Team Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "team_id"
+        ],
+        "title": "LinkTeam"
+      },
       "MeView": {
         "properties": {
           "name": {
@@ -2202,6 +2685,39 @@
           "sign_in_lapsed"
         ],
         "title": "MeView"
+      },
+      "Member": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "upn": {
+            "type": "string",
+            "title": "Upn"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "name",
+          "upn",
+          "former"
+        ],
+        "title": "Member"
       },
       "Mistake": {
         "properties": {
@@ -2244,6 +2760,41 @@
           "name"
         ],
         "title": "Neighbour"
+      },
+      "NewClass": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "student_user_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Student User Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "student_user_ids"
+        ],
+        "title": "NewClass"
+      },
+      "NewStudent": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "NewStudent"
       },
       "OverviewResponse": {
         "properties": {
@@ -2364,6 +2915,20 @@
           "student_ids"
         ],
         "title": "Recipients"
+      },
+      "Rename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Rename"
       },
       "RubricLevel": {
         "properties": {
@@ -2801,6 +3366,24 @@
           "suggested_grade"
         ],
         "title": "SummaryRow"
+      },
+      "Team": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Team"
       },
       "Times": {
         "properties": {

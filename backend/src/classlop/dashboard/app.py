@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from classlop.dashboard import assignment, auth, bank, home, overview, submission
+from classlop.dashboard import assignment, auth, bank, classes, home, overview, submission
 from classlop.shared import db, search, storage
 from classlop.shared.settings import get_settings
 
@@ -30,6 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(home.router)
     app.include_router(bank.router)
+    app.include_router(classes.router)
     app.include_router(overview.router)
     app.include_router(assignment.router)
     app.include_router(submission.router)

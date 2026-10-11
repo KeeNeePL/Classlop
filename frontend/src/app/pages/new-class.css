@@ -1,0 +1,89 @@
+.lead {
+  margin: 8px 0 20px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+h3 {
+  font-size: 15px;
+  margin: 20px 0 8px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.text {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--edge);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.picked li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid #b4c0d8;
+  border-radius: 3px;
+  background: #e4eaf6;
+}
+
+.x {
+  font: inherit;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.teams li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.actions {
+  margin-top: 16px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  color: var(--red);
+  font-weight: 600;
+}

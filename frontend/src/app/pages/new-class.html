@@ -1,0 +1,81 @@
+<h1>Nowa klasa</h1>
+<p class="muted lead">
+  Klasa to zespół w Teams. Utwórz nowy, prywatny zespół albo połącz taki, którego jesteś
+  właścicielem.
+</p>
+
+<div class="columns">
+  <cl-panel>
+    <h2>Nowy zespół</h2>
+    <form (ngSubmit)="create()">
+      <label class="field">
+        Nazwa klasy
+        <input
+          class="text"
+          name="name"
+          placeholder="np. 2A"
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
+        />
+      </label>
+
+      <h3>Uczniowie</h3>
+      @if (students().length) {
+        <ul class="picked" aria-label="Wybrani uczniowie">
+          @for (s of students(); track s.user_id) {
+            <li>
+              {{ s.display_name }}
+              <button
+                type="button"
+                class="x"
+                [attr.aria-label]="'Usuń z listy: ' + s.display_name"
+                (click)="drop(s)"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">Nikogo jeszcze nie wybrano. Uczniów można też dodać później.</p>
+      }
+      <cl-student-picker [skip]="userIds()" (picked)="pick($event)" />
+
+      <div class="actions">
+        <button type="submit" class="btn" [disabled]="busy() || !name().trim()">
+          Utwórz klasę
+        </button>
+      </div>
+    </form>
+  </cl-panel>
+
+  <cl-panel>
+    <h2>Istniejący zespół</h2>
+    @if (teams.value(); as owned) {
+      @if (owned.length) {
+        <ul class="teams" aria-label="Twoje zespoły">
+          @for (t of owned; track t.id) {
+            <li>
+              <span>{{ t.name }}</span>
+              <button
+                type="button"
+                class="btn ghost"
+                [disabled]="busy()"
+                [attr.aria-label]="'Połącz zespół: ' + t.name"
+                (click)="link(t)"
+              >
+                Połącz
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">Nie masz zespołów, które można połączyć.</p>
+      }
+    }
+  </cl-panel>
+</div>
+
+@if (error(); as e) {
+  <p class="error" role="alert">{{ e }}</p>
+}

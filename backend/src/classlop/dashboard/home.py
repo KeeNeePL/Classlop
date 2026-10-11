@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from classlop.dashboard import auth, bank
+from classlop.dashboard.classes import TheTeams
 
 router = APIRouter()
 
@@ -127,6 +128,15 @@ def invented(now: datetime) -> Home:
 
 
 @router.get("/api/home")
-async def home(_: Annotated[auth.Me, Depends(auth.teacher)], items: bank.TheBank) -> Home:
+async def home(
+    _: Annotated[auth.Me, Depends(auth.teacher)], items: bank.TheBank, t: TheTeams
+) -> Home:
     view = invented(datetime.now(UTC))
-    return view.model_copy(update={"flagged_items": await bank.flagged_count(items)})
+    # The Teacher's own Classes follow the invented ones in the sidebar, until the rest is wired.
+    own = [ClassLink(id=c.id, name=c.name, graded=0) for c in await t.list_classes()]
+    return view.model_copy(
+        update={
+            "classes": [*view.classes, *own],
+            "flagged_items": await bank.flagged_count(items),
+        }
+    )

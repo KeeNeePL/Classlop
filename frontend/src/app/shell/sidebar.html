@@ -11,7 +11,8 @@
     <div class="label">Klasy</div>
     @for (c of h.classes; track c.id) {
       <a [routerLink]="['/klasy', c.id]" routerLinkActive="on">
-        <span class="name">Klasa {{ c.name }}</span> <span class="count">{{ c.graded || '' }}</span>
+        <span class="name">{{ title(c.name) }}</span>
+        <span class="count">{{ c.graded || '' }}</span>
       </a>
     }
     <a class="new" routerLink="/klasy/nowa">+ Nowa klasa</a>
