@@ -7,7 +7,17 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from classlop.dashboard import assignment, auth, bank, classes, home, overview, submission
+from classlop.dashboard import (
+    assignment,
+    auth,
+    bank,
+    classes,
+    events,
+    home,
+    new_work,
+    overview,
+    submission,
+)
 from classlop.shared import db, search, storage
 from classlop.shared.settings import get_settings
 
@@ -33,7 +43,9 @@ def create_app() -> FastAPI:
     app.include_router(classes.router)
     app.include_router(overview.router)
     app.include_router(assignment.router)
+    app.include_router(events.router)
     app.include_router(submission.router)
+    app.include_router(new_work.router)
 
     @app.get("/healthz")
     async def healthz(response: Response) -> dict[str, str]:

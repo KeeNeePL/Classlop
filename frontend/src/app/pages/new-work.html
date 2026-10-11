@@ -1,0 +1,373 @@
+@if (form(); as f) {
+  <a class="back" [routerLink]="back()">← Klasa {{ f.class_name }}</a>
+  <h1>Nowa praca · klasa {{ f.class_name }}</h1>
+
+  <ol class="steps" aria-label="Kroki">
+    <li [attr.aria-current]="step() === 'form' ? 'step' : null" [class.on]="step() === 'form'">
+      1. Formularz
+    </li>
+    <li [attr.aria-current]="step() === 'preview' ? 'step' : null" [class.on]="step() !== 'form'">
+      2. Podgląd i wydanie
+    </li>
+  </ol>
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+
+  @switch (step()) {
+    @case ('form') {
+      <form class="stack" (submit)="$event.preventDefault(); pick()">
+        <cl-panel>
+          <h2>Rodzaj pracy</h2>
+          <div class="inner">
+            <fieldset>
+              <legend>Typ</legend>
+              <div class="choices">
+                @for (t of types; track t[0]) {
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="type"
+                      [value]="t[0]"
+                      [ngModel]="type()"
+                      (ngModelChange)="type.set(t[0])"
+                    />
+                    {{ t[1] }}
+                  </label>
+                }
+              </div>
+            </fieldset>
+            <label class="field">
+              Tytuł
+              <input
+                name="title"
+                [ngModel]="title()"
+                (ngModelChange)="typed.set($event)"
+                autocomplete="off"
+              />
+              <span class="help">Podpowiedź powstaje z wybranych działów. Możesz ją zmienić.</span>
+            </label>
+          </div>
+        </cl-panel>
+
+        <cl-panel>
+          <h2>Zadania</h2>
+          <div class="inner">
+            <p class="help">
+              Wpisz, ile zadań z którego działu i o jakiej trudności ma mieć praca. Zadania zostaną
+              dobrane z banku zadań, a punkty ma każde zadanie.
+            </p>
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>Dział</th>
+                  @for (level of levels; track level) {
+                    <th>{{ difficulty[level] }}</th>
+                  }
+                  <th><span class="sr">Usuń dział</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.section) {
+                  <tr>
+                    <th scope="row">{{ label(row.section) }}</th>
+                    @for (level of levels; track level) {
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          [name]="row.section + level"
+                          [attr.aria-label]="difficulty[level] + ', ' + label(row.section)"
+                          [ngModel]="row[level]"
+                          (ngModelChange)="count(row.section, level, $event)"
+                        />
+                        <div class="stock" [class.short]="row[level] > inBank(row, level)">
+                          w banku: {{ inBank(row, level) }}
+                          @if (row[level] > inBank(row, level)) {
+                            <b>· za mało</b>
+                          }
+                        </div>
+                      </td>
+                    }
+                    <td>
+                      <button
+                        type="button"
+                        class="btn ghost"
+                        [attr.aria-label]="'Usuń dział ' + label(row.section)"
+                        (click)="removeRow(row.section)"
+                      >
+                        Usuń
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="muted">
+                      Nie dodano jeszcze żadnego działu. Wybierz dział poniżej i kliknij „Dodaj
+                      dział”.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Razem</th>
+                  <td colspan="4">{{ tasks(total()) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div class="add">
+              <label class="field">
+                Dział do dodania
+                <select name="section" [ngModel]="choice()" (ngModelChange)="choice.set($event)">
+                  <option value="">Wybierz dział…</option>
+                  @for (s of addable(); track s.id) {
+                    <option [value]="s.id">{{ label(s.id) }}</option>
+                  }
+                </select>
+              </label>
+              <button type="button" class="btn" [disabled]="!choice()" (click)="addChoice()">
+                Dodaj dział
+              </button>
+            </div>
+
+            <label class="check">
+              <input
+                type="checkbox"
+                name="reuse"
+                [ngModel]="allowReuse()"
+                (ngModelChange)="allowReuse.set($event)"
+              />
+              Pozwól na zadania już użyte w tej klasie
+            </label>
+          </div>
+        </cl-panel>
+
+        <cl-panel>
+          <h2>Dla kogo</h2>
+          <div class="inner">
+            <div class="choices">
+              <label class="check">
+                <input
+                  type="radio"
+                  name="who"
+                  [ngModel]="everyone()"
+                  [value]="true"
+                  (ngModelChange)="everyone.set(true)"
+                />
+                Cała klasa
+              </label>
+              <label class="check">
+                <input
+                  type="radio"
+                  name="who"
+                  [ngModel]="everyone()"
+                  [value]="false"
+                  (ngModelChange)="everyone.set(false)"
+                />
+                Wybierz uczniów
+              </label>
+            </div>
+            @if (!everyone()) {
+              <div class="students">
+                <div class="muted">
+                  Zaznaczono: {{ picked().size }} z {{ f.students.length }} ·
+                  <button type="button" class="link" (click)="pickAll(true)">
+                    zaznacz wszystkich
+                  </button>
+                  ·
+                  <button type="button" class="link" (click)="pickAll(false)">odznacz</button>
+                </div>
+                @for (s of f.students; track s.id) {
+                  <label class="check">
+                    <input type="checkbox" [checked]="picked().has(s.id)" (change)="toggle(s.id)" />
+                    {{ s.name }}
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        </cl-panel>
+
+        <cl-panel>
+          <h2>Przypomnienie</h2>
+          <div class="inner">
+            <label class="check">
+              <input
+                type="checkbox"
+                name="reminder"
+                [ngModel]="reminder()"
+                (ngModelChange)="reminder.set($event)"
+              />
+              Przypomnienie dzień przed terminem
+            </label>
+            <p class="help">
+              Klasa dostanie w Teams wpis z liczbą uczniów, którzy jeszcze nie oddali pracy.
+            </p>
+          </div>
+        </cl-panel>
+
+        <div class="bar">
+          <div class="buttons">
+            <button
+              class="btn"
+              type="submit"
+              [disabled]="pickBlock() !== null || busy()"
+              aria-describedby="pick-why"
+            >
+              {{ busy() ? 'Dobieram zadania…' : 'Dobierz zadania z banku' }}
+            </button>
+            <a class="btn ghost" [routerLink]="back()">Anuluj</a>
+          </div>
+          @if (pickBlock(); as why) {
+            <p id="pick-why" class="why">{{ why }}</p>
+          }
+        </div>
+      </form>
+    }
+
+    @case ('preview') {
+      <div class="stack">
+        <div>
+          <h2 class="preview-title">Podgląd: {{ title() }}</h2>
+          <p class="muted">
+            <cl-badge>{{ types.find((t) => t[0] === type())?.[1] }}</cl-badge>
+            · {{ everyone() ? 'cała klasa' : students(picked().size) }}
+          </p>
+        </div>
+
+        @if (shortfalls().length) {
+          <p class="note" role="status">
+            W banku zabrakło:
+            @for (s of shortfalls(); track $index) {
+              {{ lacking(s) }}{{ $last ? '.' : '; ' }}
+            }
+          </p>
+        }
+
+        <cl-panel>
+          <h2>Zadania w pracy</h2>
+          <ol class="items" aria-label="Zadania w pracy">
+            @for (e of entries(); track e.item.id) {
+              <li>
+                <div>
+                  <cl-math [text]="e.item.version.text" />
+                  @for (o of e.item.version.options | keyvalue; track o.key) {
+                    <div class="option">{{ o.key }}) <cl-math [text]="o.value" /></div>
+                  }
+                  <div class="tags">
+                    <cl-badge>{{ label(e.section) }}</cl-badge>
+                    <cl-badge>{{ difficulty[e.difficulty] }}</cl-badge>
+                    <cl-badge>{{ e.item.version.points }} pkt</cl-badge>
+                  </div>
+                  @if (stuck().has(e.item.id)) {
+                    <p class="muted">Brak innych pasujących zadań w banku.</p>
+                  }
+                </div>
+                <div class="side">
+                  <button type="button" class="btn ghost" [disabled]="busy()" (click)="swap(e)">
+                    podmień na inne
+                  </button>
+                  <button type="button" class="btn ghost" (click)="remove(e)">usuń</button>
+                </div>
+              </li>
+            } @empty {
+              <li class="muted">Brak zadań.</li>
+            }
+          </ol>
+          <p class="total">{{ tasks(entries().length) }} · {{ points() }} pkt</p>
+        </cl-panel>
+
+        <form class="stack" (submit)="$event.preventDefault(); give()">
+          <cl-panel>
+            <h2>Termin i wydanie</h2>
+            <div class="inner">
+              <label class="field">
+                Termin oddania
+                <input
+                  type="datetime-local"
+                  name="due"
+                  [ngModel]="due()"
+                  (ngModelChange)="due.set($event)"
+                />
+              </label>
+              <fieldset>
+                <legend>Kiedy wydać</legend>
+                <div class="choices">
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="when"
+                      [ngModel]="later()"
+                      [value]="false"
+                      (ngModelChange)="later.set(false)"
+                    />
+                    Od razu
+                  </label>
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="when"
+                      [ngModel]="later()"
+                      [value]="true"
+                      (ngModelChange)="later.set(true)"
+                    />
+                    O wybranej godzinie
+                  </label>
+                </div>
+              </fieldset>
+              @if (later()) {
+                <label class="field">
+                  Wydaj w Teams o
+                  <input
+                    type="datetime-local"
+                    name="publish"
+                    [ngModel]="publishAt()"
+                    (ngModelChange)="publishAt.set($event)"
+                  />
+                </label>
+              }
+            </div>
+          </cl-panel>
+          <div class="bar">
+            <div class="buttons">
+              <button
+                class="btn"
+                type="submit"
+                [disabled]="giveBlock() !== null || busy()"
+                aria-describedby="give-why"
+              >
+                {{ busy() ? 'Wydaję…' : 'Opublikuj w Teams' }}
+              </button>
+              <button class="btn ghost" type="button" (click)="step.set('form')">
+                ← Wróć do formularza
+              </button>
+            </div>
+            @if (giveBlock(); as why) {
+              <p id="give-why" class="why">{{ why }}</p>
+            }
+          </div>
+        </form>
+      </div>
+    }
+
+    @case ('given') {
+      <cl-panel>
+        <p role="status" class="done">
+          @if (given()?.state === 'scheduled') {
+            Praca «{{ title() }}» zaplanowana w Teams.
+          } @else {
+            Praca «{{ title() }}» wydana w Teams.
+          }
+        </p>
+        <a class="btn" [routerLink]="back()">Wróć do klasy</a>
+      </cl-panel>
+    }
+  }
+} @else if (missing()) {
+  <h1>Nowa praca</h1>
+  <p>Nie ma takiej klasy.</p>
+}

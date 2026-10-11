@@ -9,7 +9,7 @@ from fake_bank import InMemoryBank
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from classlop.dashboard import auth, bank, classes
+from classlop.dashboard import auth, bank, classes, home
 from classlop.dashboard.app import create_app
 from classlop.shared.db import sessions
 from classlop.shared.migrate import migrate
@@ -23,6 +23,7 @@ def signed_in() -> TestClient:
     items = InMemoryBank()
     app.dependency_overrides[bank.backend] = lambda: items
     app.dependency_overrides[classes.backend] = lambda: FakeTeams()
+    app.dependency_overrides[home.failed_gives] = lambda: []
     return TestClient(app)
 
 

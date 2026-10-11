@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
+import { OPEN_STREAM } from './shell/event-stream';
 import { SIGN_IN, signInOn401 } from './sign-in';
 
 describe('App', () => {
@@ -18,6 +19,7 @@ describe('App', () => {
         provideHttpClient(withInterceptors([signInOn401])),
         provideHttpClientTesting(),
         { provide: SIGN_IN, useValue: signIn },
+        { provide: OPEN_STREAM, useValue: () => ({}) },
       ],
     });
     http = TestBed.inject(HttpTestingController);

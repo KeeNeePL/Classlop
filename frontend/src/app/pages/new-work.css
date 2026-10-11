@@ -1,0 +1,259 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+.back {
+  font-weight: 600;
+}
+
+/* The form is a stack of separate panels, each with its own heading. */
+.stack {
+  display: grid;
+  gap: 28px;
+}
+
+cl-panel h2 {
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-title {
+  margin: 0 0 6px;
+}
+
+.inner {
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
+.steps li {
+  padding: 4px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 4px;
+}
+
+.steps li.on {
+  color: var(--ink);
+  border-color: var(--ink);
+  font-weight: 600;
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.help {
+  color: var(--muted);
+  font-weight: 400;
+  max-width: 62ch;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.field input[name='title'] {
+  width: 420px;
+  max-width: 100%;
+}
+
+.choices,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+
+.buttons {
+  gap: 8px 12px;
+}
+
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 12px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+
+.grid {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.grid th,
+.grid td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.grid thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.grid tfoot th,
+.grid tfoot td {
+  border-bottom: 0;
+  font-weight: 600;
+}
+
+.grid input[type='number'] {
+  width: 64px;
+}
+
+.stock {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stock.short {
+  color: var(--red);
+}
+
+.students {
+  display: grid;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--pen);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--card);
+  color: var(--ink);
+}
+
+/* The buttons, and why the main one is not available yet. */
+.bar {
+  display: grid;
+  gap: 8px;
+}
+
+.why {
+  color: var(--muted);
+}
+
+.error {
+  background: var(--red-soft);
+  border: 1.5px solid var(--red);
+  padding: 8px 12px;
+}
+
+.note {
+  background: var(--marker);
+  padding: 8px 12px;
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.items .side {
+  display: flex;
+  gap: 6px;
+  align-items: start;
+}
+
+.items .option {
+  margin-left: 16px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.total {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.done {
+  margin-bottom: 12px;
+  font-weight: 600;
+}

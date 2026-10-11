@@ -1,11 +1,13 @@
 """The home screen: the sidebar and the Do zrobienia queue, in one response."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal, get_args
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from classlop import teams
 from classlop.dashboard import auth, bank
 from classlop.dashboard.classes import TheTeams
 
@@ -49,6 +51,13 @@ class Home(BaseModel):
 
 def queue(entries: list[Entry]) -> list[Entry]:
     return sorted(entries, key=lambda e: ORDER.index(e.kind))
+
+
+def with_problems(entries: list[Entry], failed: list[Entry]) -> list[Entry]:
+    """The failed gives after the queue's own, where the problems end; the rest keeps its order."""
+    rank = ORDER.index("give_failed")
+    at = next((i for i, e in enumerate(entries) if ORDER.index(e.kind) > rank), len(entries))
+    return [*entries[:at], *failed, *entries[at:]]
 
 
 def invented(now: datetime) -> Home:
@@ -127,15 +136,47 @@ def invented(now: datetime) -> Home:
     )
 
 
+def stand_in() -> Callable[[datetime], Home]:
+    """What stands in for the areas until they can give the real thing; the Playwright server
+    swaps it for one that reacts to jobs."""
+    return invented
+
+
+async def failed_gives() -> list[Entry]:
+    """The Assignments `teams` could not give at their scheduled time, which are Drafts again."""
+    entries = []
+    for a in await teams.list_failed_gives():
+        try:
+            name = (await teams.get_class(a.class_id)).name
+        except LookupError:
+            continue
+        entries.append(
+            Entry(
+                kind="give_failed",
+                title=f"Nie udało się wydać pracy «{a.title}»",
+                detail=f"Teams odrzucił publikację dla klasy {name}",
+                at=a.give_failed_at,
+                link=f"/klasy/{a.class_id}/prace/{a.id}",
+                action="Otwórz pracę",
+            )
+        )
+    return entries
+
+
 @router.get("/api/home")
 async def home(
-    _: Annotated[auth.Me, Depends(auth.teacher)], items: bank.TheBank, t: TheTeams
+    _: Annotated[auth.Me, Depends(auth.teacher)],
+    items: bank.TheBank,
+    t: TheTeams,
+    make: Annotated[Callable[[datetime], Home], Depends(stand_in)],
+    failed: Annotated[list[Entry], Depends(failed_gives)],
 ) -> Home:
-    view = invented(datetime.now(UTC))
+    view = make(datetime.now(UTC))
     # The Teacher's own Classes follow the invented ones in the sidebar, until the rest is wired.
     own = [ClassLink(id=c.id, name=c.name, graded=0) for c in await t.list_classes()]
     return view.model_copy(
         update={
+            "entries": with_problems(view.entries, failed),
             "classes": [*view.classes, *own],
             "flagged_items": await bank.flagged_count(items),
         }
