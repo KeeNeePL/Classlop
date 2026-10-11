@@ -19,9 +19,9 @@ const RECENT = 4;
 
 const HINTS = {
   invented:
-    'Prawdziwe: zadania z banku z ich tematami i punktami oraz działy i tematy podstawy ' +
-    'programowej. Na razie zmyślone: uczniowie, prace i ich terminy, punkty uczniów ' +
-    'i nieobecności.',
+    'Prawdziwe: zadania z banku z ich tematami i punktami, działy i tematy podstawy ' +
+    'programowej oraz punkty uczniów. Na razie zmyślone: uczniowie, prace i ich terminy ' +
+    'oraz nieobecności.',
   progress:
     'Procent punktów zdobytych z możliwych do zdobycia w ocenionych zadaniach, osobno dla ' +
     'kartkówek, sprawdzianów i prac domowych. „Średnia” to wynik całej kategorii. Zadanie ' +

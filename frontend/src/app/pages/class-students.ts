@@ -13,8 +13,8 @@ import { Percent } from '../ui/percent';
 
 const HINTS = {
   invented:
-    'Prawdziwe: zadania z banku z ich tematami i punktami. Na razie zmyślone: uczniowie, ' +
-    'ich prace, punkty i nieobecności.',
+    'Prawdziwe: zadania z banku z ich tematami i punktami oraz punkty uczniów. Na razie ' +
+    'zmyślone: uczniowie, ich prace i nieobecności.',
   percent:
     'Średni wynik ucznia ze wszystkich kategorii razem (kartkówki, sprawdziany, prace ' +
     'domowe): procent punktów zdobytych z możliwych w jego ocenionych zadaniach. Prace ' +

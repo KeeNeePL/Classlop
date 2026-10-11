@@ -1,16 +1,17 @@
 """Hardcoded stand-ins for the areas' per-Class reads, until they land; every screen built on them
-shows the "ZMYŚLONE" badge."""
+says what is still invented. `grading` is not among them: its results are read for real, and
+`scenario` is only what the tests' stand-in grades the invented Submissions as."""
 
 import random
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import NamedTuple
 
 from classlop import grading
 from classlop.dashboard import home
 from classlop.dashboard.bank import Bank
-from classlop.dashboard.invented_grading import InventedGrading
+from classlop.dashboard.grader import Grader
 from classlop.dashboard.reports import (
     Assignment,
     AssignmentItem,
@@ -35,15 +36,11 @@ NAMES = [
 ]
 TYPES: list[AssignmentType] = ["homework", "quiz", "exam", "quiz", "homework"]
 TITLES = ["Zbiory liczbowe", "Wzory skróconego mnożenia", "Równania", "Układy równań", "Funkcje"]
-DESCRIPTIONS = [
-    "Błąd znaku przy przenoszeniu wyrazów na drugą stronę",
-    "Pominięte założenie, że mianownik jest różny od zera",
-    "Błąd rachunkowy w ostatnim kroku",
-]
 MAX_ITEMS = 3
+# The Submissions that have work for `grading` to have graded.
+WITH_WORK = ("handed_in", "graded", "returned")
 
 # The Item versions each invented Assignment pinned, as `teams` keeps them once it gives one.
-# GRADING grades against them too, as `grading` keeps what it graded.
 _pinned: list[list[ItemVersion]] = [[] for _ in TITLES]
 
 
@@ -93,11 +90,26 @@ class Read(NamedTuple):
     data: ClassData
     # Each Assignment's Item versions in Item order, by the Assignment's id.
     versions: dict[str, list[ItemVersion]]
+    # The current result of each Submission that has one, by its `grading` id.
+    results: dict[uuid.UUID, grading.Result]
 
 
-async def read(class_id: str, now: datetime, bank: Bank) -> Read | None:
-    """One invented Class with the Teacher's changes made through GRADING, its Items' versions read
-    from the bank in one call."""
+def assignment_uuid(assignment_id: str) -> uuid.UUID:
+    """The id `grading` knows an invented Assignment by."""
+    return uuid.uuid5(uuid.NAMESPACE_URL, assignment_id)
+
+
+def submission_id(assignment_id: str, student_id: str) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment_id}/{student_id}")
+
+
+def item_id(assignment_id: str, number: int) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment_id}#{number}")
+
+
+async def read(class_id: str, now: datetime, bank: Bank, grader: Grader) -> Read | None:
+    """One invented Class: its Items' versions read from the bank in one call, and its points, Held
+    and Spot-check flags from `grading` in one call."""
     if (name := class_name(class_id, now)) is None:
         return None
     await _pin(bank)
@@ -111,13 +123,59 @@ async def read(class_id: str, now: datetime, bank: Bank) -> Read | None:
     each = iter(found)
     versions = [[next(each) for _ in a] for a in _pinned]
     data = _made(class_id, name, now, versions)
-    assignments = tuple(
-        a.model_copy(update={"submissions": tuple(GRADING.applied(a, s) for s in a.submissions)})
-        for a in data.assignments
-    )
-    return Read(
-        data.model_copy(update={"assignments": assignments}),
-        {a.id: v for a, v in zip(assignments, versions, strict=True)},
+    by_id = {a.id: v for a, v in zip(data.assignments, versions, strict=True)}
+    results = {
+        r.submission_id: r
+        for r in await grader.results([assignment_uuid(a.id) for a in data.assignments])
+    }
+    current: dict[uuid.UUID, grading.Result] = {}
+    assignments = []
+    for a in data.assignments:
+        submissions = []
+        for s in a.submissions:
+            sid = submission_id(a.id, s.student_id)
+            result = results.get(sid)
+            # A newer hand-in still being graded has no result yet: its older one does not count.
+            if result is not None and result.handed_in_at == handed_in_at(a, s):
+                current[sid] = result
+            submissions.append(_graded(s, current.get(sid), by_id[a.id]))
+        assignments.append(a.model_copy(update={"submissions": tuple(submissions)}))
+    return Read(data.model_copy(update={"assignments": tuple(assignments)}), by_id, current)
+
+
+def _graded(
+    submission: Submission, result: grading.Result | None, versions: list[ItemVersion]
+) -> Submission:
+    """The Submission with `grading`'s points and flags. Work with no graded result is still
+    being graded, or its grading failed."""
+    if submission.state not in WITH_WORK:
+        return submission
+    if result is None or result.status != "graded":
+        return submission.model_copy(
+            update={"state": "handed_in", "held": False, "spot_check": False, "items": ()}
+        )
+    return submission.model_copy(
+        update={
+            "state": "returned" if submission.state == "returned" else "graded",
+            "held": result.held,
+            "spot_check": result.held or result.spot_check,
+            "items": tuple(
+                ScoredItem(
+                    number=i.number,
+                    topic_ids=tuple(
+                        t.id
+                        for t in (
+                            versions[i.number - 1].curriculum_topics
+                            if i.number <= len(versions)
+                            else ()
+                        )
+                    ),
+                    earned=i.points,
+                    available=i.max_points,
+                )
+                for i in result.items
+            ),
+        }
     )
 
 
@@ -213,36 +271,9 @@ def _made(
     )
 
 
-def _find(submission_id: uuid.UUID) -> tuple[Assignment, Submission, datetime] | None:
-    now = datetime.now(UTC)
-    for c in home.invented(now).classes:
-        for a in _made(c.id, c.name, now, _pinned).assignments:
-            for s in a.submissions:
-                if InventedGrading.submission_id(a.id, s.student_id) == submission_id:
-                    return a, s, handed_in_at(a, s)
-    return None
-
-
-GRADING = InventedGrading(_find)
-
-
-def common_mistakes(assignment: Assignment) -> list[grading.ItemMistakes]:
-    """In the shape `grading.common_mistakes` returns: the first and last Items each have their
-    mistakes, the middle one none."""
-    rng = random.Random(assignment.id)
-    ids = [GRADING.submission_id(assignment.id, s.student_id) for s in assignment.submissions]
-    found = []
-    numbers = sorted({i.number for i in (assignment.items[:1] + assignment.items[-1:])})
-    for number, kinds in zip(numbers, (3, 1), strict=False):
-        mistakes = [
-            grading.Mistake(description=d, submission_ids=rng.sample(ids, (6, 4, 3)[k]))
-            for k, d in enumerate(DESCRIPTIONS[:kinds])
-        ]
-        found.append(
-            grading.ItemMistakes(
-                item_id=GRADING.item_id(assignment.id, number),
-                number=number,
-                mistakes=mistakes,
-            )
-        )
-    return found
+def scenario(now: datetime) -> list[Assignment]:
+    """Every invented Assignment as the tests' stand-in for `grading` grades it: the points, Held
+    and Spot-check flags and the failed grading are in the Submissions."""
+    return [
+        a for c in home.invented(now).classes for a in _made(c.id, c.name, now, _pinned).assignments
+    ]
