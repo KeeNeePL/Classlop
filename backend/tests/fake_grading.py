@@ -1,12 +1,13 @@
-"""The `grading` interface over the invented Classes, in memory, until #82 reads the real results.
-It answers like `grading`: the same records and the same refusals, and the Teacher's changes reach
-the invented data, so the Assignment summary and the Class overview show them."""
+"""`grading` over the invented Classes, in memory, for the tests and the Playwright server, which
+run without a database. It answers like `grading`: the same records and the same refusals, and the
+Teacher's changes show in the results it reads back."""
 
+import random
 import uuid
-from collections.abc import Callable
 from datetime import UTC, datetime
 
 from classlop import grading
+from classlop.dashboard import invented
 from classlop.dashboard.reports import Assignment, ScoredItem, Submission
 
 
@@ -45,16 +46,20 @@ FEEDBACK = [
     "Poprawnie.",
 ]
 MISTAKES = ["brak metody", "błąd znaku"]
+DESCRIPTIONS = [
+    "Błąd znaku przy przenoszeniu wyrazów na drugą stronę",
+    "Pominięte założenie, że mianownik jest różny od zera",
+    "Błąd rachunkowy w ostatnim kroku",
+]
 
 Key = tuple[uuid.UUID, uuid.UUID]
 
 
-class InventedGrading:
-    """`find` gives an invented Submission by its `grading` id, as the invented data first made
-    it, with the time of its current hand-in."""
+class InMemoryGrader:
+    """Grades the invented Submissions as `invented.scenario` has them."""
 
-    def __init__(self, find: Callable[[uuid.UUID], tuple[Assignment, Submission, datetime] | None]):
-        self._find = find
+    def __init__(self) -> None:
+        self.calls: list[list[uuid.UUID]] = []
         self.reset()
 
     def reset(self) -> None:
@@ -65,20 +70,20 @@ class InventedGrading:
         self._graded_again: set[uuid.UUID] = set()
 
     @staticmethod
-    def submission_id(assignment_id: str, student_id: str) -> uuid.UUID:
-        return uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment_id}/{student_id}")
-
-    @staticmethod
-    def item_id(assignment_id: str, number: int) -> uuid.UUID:
-        return uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment_id}#{number}")
-
-    @staticmethod
     def made_failed(submission: Submission) -> bool:
         """The invented data's failed grading: handed in with points, but not graded."""
         return submission.state == "handed_in" and bool(submission.items)
 
     def _failed(self, submission_id: uuid.UUID, submission: Submission) -> bool:
         return self.made_failed(submission) and submission_id not in self._graded_again
+
+    @staticmethod
+    def _find(submission_id: uuid.UUID) -> tuple[Assignment, Submission, datetime] | None:
+        for a in invented.scenario(datetime.now(UTC)):
+            for s in a.submissions:
+                if invented.submission_id(a.id, s.student_id) == submission_id:
+                    return a, s, invented.handed_in_at(a, s)
+        return None
 
     def _hand_in(
         self, submission_id: uuid.UUID, handed_in_at: datetime
@@ -95,8 +100,8 @@ class InventedGrading:
 
     def _key(self, assignment: Assignment, submission: Submission, scored: ScoredItem) -> Key:
         return (
-            self.submission_id(assignment.id, submission.student_id),
-            self.item_id(assignment.id, scored.number),
+            invented.submission_id(assignment.id, submission.student_id),
+            invented.item_id(assignment.id, scored.number),
         )
 
     async def result(
@@ -158,29 +163,6 @@ class InventedGrading:
             }
         )
 
-    def applied(self, assignment: Assignment, submission: Submission) -> Submission:
-        """The Submission with the Teacher's changes, for the invented data."""
-        submission_id = self.submission_id(assignment.id, submission.student_id)
-        if not submission.items:
-            return submission
-        approved = submission_id in self._approved
-        graded_again = self.made_failed(submission) and not self._failed(submission_id, submission)
-        return submission.model_copy(
-            update={
-                "state": "graded" if graded_again else submission.state,
-                "held": submission.held and not approved,
-                "spot_check": submission.spot_check and not approved,
-                "items": tuple(
-                    i.model_copy(update={"earned": self._points(assignment, submission, i)})
-                    for i in submission.items
-                ),
-            }
-        )
-
-    def _points(self, assignment: Assignment, submission: Submission, scored: ScoredItem) -> int:
-        key = self._key(assignment, submission, scored)
-        return self._overrides.get(key, self._ai_points(key, scored))
-
     def _changeable_item(
         self, submission_id: uuid.UUID, handed_in_at: datetime, item_id: uuid.UUID
     ) -> ScoredItem:
@@ -189,7 +171,8 @@ class InventedGrading:
         if self._failed(submission_id, submission):
             raise ValueError("a failed result has no Items to change; grade it again")
         scored = next(
-            (i for i in submission.items if self.item_id(assignment.id, i.number) == item_id), None
+            (i for i in submission.items if invented.item_id(assignment.id, i.number) == item_id),
+            None,
         )
         if scored is None:
             raise LookupError(f"no Item {item_id} in this result")
@@ -240,3 +223,48 @@ class InventedGrading:
         if not self._failed(submission_id, submission):
             raise ValueError("only a failed result is graded again")
         self._graded_again.add(submission_id)
+
+    async def results(self, assignment_ids: list[uuid.UUID]) -> list[grading.Result]:
+        self.calls.append(assignment_ids)
+        found = []
+        for a in invented.scenario(datetime.now(UTC)):
+            if invented.assignment_uuid(a.id) not in assignment_ids:
+                continue
+            for s in a.submissions:
+                if s.items and (
+                    r := await self.result(
+                        invented.submission_id(a.id, s.student_id), invented.handed_in_at(a, s)
+                    )
+                ):
+                    found.append(r)
+        return found
+
+    async def common_mistakes(self, assignment_id: uuid.UUID) -> list[grading.ItemMistakes]:
+        """The first and last Items each have their mistakes, the middle one none."""
+        assignment = next(
+            (
+                a
+                for a in invented.scenario(datetime.now(UTC))
+                if invented.assignment_uuid(a.id) == assignment_id
+            ),
+            None,
+        )
+        if assignment is None:
+            return []
+        rng = random.Random(assignment.id)
+        ids = [invented.submission_id(assignment.id, s.student_id) for s in assignment.submissions]
+        found = []
+        numbers = sorted({i.number for i in (assignment.items[:1] + assignment.items[-1:])})
+        for number, kinds in zip(numbers, (3, 1), strict=False):
+            mistakes = [
+                grading.Mistake(description=d, submission_ids=rng.sample(ids, (6, 4, 3)[k]))
+                for k, d in enumerate(DESCRIPTIONS[:kinds])
+            ]
+            found.append(
+                grading.ItemMistakes(
+                    item_id=invented.item_id(assignment.id, number),
+                    number=number,
+                    mistakes=mistakes,
+                )
+            )
+        return found

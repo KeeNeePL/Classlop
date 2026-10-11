@@ -22,8 +22,8 @@ import { Percent } from '../ui/percent';
 
 const HINTS = {
   invented:
-    'Prawdziwe: zadania z banku i ich punkty. Na razie zmyślone: uczniowie, terminy, stany ' +
-    'prac, punkty uczniów i najczęstsze błędy.',
+    'Prawdziwe: zadania z banku, punkty uczniów, prace czekające na sprawdzenie i najczęstsze ' +
+    'błędy. Na razie zmyślone: uczniowie, terminy i stany prac.',
   summary:
     'Do terminu oddania widać tylko, ile prac oddano; uczniowie zwolnieni się nie liczą. Od ' +
     'terminu: spóźnione, brakujące i czekające prace, średni wynik klasy i rozkład ' +
