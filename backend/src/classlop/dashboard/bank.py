@@ -15,6 +15,7 @@ from classlop.dashboard import auth
 from classlop.items import (
     CurriculumSection,
     Filters,
+    GeneralRequirementText,
     Item,
     ItemEdit,
     RubricLevel,
@@ -54,9 +55,11 @@ class ClassOption(BaseModel):
 
 
 class BankFilters(BaseModel):
-    """What the screen offers to filter by: the Curriculum and the Classes."""
+    """What the screen offers to filter and tag by: the Curriculum, the General requirements and the
+    Classes."""
 
     sections: list[CurriculumSection]
+    general_requirements: list[GeneralRequirementText]
     classes: list[ClassOption]
 
 
@@ -186,7 +189,11 @@ async def _detail(bank: Bank, item_id: uuid.UUID) -> ItemDetail:
 
 @router.get("/api/bank/filters")
 async def filters(_: Teacher, bank: TheBank) -> BankFilters:
-    return BankFilters(sections=items.curriculum(), classes=await bank.classes())
+    return BankFilters(
+        sections=items.curriculum(),
+        general_requirements=items.general_requirements(),
+        classes=await bank.classes(),
+    )
 
 
 @router.get("/api/bank/items")

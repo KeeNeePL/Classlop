@@ -73,15 +73,11 @@
               [routerLink]="['/bank', item.id]"
               routerLinkActive="on"
               [class.retired]="item.retired"
-              [class.flagged]="item.flagged"
             >
               <span class="text"><cl-math [text]="item.version.text" /></span>
               <span class="tags">
                 <cl-badge>{{ difficulty[item.version.difficulty] }}</cl-badge>
                 <cl-badge>{{ item.version.points }} pkt</cl-badge>
-                @if (item.flagged) {
-                  <cl-badge tone="warn">do sprawdzenia</cl-badge>
-                }
                 @if (item.retired) {
                   <cl-badge tone="danger">usunięte</cl-badge>
                 }

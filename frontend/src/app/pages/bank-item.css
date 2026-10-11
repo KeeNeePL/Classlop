@@ -82,9 +82,20 @@ p {
 .options {
   list-style: none;
   padding: 0;
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   display: grid;
-  gap: 4px;
+  gap: 8px;
+}
+
+/* The marker sits level with the middle of its answer, a clear step away from it. */
+.options li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.options cl-badge {
+  margin-left: 16px;
 }
 
 .options .correct {
@@ -234,4 +245,9 @@ legend {
   border-color: var(--red);
   background: var(--red);
   color: #fff;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
 }

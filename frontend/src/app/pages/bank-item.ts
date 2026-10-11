@@ -21,8 +21,6 @@ import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
 import { BankStore, DIFFICULTY } from './bank-store';
 
-const REQUIREMENTS: ItemVersion['general_requirements'] = ['I', 'II', 'III', 'IV'];
-
 /** What the Edit form holds while the Teacher types. */
 interface Draft {
   text: string;
@@ -125,12 +123,16 @@ export class BankItem {
   protected readonly busy = signal(false);
 
   protected readonly sections = computed(() => this.bank.filters()?.sections ?? []);
-  protected readonly requirements = REQUIREMENTS;
+  protected readonly skills = computed(() => this.bank.filters()?.general_requirements ?? []);
   protected readonly levels = Object.keys(DIFFICULTY) as ItemVersion['difficulty'][];
   protected readonly difficulty = DIFFICULTY;
   protected readonly date = shortDate;
   protected readonly options = (v: ItemVersion) => Object.entries(v.options ?? {});
   protected readonly percent = (average: number) => Math.round(average * 100);
+
+  protected skillName(id: string): string {
+    return this.skills().find((s) => s.id === id)?.name ?? id;
+  }
 
   protected edit(d: ItemDetail): void {
     this.error.set(null);

@@ -646,6 +646,13 @@
             "type": "array",
             "title": "Sections"
           },
+          "general_requirements": {
+            "items": {
+              "$ref": "#/components/schemas/GeneralRequirementText"
+            },
+            "type": "array",
+            "title": "General Requirements"
+          },
           "classes": {
             "items": {
               "$ref": "#/components/schemas/ClassOption"
@@ -657,10 +664,11 @@
         "type": "object",
         "required": [
           "sections",
+          "general_requirements",
           "classes"
         ],
         "title": "BankFilters",
-        "description": "What the screen offers to filter by: the Curriculum and the Classes."
+        "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
       },
       "ClassLink": {
         "properties": {
@@ -818,6 +826,35 @@
           "action"
         ],
         "title": "Entry"
+      },
+      "GeneralRequirementText": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "I",
+              "II",
+              "III",
+              "IV"
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "title": "GeneralRequirementText"
       },
       "HTTPValidationError": {
         "properties": {

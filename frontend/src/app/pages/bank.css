@@ -246,11 +246,6 @@ ol {
   color: var(--ink);
 }
 
-/* Something to check is marked in the margin, as the Do zrobienia queue does. */
-.card.flagged {
-  border-left: 4px solid #d8b800;
-}
-
 .card:hover {
   border-color: var(--pen);
 }

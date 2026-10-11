@@ -71,11 +71,15 @@ def test_never_used_with_a_class_leaves_out_what_the_class_got():
     assert len(found(web(), never_used_with_class=str(uuid.uuid4()))) == 7
 
 
-def test_the_filters_are_the_curriculum_and_the_classes():
+def test_the_filters_are_the_curriculum_the_general_requirements_and_the_classes():
     filters = web().get("/api/bank/filters").json()
 
     assert filters["sections"][0]["name"] == "Liczby rzeczywiste"
     assert filters["sections"][0]["topics"][0]["id"] == "lo2024:I.1"
+    assert [(g["id"], g["name"]) for g in filters["general_requirements"]][:2] == [
+        ("I", "Sprawność rachunkowa"),
+        ("II", "Wykorzystanie i tworzenie informacji"),
+    ]
     assert [c["name"] for c in filters["classes"]] == ["1A", "2C", "3B"]
 
 

@@ -111,15 +111,14 @@ test('dismissing a flag lowers the count in the sidebar', async ({ page }) => {
   const link = page.getByRole('navigation').getByRole('link', { name: /^Bank zadań/ });
   await expect(link).toHaveText(/4$/);
 
-  const flagged = items(page).filter({ hasText: 'do sprawdzenia' });
-  await expect(flagged).toHaveCount(4);
-  await flagged.first().getByRole('link').click();
+  await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('Wartość wyrażenia');
+  await expect(items(page)).toHaveCount(1);
+  await items(page).getByRole('link').click();
   await expect(page.getByText('Do sprawdzenia.')).toBeVisible();
   await page.getByRole('button', { name: 'Odrzuć flagę' }).click();
 
   await expect(page.getByText('Do sprawdzenia.')).toHaveCount(0);
   await expect(link).toHaveText(/3$/);
-  await expect(flagged).toHaveCount(3);
 });
 
 test('an edit saves a new version and the AI offers a new solution', async ({ page }) => {

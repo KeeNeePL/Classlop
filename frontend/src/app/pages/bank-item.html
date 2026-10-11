@@ -101,15 +101,18 @@
         </div>
 
         <fieldset>
-          <legend>Wymagania ogólne</legend>
-          @for (r of requirements; track r) {
-            <label class="check">
+          <legend>Jakie umiejętności sprawdza zadanie</legend>
+          <p class="muted hint">
+            To wymagania ogólne z podstawy programowej. Najedź na nazwę, żeby zobaczyć opis.
+          </p>
+          @for (s of skills(); track s.id) {
+            <label class="check" [title]="s.description">
               <input
                 type="checkbox"
-                [checked]="has(f.general, r)"
-                (change)="toggle(f.general, r, $any($event.target).checked)"
+                [checked]="has(f.general, s.id)"
+                (change)="toggle(f.general, s.id, $any($event.target).checked)"
               />
-              {{ r }}
+              {{ s.name }}
             </label>
           }
         </fieldset>
@@ -200,7 +203,8 @@
         <ul class="options">
           @for (o of options(v); track o[0]) {
             <li [class.correct]="v.correct_options?.includes(o[0])">
-              <b>{{ o[0] }}.</b> <cl-math [text]="o[1]" />
+              <b>{{ o[0] }}.</b>
+              <cl-math [text]="o[1]" />
               @if (v.correct_options?.includes(o[0])) {
                 <cl-badge tone="ok">poprawna</cl-badge>
               }
@@ -235,8 +239,14 @@
 
       <h2>Tagi</h2>
       <dl class="tagged">
-        <dt>Wymagania ogólne</dt>
-        <dd>{{ v.general_requirements.join(', ') }}</dd>
+        <dt>Umiejętności</dt>
+        <dd>
+          <ul>
+            @for (id of v.general_requirements; track id) {
+              <li>{{ skillName(id) }}</li>
+            }
+          </ul>
+        </dd>
         <dt>Tematy</dt>
         <dd>
           <ul>
