@@ -1,18 +1,27 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ChatEntry } from '../api/models';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
+import { map } from 'rxjs';
 import { Badge } from '../ui/badge';
+import { AiPrototype, isVariant } from './ai-prototype/prototype';
 import { AiStore } from './ai-store';
 
 /** The Classlop AI tab: the Teacher's Chats on the left, the open Chat on the right. */
 @Component({
-  imports: [Badge, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AiPrototype, Badge, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './ai.html',
   styleUrl: './ai.css',
 })
 export class Ai {
   private readonly store = inject(AiStore);
   private readonly router = inject(Router);
+  /** PROTOTYPE: a ?variant= swaps the screen for one of the throwaway variants. */
+  protected readonly variant = toSignal(
+    inject(ActivatedRoute).queryParamMap.pipe(map((q) => isVariant(q.get('variant')))),
+    { requireSync: true },
+  );
 
   protected readonly query = signal('');
   /** The Chat whose name is being typed over. */

@@ -2,6 +2,9 @@
   <h1>Classlop AI</h1>
 </header>
 
+@if (variant()) {
+  <cl-ai-prototype />
+} @else {
 <div class="ai">
   <section class="list" aria-label="Czaty">
     <a class="btn ghost new" routerLink="/ai">+ Nowy czat</a>
@@ -69,3 +72,4 @@
     <router-outlet />
   </section>
 </div>
+}
