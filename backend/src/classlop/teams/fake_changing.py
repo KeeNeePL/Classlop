@@ -2,16 +2,15 @@
 words are the shared ones in amendments.py."""
 
 import asyncio
-import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ulid import ULID
 
 from classlop.shared import jobs, schedule, storage
-from classlop.teams import amendments, assignments, lifecycle
+from classlop.teams import amendments, assignments, cards, lifecycle
 from classlop.teams import submissions as rules
-from classlop.teams.fake_giving import Post
+from classlop.teams.fake_giving import Post, post_text
 from classlop.teams.fake_handins import Hand
 from classlop.teams.lifecycle import check_writable
 from classlop.teams.types import Assignment, Class, Student, Submission
@@ -74,7 +73,7 @@ class FakeChanging:
             await asyncio.to_thread(storage.delete_prefix, rules.prefix(submission.id))
             user_id = students[submission.student_id].user_id
             if submission.chat_id and submission.notice_id and user_id not in self._rejected:
-                html = amendments.cancelled_html(given.title)
+                html = cards.readable(amendments.cancelled(given.title))
                 self._chat_log.setdefault(user_id, []).append(html)
             self._hands.pop(submission.id, None)
         del self._assignments[assignment_id], self._submissions[assignment_id]
@@ -139,9 +138,10 @@ class FakeChanging:
                 raise RuntimeError("the post was refused")
             posts = self._posts[klass.team_id]
             n = next(n for n, p in enumerate(posts) if p.id == after.post_id)
-            html = assignments.post_html(after, str(uuid.uuid4()))
+            html = post_text(after)
             posts[n] = posts[n]._replace(html=html)
-            self._replies.setdefault(after.post_id, []).append(amendments.due_moved_html(due))
+            reply = cards.readable(amendments.due_moved(after))
+            self._replies.setdefault(after.post_id, []).append(reply)
         self._save(assignment_id, due_at=due, close_at=close)
         for submission in self._submissions[assignment_id].values():
             if submission.state in rules.HANDED_IN and submission.handed_in_at:

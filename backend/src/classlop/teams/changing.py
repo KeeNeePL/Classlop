@@ -16,7 +16,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.teams import amendments, assignments, lifecycle
 from classlop.teams import submissions as rules
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
-from classlop.teams.graph import GraphClient, html_body, or_gone
+from classlop.teams.graph import GraphClient, or_gone
 from classlop.teams.handin_records import HandinFileRecord
 from classlop.teams.lifecycle import check_writable
 from classlop.teams.types import Assignment, Class, Student, Submission
@@ -152,7 +152,7 @@ class Changing:
     async def _tell_cancelled(self, title: str, submissions: list[Submission]) -> None:
         """A message to each Student the Assignment reached; one that fails is not tried again,
         as the Assignment is gone either way."""
-        message = {"body": html_body(amendments.cancelled_html(title))}
+        message = amendments.cancelled(title)
         for submission in submissions:
             if not (submission.chat_id and submission.notice_id):
                 continue
@@ -168,10 +168,9 @@ class Changing:
         klass = await self.get_class(a.class_id)
         url = f"/teams/{klass.team_id}/channels/{a.post_channel_id}/messages/{a.post_id}"
         attachments = (await self._graph.get(url))["attachments"]
-        body = html_body(assignments.post_html(a, attachments[0]["id"]))
-        await self._graph.request("PATCH", url, json={"body": body, "attachments": attachments})
-        reply = {"body": html_body(amendments.due_moved_html(a.due_at))}
-        await self._graph.send("POST", f"{url}/replies", reply)
+        pdf = next(x for x in attachments if x["contentType"] == "reference")
+        await self._graph.request("PATCH", url, json=assignments.post(a, pdf))
+        await self._graph.send("POST", f"{url}/replies", amendments.due_moved(a))
 
     async def _recompute_late(self, a: Assignment) -> None:
         """A hand-in is Late against the due time as it now stands."""

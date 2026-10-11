@@ -11,17 +11,29 @@ from ulid import ULID
 from classlop import items
 from classlop.shared import jobs, schedule
 from classlop.shared.jobs import SignInRequired
-from classlop.teams import assignments, ids
+from classlop.teams import assignments, cards, ids
 from classlop.teams.lifecycle import check_writable, writable
 from classlop.teams.types import Assignment, AssignmentSpec, Class, Student, Submission
 
 
 class Post(NamedTuple):
-    """A post in a team's channel: its HTML and the files attached, by name."""
+    """A post in a team's channel: its text, as `cards.readable` gives it, and the files
+    attached, by name."""
 
     id: str
     html: str
     files: dict[str, bytes]
+
+
+def post_text(a: Assignment) -> str:
+    """The text of an Assignment's post; its PDF is kept in `Post.files`."""
+    pdf = {
+        "id": uuid.uuid4().hex,
+        "contentType": "reference",
+        "contentUrl": "",
+        "name": f"{assignments.safe(a.title)}.pdf",
+    }
+    return cards.readable(assignments.post(a, pdf))
 
 
 class Share(NamedTuple):
@@ -213,7 +225,7 @@ class FakeGiving:
             name = f"{assignments.safe(given.title)}.pdf"
             post = Post(
                 str(uuid.uuid4()),
-                assignments.post_html(given, str(uuid.uuid4())),
+                post_text(given),
                 {name: self._pdfs[assignment_id]},
             )
             self._posts.setdefault(klass.team_id, []).append(post)
@@ -298,7 +310,7 @@ class FakeGiving:
             raise RuntimeError("the chat was refused")
         submission = self._update(submission, chat_id=submission.chat_id or str(uuid.uuid4()))
         self._chat_log.setdefault(student.user_id, []).append(
-            assignments.notice_html(given, submission.folder_url or "")
+            cards.readable(assignments.notice(given, submission.folder_url or ""))
         )
         self._update(submission, notice_id=str(uuid.uuid4()))
 

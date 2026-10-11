@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from classlop.shared import schedule
 from classlop.teams import reminders
-from classlop.teams.graph import GraphClient, html_body
+from classlop.teams.graph import GraphClient
 from classlop.teams.lifecycle import check_writable
 from classlop.teams.types import Assignment, Class, Student, Submission
 
@@ -23,7 +23,7 @@ class Reminding:
         async def list_students(self, class_id: str) -> list[Student]: ...
         async def list_submissions(self, assignment_id: str) -> list[Submission]: ...
         async def _store_reminder(self, assignment_id: str, on: bool) -> None: ...
-        async def _announce(self, klass: Class, html: str) -> None: ...
+        async def _announce(self, klass: Class, message: dict) -> None: ...
 
     async def set_reminder(self, assignment_id: str, on: bool) -> Assignment:
         given = await self.get_assignment(assignment_id)
@@ -57,7 +57,7 @@ class Reminding:
         pairs = [(s, students[s.student_id]) for s in await self.list_submissions(given.id)]
         if not (count := reminders.waiting(pairs)):
             return False
-        await self._announce(klass, reminders.post_html(given, count))
+        await self._announce(klass, reminders.post(given, count))
         return True
 
 
@@ -73,9 +73,9 @@ class GraphReminding(Reminding):
     async def _store_reminder(self, assignment_id: str, on: bool) -> None:
         await self._save_assignment(assignment_id, reminder_on=on)
 
-    async def _announce(self, klass: Class, html: str) -> None:
+    async def _announce(self, klass: Class, message: dict) -> None:
         await self._graph.send(
             "POST",
             f"/teams/{klass.team_id}/channels/{klass.general_channel_id}/messages",
-            {"body": html_body(html)},
+            message,
         )

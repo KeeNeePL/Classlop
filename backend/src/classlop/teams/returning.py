@@ -20,7 +20,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.teams import feedback, ids
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
 from classlop.teams.feedback_records import FeedbackRecord
-from classlop.teams.graph import GraphClient, attachment_id, html_body, or_gone
+from classlop.teams.graph import GraphClient, attachment_id, or_gone
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment, SubmissionState
 
@@ -173,20 +173,13 @@ class Returning:
                 },
             )
             await self._save_feedback(sent, shared=True)
-        body: dict = {
-            "body": html_body(
-                feedback.message_html(assignment, found.comment, corrected, sent.attachment_id)
-            )
+        pdf = {
+            "id": sent.attachment_id,
+            "contentType": "reference",
+            "contentUrl": sent.web_url,
+            "name": feedback.attachment_name(assignment),
         }
-        if key:
-            body["attachments"] = [
-                {
-                    "id": sent.attachment_id,
-                    "contentType": "reference",
-                    "contentUrl": sent.web_url,
-                    "name": feedback.attachment_name(assignment),
-                }
-            ]
+        body = feedback.message(assignment, found.comment, corrected, [pdf] if key else [])
         message = await self._graph.send("POST", f"/chats/{submission.chat_id}/messages", body)
         await self._save_feedback(sent, message_id=message["id"], sent_at=self._clock())
         if corrected:

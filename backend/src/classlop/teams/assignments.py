@@ -3,9 +3,9 @@ FakeTeams share them, so the rules and the words Students read cannot drift."""
 
 import re
 from datetime import datetime
-from html import escape
 from zoneinfo import ZoneInfo
 
+from classlop.teams import cards
 from classlop.teams.types import Assignment, AssignmentSpec, AssignmentType, Student
 
 WARSAW = ZoneInfo("Europe/Warsaw")
@@ -63,20 +63,35 @@ def local_time(moment: datetime) -> str:
     return moment.astimezone(WARSAW).strftime("%d.%m.%Y %H:%M")
 
 
-def post_html(a: Assignment, attachment_id: str) -> str:
+def post(a: Assignment, pdf: dict) -> dict:
     """The post in General: the title, the due time and the Items PDF, no way to hand in."""
-    return (
-        f"<p><b>{escape(a.title)}</b> ({LABELS[a.type].lower()})</p>"
-        f"<p>Termin oddania: {local_time(a.due_at)}</p>"
-        f'<attachment id="{attachment_id}"></attachment>'
+    return cards.message(
+        f"{LABELS[a.type]}: {a.title}",
+        LABELS[a.type],
+        a.title,
+        [
+            cards.facts([("Termin oddania", local_time(a.due_at))]),
+            cards.text("Zadania są w pliku PDF poniżej.", size="Small", isSubtle=True),
+        ],
+        files=[pdf],
     )
 
 
-def notice_html(a: Assignment, folder_url: str) -> str:
+def notice(a: Assignment, folder_url: str) -> dict:
     """The «Nowa praca» chat message."""
-    return (
-        f"<p>«Nowa praca»: <b>{escape(a.title)}</b>. Termin oddania: {local_time(a.due_at)}.</p>"
-        f'<p>Twój prywatny folder na zdjęcia pracy: <a href="{escape(folder_url)}">'
-        "otwórz folder</a></p>"
-        "<p>Link otwiera się w przeglądarce lub aplikacji OneDrive, nie w Teams.</p>"
+    return cards.message(
+        f"«Nowa praca»: {a.title}",
+        f"Nowa praca · {LABELS[a.type].lower()}",
+        a.title,
+        [
+            cards.facts([("Termin oddania", local_time(a.due_at))]),
+            cards.text("Zdjęcia rozwiązań wgraj do swojego prywatnego folderu."),
+            cards.text(
+                "Link otwiera się w przeglądarce lub aplikacji OneDrive, nie w Teams.",
+                size="Small",
+                isSubtle=True,
+                spacing="Small",
+            ),
+        ],
+        [cards.link("Otwórz folder", folder_url)],
     )

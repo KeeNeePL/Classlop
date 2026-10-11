@@ -11,6 +11,7 @@ from urllib.parse import unquote
 
 import httpx
 
+from classlop.teams import cards
 from classlop.teams.fake_giving import Post, Share
 from classlop.teams.service import zulu
 
@@ -67,7 +68,7 @@ class FilesRoutes:
         self._posts[team_id] = [p for p in self._posts[team_id] if p.id != post_id]
 
     def replies_to(self, post_id: str) -> list[str]:
-        """The HTML of the replies in the thread of a channel post."""
+        """The replies in the thread of a channel post, as `cards.readable` gives them."""
         return self._replies.get(post_id, [])
 
     def shared_with(self, user_id: str) -> list[Share]:
@@ -261,7 +262,7 @@ class FilesRoutes:
         if team_id in self._rejected:
             return httpx.Response(403, json={"error": {"code": "Forbidden"}})
         body = json.loads(request.content)
-        post = Post(str(uuid.uuid4()), body["body"]["content"], self._attached(body))
+        post = Post(str(uuid.uuid4()), cards.readable(body), self._attached(body))
         self._attachments[post.id] = body.get("attachments", [])
         self._posts.setdefault(team_id, []).append(post)
         return httpx.Response(201, json={"id": post.id})
@@ -272,6 +273,7 @@ class FilesRoutes:
                 i["content"] for i in self.drive.values() if i["url"] == a["contentUrl"]
             )
             for a in body.get("attachments", [])
+            if a["contentType"] != cards.CARD
         }
 
     def _find_post(self, team_id: str, post_id: str) -> int | None:
@@ -298,7 +300,7 @@ class FilesRoutes:
         if "attachments" in body:
             self._attachments[post_id] = body["attachments"]
         self._posts[team_id][n] = Post(
-            post_id, body["body"]["content"], self._attached(body) or post.files
+            post_id, cards.readable(body), self._attached(body) or post.files
         )
         return httpx.Response(204)
 
@@ -307,7 +309,7 @@ class FilesRoutes:
             return _gone()
         if team_id in self._rejected:
             return httpx.Response(403, json={"error": {"code": "Forbidden"}})
-        self._replies.setdefault(post_id, []).append(body["body"]["content"])
+        self._replies.setdefault(post_id, []).append(cards.readable(body))
         return httpx.Response(201, json={"id": str(uuid.uuid4())})
 
     def _soft_delete(self, team_id: str, post_id: str) -> httpx.Response:
@@ -407,8 +409,10 @@ class FilesRoutes:
             return _gone()
         if owner in self._rejected:
             return httpx.Response(403, json={"error": {"code": "Forbidden"}})
-        self._chat_log[chat_id].append(body["body"]["content"])
+        self._chat_log[chat_id].append(cards.readable(body))
         for attachment in body.get("attachments", []):
+            if attachment["contentType"] == cards.CARD:
+                continue
             file = next(i for i in self.drive.values() if i["url"] == attachment["contentUrl"])
             self._chat_attached.setdefault(chat_id, []).append(
                 (attachment["name"], file["content"], owner in file.get("shares", {}))

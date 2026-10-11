@@ -1,5 +1,6 @@
 """`teams` enqueues `grading.grade` and `grading.common_mistakes`; `teams` and `dashboard` read
-`result`, `common_mistakes` and `item_averages`; `dashboard` calls the Teacher's actions."""
+`result`, `common_mistakes`, `item_averages` and the `AI_LINE` that ends a Feedback comment;
+`dashboard` calls the Teacher's actions."""
 
 from classlop.grading.averages import item_averages
 from classlop.grading.common_mistakes import (
@@ -8,6 +9,7 @@ from classlop.grading.common_mistakes import (
     common_mistakes,
     request_common_mistakes,
 )
+from classlop.grading.feedback import AI_LINE
 from classlop.grading.handlers import gather_common_mistakes, grade
 from classlop.grading.models import Reading, Status
 from classlop.grading.result import ItemResult, Reason, Result, result, results
@@ -21,6 +23,7 @@ from classlop.grading.teacher import (
 )
 
 __all__ = [
+    "AI_LINE",
     "ItemMistakes",
     "ItemResult",
     "Mistake",
