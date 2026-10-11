@@ -20,6 +20,7 @@ from classlop.items import (
     ItemEdit,
     RubricLevel,
     SearchPage,
+    SectionCount,
     Tagger,
 )
 from classlop.items.types import Difficulty, GeneralRequirement, ItemFormat
@@ -95,6 +96,18 @@ class Bank(Protocol):
     async def retire(self, item_id: uuid.UUID) -> None: ...
     async def restore(self, item_id: uuid.UUID) -> None: ...
     async def dismiss_flag(self, item_id: uuid.UUID) -> None: ...
+    async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]: ...
+    async def stock(self, never_used_with: uuid.UUID | None) -> list[SectionCount]: ...
+    async def pick(
+        self,
+        section: str,
+        difficulty: Difficulty,
+        n: int,
+        class_id: uuid.UUID,
+        *,
+        allow_reuse: bool,
+        exclude: list[uuid.UUID],
+    ) -> list[Item]: ...
 
 
 class ItemsBank:
@@ -148,6 +161,26 @@ class ItemsBank:
 
     async def dismiss_flag(self, item_id: uuid.UUID) -> None:
         await items.dismiss_flag(item_id)
+
+    async def get_many(self, item_ids: list[uuid.UUID]) -> list[Item]:
+        return await items.get_items(item_ids)
+
+    async def stock(self, never_used_with: uuid.UUID | None) -> list[SectionCount]:
+        return await items.count_items(Filters(never_used_with_class=never_used_with))
+
+    async def pick(
+        self,
+        section: str,
+        difficulty: Difficulty,
+        n: int,
+        class_id: uuid.UUID,
+        *,
+        allow_reuse: bool,
+        exclude: list[uuid.UUID],
+    ) -> list[Item]:
+        return await items.pick_items(
+            section, difficulty, n, class_id, allow_reuse=allow_reuse, exclude=exclude
+        )
 
 
 async def _or_none(lookup: Awaitable[Any], field: str) -> str | None:

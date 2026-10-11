@@ -10,7 +10,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        'uv run --project ../backend uvicorn --app-dir ../backend/tests e2e_app:create --factory --port 8001',
+        'uv run --project ../backend uvicorn --app-dir ../backend/tests e2e_app:serve --factory --port 8001',
       url: 'http://localhost:8001/api/me',
       reuseExistingServer: !process.env['CI'],
     },

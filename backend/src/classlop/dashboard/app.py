@@ -13,6 +13,7 @@ from classlop.dashboard import (
     bank,
     events,
     home,
+    new_work,
     overview,
     student,
     submission,
@@ -44,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(events.router)
     app.include_router(submission.router)
     app.include_router(student.router)
+    app.include_router(new_work.router)
 
     @app.get("/healthz")
     async def healthz(response: Response) -> dict[str, str]:
