@@ -124,3 +124,31 @@ test('chats are searched, renamed and deleted in the Chat menu', async ({ page }
   await expect(page.getByRole('link', { name: 'Ciągi liczbowe' })).toHaveCount(0);
   await expect(list.getByRole('listitem')).toHaveCount(1);
 });
+
+test('a long Chat scrolls inside its card and the page keeps its height', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto('/ai');
+  const log = page.getByRole('log', { name: 'Wiadomości' });
+  const box = page.getByLabel('Wiadomość');
+  for (const n of [1, 2, 3, 4, 5, 6]) {
+    await box.fill(`Pytanie ${n}`);
+    await page.getByRole('button', { name: 'Wyślij' }).click();
+    await expect(log.getByText(`Pytanie ${n}`)).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'AI pisze' })).toHaveCount(0);
+  }
+
+  // The newest message and the box stay in view; the messages scroll, the page does not.
+  await expect(log.getByText('Pytanie 6')).toBeInViewport();
+  await expect(box).toBeInViewport();
+  const sizes = await log.evaluate((el) => ({
+    scrolls: el.scrollHeight > el.clientHeight,
+    page: document.documentElement.scrollHeight,
+    view: window.innerHeight,
+  }));
+  expect(sizes.scrolls).toBe(true);
+  expect(sizes.page).toBeLessThanOrEqual(sizes.view);
+
+  // The Chat uses the width of a wide window, not only the narrow column of other screens.
+  const chat = await log.evaluate((el) => el.closest('.chat')!.getBoundingClientRect().width);
+  expect(chat).toBeGreaterThan(700);
+});

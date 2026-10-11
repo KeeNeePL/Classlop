@@ -25,6 +25,7 @@ import { AiStore } from './ai-store';
 /** The Classlop AI tab: the open Chat, with the Teacher's Chats in a menu above it. */
 @Component({
   imports: [Badge, RouterLink, RouterLinkActive, RouterOutlet],
+  host: { class: 'ai-page' },
   templateUrl: './ai.html',
   styleUrl: './ai.css',
 })

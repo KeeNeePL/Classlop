@@ -1,6 +1,20 @@
+/* The tab fills the window below main's padding, so the Chat scrolls inside its card. */
 :host {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 16px;
+  height: calc(100dvh - 100px);
+  min-height: 480px;
+}
+
+router-outlet {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :host {
+    height: auto;
+  }
 }
 
 .picker {

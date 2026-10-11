@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -52,6 +62,7 @@ export class AiChat {
   protected readonly state = jobState;
   protected readonly percent = jobPercent;
   protected readonly active = jobActive;
+  private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
 
   protected readonly jobOf = computed(() => {
     const byId = new Map(this.jobs().map((j) => [j.job_id, j]));
@@ -78,6 +89,14 @@ export class AiChat {
     }
     effect(() => {
       if (stream.reopened()) untracked(() => void this.read(this.id()));
+    });
+    // Whatever is said last is in view: the messages scroll inside the card, not the page.
+    afterRenderEffect(() => {
+      this.messages();
+      this.turn();
+      this.error();
+      const log = this.log().nativeElement;
+      log.scrollTop = log.scrollHeight;
     });
     // The first message of a Chat made on the start screen.
     const first = this.store.outbox();
