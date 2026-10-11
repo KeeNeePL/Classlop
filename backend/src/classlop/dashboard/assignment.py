@@ -3,7 +3,6 @@ Teacher makes to a Given Assignment, which `teams` carries out."""
 
 import csv
 import io
-from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import quote
@@ -13,8 +12,8 @@ from pydantic import BaseModel
 
 from classlop import grading, teams
 from classlop.dashboard import auth, invented
+from classlop.dashboard.actions import carry_out
 from classlop.dashboard.reports import AssignmentSummary, Mistake, Student, assignment_summary
-from classlop.shared.jobs import SignInRequired
 
 router = APIRouter()
 
@@ -109,36 +108,22 @@ class Recipients(BaseModel):
     student_ids: list[str]
 
 
-async def through_teams(change: Awaitable[object]) -> Response:
-    """What `teams` refuses becomes an HTTP error the screen can show."""
-    try:
-        await change
-    except LookupError as e:
-        raise HTTPException(404) from e
-    except SignInRequired as e:
-        # The screen's interceptor answers a 401 with "Zaloguj się ponownie".
-        raise HTTPException(401) from e
-    except (ValueError, teams.ClassReadOnly) as e:
-        raise HTTPException(409, str(e) or None) from e
-    return Response(status_code=204)
-
-
 @router.post("/api/assignments/{assignment_id}/times", status_code=204)
 async def change_times(
     assignment_id: str, times: Times, _: Annotated[auth.Me, Depends(auth.teacher)]
 ) -> Response:
-    return await through_teams(teams.change_times(assignment_id, times.due_at, times.close_at))
+    return await carry_out(teams.change_times(assignment_id, times.due_at, times.close_at))
 
 
 @router.post("/api/assignments/{assignment_id}/recipients", status_code=204)
 async def add_recipients(
     assignment_id: str, body: Recipients, _: Annotated[auth.Me, Depends(auth.teacher)]
 ) -> Response:
-    return await through_teams(teams.add_recipients(assignment_id, body.student_ids))
+    return await carry_out(teams.add_recipients(assignment_id, body.student_ids))
 
 
 @router.delete("/api/assignments/{assignment_id}", status_code=204)
 async def delete_assignment(
     assignment_id: str, _: Annotated[auth.Me, Depends(auth.teacher)]
 ) -> Response:
-    return await through_teams(teams.delete_assignment(assignment_id))
+    return await carry_out(teams.delete_assignment(assignment_id))

@@ -289,6 +289,308 @@
         }
       }
     },
+    "/api/classes/{class_id}/assignments/{assignment_id}/submissions/{student_id}": {
+      "get": {
+        "summary": "Submission",
+        "operationId": "submission_api_classes__class_id__assignments__assignment_id__submissions__student_id__get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          },
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Student Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submissions/{submission_id}/items/{item_id}/override": {
+      "post": {
+        "summary": "Override",
+        "operationId": "override_api_submissions__submission_id__items__item_id__override_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Points"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submissions/{submission_id}/items/{item_id}/transcription": {
+      "post": {
+        "summary": "Fix Transcription",
+        "operationId": "fix_transcription_api_submissions__submission_id__items__item_id__transcription_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transcription"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submissions/{submission_id}/items/{item_id}/feedback": {
+      "post": {
+        "summary": "Edit Feedback",
+        "operationId": "edit_feedback_api_submissions__submission_id__items__item_id__feedback_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Feedback"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submissions/{submission_id}/approve": {
+      "post": {
+        "summary": "Approve",
+        "operationId": "approve_api_submissions__submission_id__approve_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/submissions/{submission_id}/grade-again": {
+      "post": {
+        "summary": "Grade Again",
+        "operationId": "grade_again_api_submissions__submission_id__grade_again_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Healthz",
@@ -688,6 +990,25 @@
         ],
         "title": "Entry"
       },
+      "Feedback": {
+        "properties": {
+          "handed_in_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Handed In At"
+          },
+          "feedback": {
+            "type": "string",
+            "title": "Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handed_in_at",
+          "feedback"
+        ],
+        "title": "Feedback"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -700,6 +1021,21 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HandIn": {
+        "properties": {
+          "handed_in_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Handed In At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handed_in_at"
+        ],
+        "title": "HandIn",
+        "description": "Which hand-in of the Submission the change is to: the one the page showed."
       },
       "Home": {
         "properties": {
@@ -778,6 +1114,122 @@
         ],
         "title": "ItemSummary"
       },
+      "ItemView": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Item Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "max_points": {
+            "type": "integer",
+            "title": "Max Points"
+          },
+          "ai_points": {
+            "type": "integer",
+            "title": "Ai Points"
+          },
+          "override": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "reading": {
+            "type": "string",
+            "enum": [
+              "readable",
+              "unsure",
+              "unreadable",
+              "blank"
+            ],
+            "title": "Reading"
+          },
+          "drawing": {
+            "type": "boolean",
+            "title": "Drawing"
+          },
+          "doubt": {
+            "type": "boolean",
+            "title": "Doubt"
+          },
+          "transcription": {
+            "type": "string",
+            "title": "Transcription"
+          },
+          "fixed": {
+            "type": "boolean",
+            "title": "Fixed"
+          },
+          "feedback": {
+            "type": "string",
+            "title": "Feedback"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited"
+          },
+          "mistake": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mistake"
+          },
+          "verification_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "number",
+          "text",
+          "max_points",
+          "ai_points",
+          "override",
+          "points",
+          "reading",
+          "drawing",
+          "doubt",
+          "transcription",
+          "fixed",
+          "feedback",
+          "edited",
+          "mistake",
+          "verification_note"
+        ],
+        "title": "ItemView"
+      },
       "MeView": {
         "properties": {
           "name": {
@@ -819,6 +1271,24 @@
         ],
         "title": "Mistake",
         "description": "A Common mistake on one Item, as `grading` found it."
+      },
+      "Neighbour": {
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "student_id",
+          "name"
+        ],
+        "title": "Neighbour"
       },
       "OverviewResponse": {
         "properties": {
@@ -882,6 +1352,47 @@
           "invented"
         ],
         "title": "OverviewResponse"
+      },
+      "Points": {
+        "properties": {
+          "handed_in_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Handed In At"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handed_in_at",
+          "points"
+        ],
+        "title": "Points"
+      },
+      "Reason": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason",
+          "items"
+        ],
+        "title": "Reason",
+        "description": "Why a Submission is Held or flagged, with the numbers of the Items that caused it."
       },
       "Recipients": {
         "properties": {
@@ -999,6 +1510,194 @@
           "percent"
         ],
         "title": "StudentRow"
+      },
+      "SubmissionPage": {
+        "properties": {
+          "class_name": {
+            "type": "string",
+            "title": "Class Name"
+          },
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "assignment_title": {
+            "type": "string",
+            "title": "Assignment Title"
+          },
+          "due": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "student_id": {
+            "type": "string",
+            "title": "Student Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "former": {
+            "type": "boolean",
+            "title": "Former"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "not_handed_in",
+              "handed_in",
+              "graded",
+              "returned",
+              "missing",
+              "excused"
+            ],
+            "title": "State"
+          },
+          "late": {
+            "type": "boolean",
+            "title": "Late"
+          },
+          "submission_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Id"
+          },
+          "handed_in_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handed In At"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "in_progress",
+                  "graded",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "held": {
+            "type": "boolean",
+            "title": "Held"
+          },
+          "spot_check": {
+            "type": "boolean",
+            "title": "Spot Check"
+          },
+          "held_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Held Reasons"
+          },
+          "spot_check_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Spot Check Reasons"
+          },
+          "earned": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earned"
+          },
+          "available": {
+            "type": "integer",
+            "title": "Available"
+          },
+          "changeable": {
+            "type": "boolean",
+            "title": "Changeable"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Neighbour"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Neighbour"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invented": {
+            "type": "boolean",
+            "title": "Invented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "class_name",
+          "assignment_id",
+          "assignment_title",
+          "due",
+          "student_id",
+          "name",
+          "former",
+          "state",
+          "late",
+          "submission_id",
+          "handed_in_at",
+          "status",
+          "held",
+          "spot_check",
+          "held_reasons",
+          "spot_check_reasons",
+          "earned",
+          "available",
+          "changeable",
+          "items",
+          "previous",
+          "next",
+          "invented"
+        ],
+        "title": "SubmissionPage"
       },
       "SummaryRow": {
         "properties": {
@@ -1168,6 +1867,25 @@
           "name"
         ],
         "title": "TopicBar"
+      },
+      "Transcription": {
+        "properties": {
+          "handed_in_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Handed In At"
+          },
+          "transcription": {
+            "type": "string",
+            "title": "Transcription"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handed_in_at",
+          "transcription"
+        ],
+        "title": "Transcription"
       },
       "TypeProgress": {
         "properties": {

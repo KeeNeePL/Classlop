@@ -36,7 +36,10 @@ export const routes: Routes = [
     path: 'klasy/:klasa/prace/:praca',
     loadComponent: () => import('./pages/assignment-page').then((m) => m.AssignmentPage),
   },
-  empty('klasy/:klasa/prace/:praca/:uczen', 'Praca ucznia'),
+  {
+    path: 'klasy/:klasa/prace/:praca/:uczen',
+    loadComponent: () => import('./pages/submission-page').then((m) => m.SubmissionPage),
+  },
   empty('ustawienia', 'Ustawienia'),
   { path: '**', component: NotFound },
 ];

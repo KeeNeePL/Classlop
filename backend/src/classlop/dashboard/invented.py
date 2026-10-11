@@ -3,10 +3,11 @@ shows the "ZMYŚLONE" badge."""
 
 import random
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from classlop import grading
 from classlop.dashboard import home
+from classlop.dashboard.invented_grading import InventedGrading
 from classlop.dashboard.reports import (
     Assignment,
     AssignmentItem,
@@ -45,8 +46,19 @@ def class_name(class_id: str, now: datetime) -> str | None:
 
 
 def class_data(class_id: str, name: str, now: datetime) -> ClassData:
+    """With the Teacher's changes made through GRADING."""
+    data = _made(class_id, name, now)
+    assignments = tuple(
+        a.model_copy(update={"submissions": tuple(GRADING.applied(a, s) for s in a.submissions)})
+        for a in data.assignments
+    )
+    return data.model_copy(update={"assignments": assignments})
+
+
+def _made(class_id: str, name: str, now: datetime) -> ClassData:
     """Assignment n covers Curriculum section n and touches section n + 1, so five sections are
-    assessed (more than Progress shows folded) and the rest show "brak danych"."""
+    assessed (more than Progress shows folded) and the rest show "brak danych". In each Class,
+    one Submission's grading failed."""
     rng = random.Random(class_id)
     # Its own sequence, so the flags never move the points.
     flags = random.Random(f"{class_id}-flags")
@@ -87,6 +99,8 @@ def class_data(class_id: str, name: str, now: datetime) -> ClassData:
                 spot_check = held or flags.random() < 0.1
             if not open_ and s.id.endswith("-4") and n == 1:
                 state, scored, late, held, spot_check = "excused", (), False, False, False
+            if not open_ and s.id.endswith("-5") and n == 0:
+                state, late, held, spot_check = "handed_in", False, False, False
             submissions.append(
                 Submission(
                     student_id=s.id,
@@ -127,14 +141,24 @@ def class_data(class_id: str, name: str, now: datetime) -> ClassData:
     )
 
 
+def _find(submission_id: uuid.UUID) -> tuple[Assignment, Submission] | None:
+    now = datetime.now(UTC)
+    for c in home.invented(now).classes:
+        for a in _made(c.id, c.name, now).assignments:
+            for s in a.submissions:
+                if InventedGrading.submission_id(a.id, s.student_id) == submission_id:
+                    return a, s
+    return None
+
+
+GRADING = InventedGrading(_find)
+
+
 def common_mistakes(assignment: Assignment) -> list[grading.ItemMistakes]:
     """In the shape `grading.common_mistakes` returns: the first and last Items each have their
     mistakes, the middle one none."""
     rng = random.Random(assignment.id)
-    ids = [
-        uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment.id}/{s.student_id}")
-        for s in assignment.submissions
-    ]
+    ids = [GRADING.submission_id(assignment.id, s.student_id) for s in assignment.submissions]
     found = []
     for number, kinds in ((1, 3), (3, 1)):
         mistakes = [
@@ -143,7 +167,7 @@ def common_mistakes(assignment: Assignment) -> list[grading.ItemMistakes]:
         ]
         found.append(
             grading.ItemMistakes(
-                item_id=uuid.uuid5(uuid.NAMESPACE_URL, f"{assignment.id}#{number}"),
+                item_id=GRADING.item_id(assignment.id, number),
                 number=number,
                 mistakes=mistakes,
             )
