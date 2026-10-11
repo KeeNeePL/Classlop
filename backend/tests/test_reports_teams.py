@@ -216,3 +216,24 @@ async def test_an_own_classs_points_come_from_grading_for_the_current_hand_in(kl
         "handed_in",
         None,
     )
+
+
+async def test_the_submission_view_of_an_own_class_shows_its_held_items(klass):
+    (handed_in,) = [
+        s for s in await klass.fake.list_submissions(klass.assignment_id) if s.handed_in_at
+    ]
+    unreadable = grading.Reason(reason="nieczytelne", items=[1])
+    klass.grades.found = [
+        graded(handed_in, earned=1).model_copy(update={"held_reasons": [unreadable]})
+    ]
+    bartek = klass.student("Bartek Nowicki")
+
+    view = klass.get(f"assignments/{klass.assignment_id}/submissions/{bartek}")
+
+    assert (view["name"], view["invented"], view["state"]) == ("Bartek Nowicki", False, "graded")
+    assert view["held"] and view["held_reasons"] == [{"reason": "nieczytelne", "items": [1]}]
+    assert view["submission_id"] == str(as_uuid(handed_in.id))
+    assert [(i["number"], i["points"], i["transcription"]) for i in view["items"]] == [
+        (1, 1, "$x = 1$")
+    ]
+    assert (view["earned"], view["available"]) == (1, 2)

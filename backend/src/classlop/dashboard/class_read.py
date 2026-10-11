@@ -47,10 +47,10 @@ async def _own(got: teams.ClassRead, pool: Bank, graded: Grader) -> Read:
     found = await graded.results([as_uuid(a.id) for a in given]) if given else []
     results = {r.submission_id: r for r in found}
     # A newer hand-in still being graded has no result yet: its older one does not count.
-    current: dict[uuid.UUID, grading.Result] = {
-        sid: r
+    current: dict[tuple[str, str], grading.Result] = {
+        (s.assignment_id, s.student_id): r
         for s in got.submissions
-        if (r := results.get(sid := as_uuid(s.id))) and r.handed_in_at == s.handed_in_at
+        if (r := results.get(as_uuid(s.id))) and r.handed_in_at == s.handed_in_at
     }
     submissions = defaultdict(list)
     for s in got.submissions:
@@ -59,7 +59,7 @@ async def _own(got: teams.ClassRead, pool: Bank, graded: Grader) -> Read:
         submissions[s.assignment_id].append(
             invented.with_result(
                 Submission(student_id=s.student_id, state=s.state, late=s.late),
-                current.get(as_uuid(s.id)),
+                current.get((s.assignment_id, s.student_id)),
                 versions[s.assignment_id],
             )
         )
