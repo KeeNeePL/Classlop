@@ -17,7 +17,7 @@ import { fromInput, warsaw } from '../time';
 @Component({
   imports: [Badge, FormsModule, Panel, RouterLink],
   template: `
-    @if (lessons.value(); as l) {
+    @if (lessons.hasValue() && lessons.value(); as l) {
       <cl-panel>
         <h2>Lekcje</h2>
         <ul class="list" aria-label="Lekcje">

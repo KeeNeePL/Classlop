@@ -1,4 +1,4 @@
-@if (settings.value(); as s) {
+@if (settings.hasValue() && settings.value(); as s) {
   @if (s.state === 'team_deleted') {
     <div class="gone" role="alert">
       <div>

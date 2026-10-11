@@ -1,4 +1,4 @@
-@if (page.value(); as l) {
+@if (page.hasValue() && page.value(); as l) {
   <a class="back" [routerLink]="back()">&larr; Lekcje</a>
   <div class="head">
     <h2>{{ l.topic ?? 'Lekcja bez tematu' }}</h2>
