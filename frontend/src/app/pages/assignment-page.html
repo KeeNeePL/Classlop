@@ -8,7 +8,7 @@
     <span>zamknięcie {{ warsaw(v.close) }}</span>
     <span>{{ v.items.length }} zad., {{ v.points }} pkt</span>
     @if (v.invented) {
-      <cl-invented />
+      <cl-invented [text]="hints.invented" />
     }
   </p>
 

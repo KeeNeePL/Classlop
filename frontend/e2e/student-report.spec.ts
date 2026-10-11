@@ -11,7 +11,7 @@ test('a Student report opens from the Class and follows the chosen period', asyn
 
   await expect(page).toHaveURL('/klasy/2c/uczniowie/2c-0');
   await expect(page.getByRole('heading', { name: 'Ala K.' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
   await expect(page.getByText('Frekwencja')).toBeVisible();
   await expect(page.getByRole('img', { name: /na tle średniej klasy/ })).toBeVisible();
   const rows = page.locator('tbody tr');

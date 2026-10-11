@@ -4,7 +4,7 @@ test('a Class opens on its Przegląd tab and shows its Progress', async ({ page 
   await page.goto('/klasy/2c');
 
   await expect(page.getByRole('heading', { name: 'Klasa 2C' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Postęp' })).toBeVisible();
   // Folded: the four sections with the newest graded work; the oldest, Liczby rzeczywiste, waits.

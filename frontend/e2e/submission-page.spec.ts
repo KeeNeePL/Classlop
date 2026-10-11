@@ -6,7 +6,7 @@ const PAGE = '/klasy/1a/prace/1a-0/1a-3';
 test('overriding one Item changes the total, here and on the Assignment page', async ({ page }) => {
   await page.goto(PAGE);
   await expect(page.getByRole('heading', { name: 'Damian R.' })).toBeVisible();
-  await expect(page.getByText('ZMYŚLONE')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Skąd te dane?' })).toBeVisible();
   // The bank's Items of sections I and II, both closed, 1 point.
   await expect(page.getByRole('article', { name: /^Zadanie \d$/ })).toHaveCount(2);
   await expect(page.getByText('Ile to')).toBeVisible();

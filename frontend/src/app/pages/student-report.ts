@@ -25,6 +25,10 @@ type Period = 'all' | 'school-year' | 'last-30' | 'custom';
 const DAY = 86_400_000;
 
 const HINTS = {
+  invented:
+    'Prawdziwe: zadania z banku z ich tematami i punktami, działy i tematy podstawy ' +
+    'programowej, twoja notatka i progi ocen. Na razie zmyślone: uczeń, jego prace, punkty ' +
+    'i nieobecności.',
   period:
     'Okres liczy się po terminie oddania prac i po dacie lekcji. „Od 1 września” to obecny rok ' +
     'szkolny.',

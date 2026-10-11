@@ -15,7 +15,7 @@
 
 @if (overview(); as o) {
   @if (o.invented) {
-    <p><cl-invented /></p>
+    <p class="muted">Skąd te dane?<cl-invented [text]="hints.invented" /></p>
   }
 
   <cl-panel>
