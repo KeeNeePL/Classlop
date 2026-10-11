@@ -1,3 +1,4 @@
+from classlop.items.chat import ChatMessage, chat_messages, post_message
 from classlop.items.curriculum import (
     CurriculumSection,
     GeneralRequirementText,
@@ -38,8 +39,33 @@ from classlop.items.types import (
     Tags,
     Usage,
 )
+from classlop.items.upload import (
+    Entry,
+    PendingDuplicate,
+    Started,
+    UploadLinks,
+    UploadSummary,
+    drop_duplicate,
+    pending_duplicates,
+    request_upload,
+    upload_anyway,
+    upload_links,
+)
 
 __all__ = [
+    "ChatMessage",
+    "Entry",
+    "PendingDuplicate",
+    "Started",
+    "UploadLinks",
+    "UploadSummary",
+    "chat_messages",
+    "drop_duplicate",
+    "pending_duplicates",
+    "post_message",
+    "request_upload",
+    "upload_anyway",
+    "upload_links",
     "CurriculumSection",
     "CurriculumTopic",
     "Filters",

@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Text,
@@ -102,4 +103,38 @@ class ExemplarRow(Base):
     source_tags: Mapped[dict] = mapped_column(JSONB, default=dict)
     # Kept so the index can be rebuilt without embedding again.
     embedding: Mapped[list] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PendingDuplicateRow(Base):
+    """An uploaded exercise that is close to an Item already in the bank: not an Item until the
+    Teacher says "upload anyway"."""
+
+    __tablename__ = "pending_duplicate"
+    __table_args__ = {"schema": "items"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    upload_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    chat_id: Mapped[str] = mapped_column(Text)
+    content: Mapped[dict] = mapped_column(JSONB)
+    source_file: Mapped[str] = mapped_column(Text)
+    source_page: Mapped[int] = mapped_column(Integer)
+    # The crop's file name beside the upload's file.
+    crop: Mapped[str] = mapped_column(Text)
+    flag_reason: Mapped[str | None] = mapped_column(Text)
+    nearest_item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    cosine: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatMessageRow(Base):
+    __tablename__ = "chat_message"
+    __table_args__ = {"schema": "items"}
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chat_id: Mapped[str] = mapped_column(Text, index=True)
+    role: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    # What the screen renders beside the text, such as an upload summary.
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -89,6 +89,32 @@ async def _add_version(
     return row
 
 
+async def _create(
+    session: AsyncSession,
+    content: ItemContent,
+    *,
+    origin: Origin,
+    origin_ref: str | None = None,
+    source_file: str | None = None,
+    source_page: int | None = None,
+    exemplar_ids: list[str] | None = None,
+    flag_reason: str | None = None,
+) -> uuid.UUID:
+    row = ItemRow(
+        origin=origin,
+        origin_ref=origin_ref,
+        source_file=source_file,
+        source_page=source_page,
+        exemplar_ids=exemplar_ids or [],
+        flagged=flag_reason is not None,
+        flag_reason=flag_reason,
+    )
+    session.add(row)
+    await session.flush()
+    await _add_version(session, row.id, content, [])
+    return row.id
+
+
 async def create_item(
     content: ItemContent,
     *,
@@ -101,20 +127,18 @@ async def create_item(
 ) -> uuid.UUID:
     """A new Item with its first version; `flag_reason` makes it a Flagged item."""
     async with sessions().begin() as session:
-        row = ItemRow(
+        item_id = await _create(
+            session,
+            content,
             origin=origin,
             origin_ref=origin_ref,
             source_file=source_file,
             source_page=source_page,
-            exemplar_ids=exemplar_ids or [],
-            flagged=flag_reason is not None,
+            exemplar_ids=exemplar_ids,
             flag_reason=flag_reason,
         )
-        session.add(row)
-        await session.flush()
-        await _add_version(session, row.id, content, [])
-    await _reindex(row.id)
-    return row.id
+    await _reindex(item_id)
+    return item_id
 
 
 async def get_items(item_ids: list[uuid.UUID]) -> list[Item]:
