@@ -1,0 +1,172 @@
+:host {
+  display: grid;
+  gap: 16px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.back {
+  font-weight: 600;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.field input[name='title'] {
+  width: 420px;
+  max-width: 100%;
+}
+
+.choices,
+.add,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.grid {
+  border-collapse: collapse;
+}
+
+.grid th,
+.grid td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.grid input[type='number'] {
+  width: 64px;
+}
+
+.stock {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stock.short {
+  color: var(--red);
+}
+
+.students {
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--pen);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.error {
+  background: var(--red-soft);
+  border: 1.5px solid var(--red);
+  padding: 8px 12px;
+}
+
+.note {
+  background: var(--marker);
+  padding: 8px 12px;
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.items .side {
+  display: flex;
+  gap: 6px;
+  align-items: start;
+}
+
+.items .option {
+  margin-left: 16px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.total {
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.done {
+  margin-bottom: 12px;
+  font-weight: 600;
+}

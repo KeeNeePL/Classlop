@@ -1,0 +1,307 @@
+@if (form(); as f) {
+  <a class="back" [routerLink]="back()">← Klasa {{ f.class_name }}</a>
+  <h1>Nowa praca · klasa {{ f.class_name }}</h1>
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+
+  @switch (step()) {
+    @case ('form') {
+      <cl-panel>
+        <form class="form" (submit)="$event.preventDefault(); pick()">
+          <fieldset>
+            <legend>Typ</legend>
+            <div class="choices">
+              @for (t of types; track t[0]) {
+                <label class="check">
+                  <input
+                    type="radio"
+                    name="type"
+                    [value]="t[0]"
+                    [ngModel]="type()"
+                    (ngModelChange)="type.set(t[0])"
+                  />
+                  {{ t[1] }}
+                </label>
+              }
+            </div>
+          </fieldset>
+
+          <label class="field">
+            Tytuł
+            <input
+              name="title"
+              [ngModel]="title()"
+              (ngModelChange)="typed.set($event)"
+              autocomplete="off"
+            />
+          </label>
+
+          <fieldset>
+            <legend>Zadania: działy × trudność</legend>
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>Dział</th>
+                  @for (level of levels; track level) {
+                    <th>{{ difficulty[level] }}</th>
+                  }
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.section) {
+                  <tr>
+                    <th scope="row">{{ label(row.section) }}</th>
+                    @for (level of levels; track level) {
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          [name]="row.section + level"
+                          [attr.aria-label]="difficulty[level] + ', ' + label(row.section)"
+                          [ngModel]="row[level]"
+                          (ngModelChange)="count(row.section, level, $event)"
+                        />
+                        <div class="stock" [class.short]="row[level] > inBank(row, level)">
+                          w banku: {{ inBank(row, level) }}
+                        </div>
+                      </td>
+                    }
+                    <td>
+                      <button
+                        type="button"
+                        class="btn ghost"
+                        [attr.aria-label]="'Usuń dział ' + label(row.section)"
+                        (click)="removeRow(row.section)"
+                      >
+                        usuń
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="muted">Brak działów. Dodaj pierwszy poniżej.</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">Razem</th>
+                  <td colspan="4">{{ total() }} zadań</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="add">
+              <select
+                aria-label="Dodaj dział"
+                [ngModel]="''"
+                (ngModelChange)="addRow($event)"
+                name="add"
+              >
+                <option value="">+ dodaj dział…</option>
+                @for (s of addable(); track s.id) {
+                  <option [value]="s.id">{{ label(s.id) }}</option>
+                }
+              </select>
+              <label class="check">
+                <input
+                  type="checkbox"
+                  name="reuse"
+                  [ngModel]="allowReuse()"
+                  (ngModelChange)="allowReuse.set($event)"
+                />
+                pozwól na zadania już użyte w tej klasie
+              </label>
+            </div>
+            <p class="muted">Zadania są dobierane z banku zadań; punkty ma każde zadanie.</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Dla kogo</legend>
+            <div class="choices">
+              <label class="check">
+                <input
+                  type="radio"
+                  name="who"
+                  [ngModel]="everyone()"
+                  [value]="true"
+                  (ngModelChange)="everyone.set(true)"
+                />
+                Cała klasa
+              </label>
+              <label class="check">
+                <input
+                  type="radio"
+                  name="who"
+                  [ngModel]="everyone()"
+                  [value]="false"
+                  (ngModelChange)="everyone.set(false)"
+                />
+                Wybierz uczniów
+              </label>
+            </div>
+            @if (!everyone()) {
+              <div class="students">
+                <div class="muted">
+                  Zaznaczono: {{ picked().size }} ·
+                  <button type="button" class="link" (click)="pickAll(true)">
+                    zaznacz wszystkich
+                  </button>
+                  ·
+                  <button type="button" class="link" (click)="pickAll(false)">odznacz</button>
+                </div>
+                @for (s of f.students; track s.id) {
+                  <label class="check">
+                    <input type="checkbox" [checked]="picked().has(s.id)" (change)="toggle(s.id)" />
+                    {{ s.name }}
+                  </label>
+                }
+              </div>
+            }
+          </fieldset>
+
+          <label class="check">
+            <input
+              type="checkbox"
+              name="reminder"
+              [ngModel]="reminder()"
+              (ngModelChange)="reminder.set($event)"
+            />
+            Przypomnienie dzień przed terminem
+          </label>
+
+          <div class="buttons">
+            <button class="btn" type="submit" [disabled]="!canPick() || busy()">
+              Dobierz zadania z banku
+            </button>
+            <a class="btn ghost" [routerLink]="back()">Anuluj</a>
+          </div>
+        </form>
+      </cl-panel>
+    }
+
+    @case ('preview') {
+      <h2>Podgląd: {{ title() }}</h2>
+      <p class="muted">
+        <cl-badge>{{ types.find((t) => t[0] === type())?.[1] }}</cl-badge>
+        · {{ everyone() ? 'cała klasa' : picked().size + ' uczniów' }}
+      </p>
+
+      @if (shortfalls().length) {
+        <p class="note" role="status">
+          W banku zabrakło:
+          @for (s of shortfalls(); track $index) {
+            {{ lacking(s) }}{{ $last ? '.' : '; ' }}
+          }
+        </p>
+      }
+
+      <cl-panel>
+        <ol class="items" aria-label="Zadania w pracy">
+          @for (e of entries(); track e.item.id) {
+            <li>
+              <div>
+                <cl-math [text]="e.item.version.text" />
+                @for (o of e.item.version.options | keyvalue; track o.key) {
+                  <div class="option">{{ o.key }}) <cl-math [text]="o.value" /></div>
+                }
+                <div class="tags">
+                  <cl-badge>{{ label(e.section) }}</cl-badge>
+                  <cl-badge>{{ difficulty[e.difficulty] }}</cl-badge>
+                  <cl-badge>{{ e.item.version.points }} pkt</cl-badge>
+                </div>
+                @if (stuck().has(e.item.id)) {
+                  <p class="muted">Brak innych pasujących zadań w banku.</p>
+                }
+              </div>
+              <div class="side">
+                <button type="button" class="btn ghost" [disabled]="busy()" (click)="swap(e)">
+                  podmień na inne
+                </button>
+                <button type="button" class="btn ghost" (click)="remove(e)">usuń</button>
+              </div>
+            </li>
+          } @empty {
+            <li class="muted">Brak zadań.</li>
+          }
+        </ol>
+        <p class="total">{{ entries().length }} zadań · {{ points() }} pkt</p>
+      </cl-panel>
+
+      <cl-panel>
+        <form class="form" (submit)="$event.preventDefault(); give()">
+          <label class="field">
+            Termin oddania
+            <input
+              type="datetime-local"
+              name="due"
+              [ngModel]="due()"
+              (ngModelChange)="due.set($event)"
+            />
+          </label>
+          <fieldset>
+            <legend>Kiedy wydać</legend>
+            <div class="choices">
+              <label class="check">
+                <input
+                  type="radio"
+                  name="when"
+                  [ngModel]="later()"
+                  [value]="false"
+                  (ngModelChange)="later.set(false)"
+                />
+                Od razu
+              </label>
+              <label class="check">
+                <input
+                  type="radio"
+                  name="when"
+                  [ngModel]="later()"
+                  [value]="true"
+                  (ngModelChange)="later.set(true)"
+                />
+                O wybranej godzinie
+              </label>
+            </div>
+            @if (later()) {
+              <label class="field">
+                Wydaj w Teams o
+                <input
+                  type="datetime-local"
+                  name="publish"
+                  [ngModel]="publishAt()"
+                  (ngModelChange)="publishAt.set($event)"
+                />
+              </label>
+            }
+          </fieldset>
+          <div class="buttons">
+            <button class="btn" type="submit" [disabled]="!canGive()">Opublikuj w Teams</button>
+            <button class="btn ghost" type="button" (click)="step.set('form')">
+              ← Wróć do formularza
+            </button>
+          </div>
+        </form>
+      </cl-panel>
+    }
+
+    @case ('given') {
+      <cl-panel>
+        <p role="status" class="done">
+          @if (given()?.state === 'scheduled') {
+            Praca «{{ title() }}» zaplanowana w Teams.
+          } @else {
+            Praca «{{ title() }}» wydana w Teams.
+          }
+        </p>
+        <a class="btn" [routerLink]="back()">Wróć do klasy</a>
+      </cl-panel>
+    }
+  }
+} @else if (missing()) {
+  <h1>Nowa praca</h1>
+  <p>Nie ma takiej klasy.</p>
+}

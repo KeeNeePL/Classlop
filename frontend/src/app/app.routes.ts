@@ -40,7 +40,10 @@ export const routes: Routes = [
     ],
   },
   empty('klasy/:klasa/uczniowie/:uczen', 'Uczeń'),
-  empty('klasy/:klasa/nowa-praca', 'Nowa praca'),
+  {
+    path: 'klasy/:klasa/nowa-praca',
+    loadComponent: () => import('./pages/new-work').then((m) => m.NewWork),
+  },
   {
     path: 'klasy/:klasa/prace/:praca',
     loadComponent: () => import('./pages/assignment-page').then((m) => m.AssignmentPage),
