@@ -1,6 +1,11 @@
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+<p class="done" role="status">{{ done() }}</p>
+
 @if (working().length) {
-  <section aria-label="Postęp">
-    <h2>Postęp</h2>
+  <section aria-label="W toku">
+    <h2>W toku</h2>
     @for (job of working(); track job.job_id) {
       <section class="job" [attr.aria-label]="title(job)">
         <h3>{{ title(job) }}</h3>
@@ -9,8 +14,8 @@
             <li [class]="step.state">{{ step.label }}</li>
           }
         </ol>
-        @if (percent(job); as p) {
-          <cl-progress [value]="p" />
+        @if (percent(job) !== null) {
+          <cl-progress [value]="percent(job)!" />
         }
       </section>
     }
@@ -53,7 +58,12 @@
     <ol class="items" aria-label="Zadania z tego czatu">
       @for (card of items(); track card.item.id) {
         @let v = card.item.version;
-        <li class="item" [class.retired]="card.item.retired">
+        <li
+          class="item"
+          [id]="'item-' + card.item.id"
+          tabindex="-1"
+          [class.retired]="card.item.retired"
+        >
           <div class="head">
             <b>Zadanie {{ card.number }}</b>
             <cl-badge>{{ difficulty[v.difficulty] }}</cl-badge>
@@ -67,6 +77,7 @@
               <button
                 type="button"
                 class="remove"
+                [id]="'remove-' + card.item.id"
                 [disabled]="busy()"
                 [attr.aria-label]="'Usuń zadanie ' + card.number"
                 (click)="confirming.set(card.item.id)"
@@ -81,7 +92,7 @@
               <button type="button" class="btn danger" [disabled]="busy()" (click)="retire(card)">
                 Tak, usuń
               </button>
-              <button type="button" class="btn ghost" (click)="confirming.set(null)">Anuluj</button>
+              <button type="button" class="btn ghost" (click)="cancel(card)">Anuluj</button>
             </div>
           }
           <div class="text"><cl-math [text]="v.text" /></div>

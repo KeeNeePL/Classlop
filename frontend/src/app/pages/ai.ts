@@ -9,7 +9,14 @@ import {
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  ActivatedRoute,
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { filter, map } from 'rxjs';
 import { ChatEntry } from '../api/models';
 import { Badge } from '../ui/badge';
@@ -24,7 +31,7 @@ import { AiStore } from './ai-store';
 export class Ai {
   private readonly store = inject(AiStore);
   private readonly router = inject(Router);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly open = signal(false);
   protected readonly query = signal('');
@@ -38,22 +45,22 @@ export class Ai {
     return (this.store.chats() ?? []).filter((c) => c.name.toLowerCase().includes(q));
   });
 
-  private readonly url = toSignal(
+  private readonly chatId = toSignal(
     this.router.events.pipe(
       filter((e) => e instanceof NavigationEnd),
-      map(() => this.router.url),
+      map(() => this.openId()),
     ),
-    { initialValue: this.router.url },
+    { initialValue: this.openId() },
   );
-  /** The open Chat, or null on the start of a new one. */
-  protected readonly current = computed(() => {
-    const id = this.url().split('?')[0].split('/')[2];
-    if (!id) return null;
-    return (this.store.chats() ?? []).find((c) => c.id === id) ?? { id, name: '', running: 0 };
-  });
+  /** The open Chat, or undefined on the start of a new one and while the list loads. */
+  protected readonly current = computed(() =>
+    (this.store.chats() ?? []).find((c) => c.id === this.chatId()),
+  );
+  protected readonly label = computed(() => this.current()?.name || 'Nowy czat');
 
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
   private readonly toggle = viewChild.required<ElementRef<HTMLButtonElement>>('toggle');
+  private readonly picker = viewChild.required<ElementRef<HTMLElement>>('picker');
 
   constructor() {
     effect(() => this.field()?.nativeElement.focus());
@@ -68,8 +75,7 @@ export class Ai {
 
   @HostListener('document:click', ['$event'])
   protected outside(event: MouseEvent): void {
-    const picker = this.host.nativeElement.querySelector('.picker');
-    if (this.open() && !picker?.contains(event.target as Node)) this.close();
+    if (this.open() && !this.picker().nativeElement.contains(event.target as Node)) this.close();
   }
 
   protected close(): void {
@@ -92,6 +98,10 @@ export class Ai {
   protected async remove(chat: ChatEntry): Promise<void> {
     this.deleting.set(null);
     await this.store.remove(chat.id);
-    if (this.current()?.id === chat.id) await this.router.navigate(['/ai']);
+    if (this.chatId() === chat.id) await this.router.navigate(['/ai']);
+  }
+
+  private openId(): string | null {
+    return this.route.firstChild?.snapshot?.paramMap.get('czat') ?? null;
   }
 }

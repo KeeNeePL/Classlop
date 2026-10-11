@@ -20,7 +20,7 @@ import { EventStream } from '../shell/event-stream';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 import { ProgressBar } from '../ui/progress-bar';
-import { jobFinished, jobPercent, jobState, jobTitle } from './ai-progress';
+import { jobActive, jobPercent, jobState, jobTitle } from './ai-progress';
 import { AiResults } from './ai-results';
 import { AiStore, Outgoing, Reply } from './ai-store';
 
@@ -63,7 +63,7 @@ export class AiChat {
   protected readonly title = jobTitle;
   protected readonly state = jobState;
   protected readonly percent = jobPercent;
-  protected readonly finished = jobFinished;
+  protected readonly active = jobActive;
   private readonly box = viewChild.required<ElementRef<HTMLTextAreaElement>>('box');
 
   protected readonly jobOf = computed(() => {

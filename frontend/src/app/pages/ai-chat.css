@@ -57,6 +57,9 @@ aside {
 }
 
 .chip p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   margin: 0;
 }
 

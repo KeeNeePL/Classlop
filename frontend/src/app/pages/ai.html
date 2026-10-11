@@ -2,17 +2,17 @@
   <h1>Classlop AI</h1>
 </header>
 
-<div class="picker">
+<div class="picker" #picker>
   <button
     #toggle
     type="button"
     class="toggle"
     aria-controls="chat-menu"
     [attr.aria-expanded]="open()"
-    [attr.aria-label]="'Czat: ' + (current()?.name ?? 'Nowy czat')"
+    [attr.aria-label]="'Czat: ' + label()"
     (click)="open() ? close() : open.set(true)"
   >
-    <span class="current">{{ current()?.name ?? 'Nowy czat' }}</span>
+    <span class="current">{{ label() }}</span>
     @if (current()?.running; as running) {
       <cl-badge tone="live" [attr.aria-label]="'Trwające zadania: ' + running">
         {{ running }}
@@ -59,9 +59,9 @@
                 }
               </a>
               @if (deleting() === chat.id) {
-                <span class="ask">Usunąć?</span>
-                <button type="button" class="small danger" (click)="remove(chat)">Tak</button>
-                <button type="button" class="small" (click)="deleting.set(null)">Nie</button>
+                <span class="ask">Usunąć ten czat?</span>
+                <button type="button" class="small danger" (click)="remove(chat)">Tak, usuń</button>
+                <button type="button" class="small" (click)="deleting.set(null)">Anuluj</button>
               } @else {
                 <button
                   type="button"

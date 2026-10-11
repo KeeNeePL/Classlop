@@ -1,5 +1,5 @@
 <div class="chat">
-  <div class="conversation" role="log" aria-label="Rozmowa" aria-live="polite">
+  <div class="conversation" role="log" aria-label="Wiadomości" aria-live="polite">
     @if (!id() && !turn()) {
       <cl-panel class="welcome">
         <p>
@@ -23,15 +23,15 @@
           <div
             class="chip"
             role="group"
-            [class.working]="!finished(job)"
+            [class.working]="active(job)"
             [class.failed]="job.status === 'failed'"
             [attr.aria-label]="title(job)"
           >
             <p>
-              <b>{{ title(job) }}:</b> {{ state(job) }}
+              <b>{{ title(job) }}</b> <span>{{ state(job) }}</span>
             </p>
-            @if (percent(job); as p) {
-              <cl-progress [value]="p" />
+            @if (active(job) && percent(job) !== null) {
+              <cl-progress [value]="percent(job)!" />
             }
           </div>
         }

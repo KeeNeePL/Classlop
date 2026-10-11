@@ -101,8 +101,8 @@ h3 {
 }
 
 .pending li {
-  border-color: #d8b800;
-  background: #fffbe0;
+  border-color: var(--tape);
+  background: var(--marker);
 }
 
 .item.retired {
@@ -172,6 +172,25 @@ details p {
   border-color: var(--red);
   background: var(--red);
   color: #fff;
+}
+
+.error {
+  margin: 0;
+  color: var(--red);
+  font-weight: 600;
+}
+
+.done {
+  margin: 0;
+  font-size: 13px;
+}
+
+.done:empty {
+  display: none;
+}
+
+.item:focus {
+  outline: 2px solid var(--pen);
 }
 
 .muted {
