@@ -45,19 +45,6 @@ header {
   gap: 8px;
 }
 
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--pen);
-}
-
 select {
   font: inherit;
   padding: 4px 8px;

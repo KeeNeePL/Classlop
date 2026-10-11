@@ -12,8 +12,6 @@ export interface Criteria {
   topic: string | null;
   difficulty: Difficulty[];
   format: Item['version']['item_format'] | null;
-  flagged: boolean;
-  showRetired: boolean;
   neverUsedWith: string | null;
   page: number;
 }
@@ -37,8 +35,6 @@ const NONE: Criteria = {
   topic: null,
   difficulty: [],
   format: null,
-  flagged: false,
-  showRetired: false,
   neverUsedWith: null,
   page: 1,
 };
@@ -59,8 +55,6 @@ export class BankStore {
         topic: c.topic ? [c.topic] : [],
         difficulty: c.difficulty,
         item_format: c.format,
-        flagged: c.flagged ? true : null,
-        show_retired: c.showRetired,
         never_used_with_class: c.neverUsedWith,
         page: c.page,
         size: SIZE,

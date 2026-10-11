@@ -34,9 +34,7 @@ test('the Teacher searches the bank and opens an Item', async ({ page }) => {
   await expect(usage.getByRole('row', { name: /Funkcja kwadratowa\s+2C.*72%/ })).toBeVisible();
 });
 
-test('the filters narrow the list, and Retired items are shown only when asked for', async ({
-  page,
-}) => {
+test('the filters narrow the list', async ({ page }) => {
   await page.goto('/bank');
   await expect(items(page)).toHaveCount(7);
 
@@ -47,14 +45,6 @@ test('the filters narrow the list, and Retired items are shown only when asked f
   await page.getByLabel('Nie zadane klasie').selectOption({ label: '2C' });
   await expect(items(page)).toHaveCount(6);
   await page.getByLabel('Nie zadane klasie').selectOption({ label: 'dowolnej' });
-
-  await page.getByLabel('Tylko do sprawdzenia').check();
-  await expect(items(page)).toHaveCount(4);
-  await page.getByLabel('Tylko do sprawdzenia').uncheck();
-
-  await page.getByLabel('Pokaż wycofane').check();
-  await expect(items(page)).toHaveCount(8);
-  await expect(items(page).filter({ hasText: 'wycofane' })).toHaveCount(1);
 
   await page.getByText('Tematy z podstawy programowej').click();
   await page.getByRole('button', { name: 'Funkcje', exact: true }).click();
@@ -81,14 +71,15 @@ test('dismissing a flag lowers the count in the sidebar', async ({ page }) => {
   const link = page.getByRole('navigation').getByRole('link', { name: /^Bank zadań/ });
   await expect(link).toHaveText(/4$/);
 
-  await page.getByLabel('Tylko do sprawdzenia').check();
-  await items(page).first().getByRole('link').click();
+  const flagged = items(page).filter({ hasText: 'do sprawdzenia' });
+  await expect(flagged).toHaveCount(4);
+  await flagged.first().getByRole('link').click();
   await expect(page.getByText('Do sprawdzenia.')).toBeVisible();
   await page.getByRole('button', { name: 'Odrzuć flagę' }).click();
 
   await expect(page.getByText('Do sprawdzenia.')).toHaveCount(0);
   await expect(link).toHaveText(/3$/);
-  await expect(items(page)).toHaveCount(3);
+  await expect(flagged).toHaveCount(3);
 });
 
 test('an edit saves a new version and the AI offers a new solution', async ({ page }) => {

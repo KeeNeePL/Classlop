@@ -46,22 +46,6 @@
           </select>
         </label>
       }
-      <label class="check">
-        <input
-          type="checkbox"
-          [checked]="criteria().flagged"
-          (change)="store.change({ flagged: $any($event.target).checked })"
-        />
-        Tylko do sprawdzenia
-      </label>
-      <label class="check">
-        <input
-          type="checkbox"
-          [checked]="criteria().showRetired"
-          (change)="store.change({ showRetired: $any($event.target).checked })"
-        />
-        Pokaż wycofane
-      </label>
     </cl-panel>
 
     <details class="topics">
