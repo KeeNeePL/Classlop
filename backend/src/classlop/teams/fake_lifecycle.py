@@ -19,6 +19,7 @@ class FakeLifecycle:
     _students: dict[str, dict[str, Student]]
     _series: dict[str, list[list]]
     _singles: dict[str, list[Lesson]]
+    _breaks: dict[str, list]
     _events: dict[str, dict]
     _placed: dict[str, dict]
     _seen: dict[str, dict]
@@ -97,7 +98,7 @@ class FakeLifecycle:
             del self._placed[series]
             self._seen = {k: v for k, v in self._seen.items() if v["series"] != series}
         self._links.pop(klass.id, None)
-        for table in (self._classes, self._students, self._series, self._singles):
+        for table in (self._classes, self._students, self._series, self._singles, self._breaks):
             del table[klass.id]
 
     async def _of_class(self, class_id: str) -> list[Assignment]:

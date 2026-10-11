@@ -288,6 +288,26 @@ async def test_changing_a_slot_ends_the_old_series_and_starts_a_new_one(tenant):
     assert len(tenant.event_of(lessons[2].id)[1]) == 2
 
 
+async def test_a_slot_change_keeps_the_breaks_already_entered(tenant):
+    _, linked = await _class_with_jan(tenant)
+    await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
+    topical = (await tenant.list_lessons(linked.id))[0]
+    await tenant.set_lesson_topic(linked.id, topical.id, "Potegi")
+    await tenant.cancel_lessons(linked.id, date(2026, 9, 14), date(2026, 9, 28))
+    tuesday = teams.Slot(weekday=1, start=time(10, 0), end=time(10, 45))
+
+    await tenant.change_slot(linked.id, MONDAY_8, tuesday, date(2026, 9, 21))
+
+    lessons = await tenant.list_lessons(linked.id)
+    assert [(x.start.weekday(), x.start.day, x.cancelled) for x in lessons] == [
+        (0, 7, False),
+        (0, 14, True),
+        (1, 22, True),
+        (1, 29, False),
+    ]
+    assert lessons[0].topic == "Potegi"
+
+
 async def test_a_slot_changes_only_from_after_its_first_lesson(tenant):
     _, linked = await _class_with_jan(tenant)
     await tenant.add_timetable(linked.id, [MONDAY_8], YEAR_END)
