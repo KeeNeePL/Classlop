@@ -46,23 +46,49 @@ test('the filters narrow the list', async ({ page }) => {
   await expect(items(page)).toHaveCount(6);
   await page.getByLabel('Nie zadane klasie').selectOption({ label: 'dowolnej' });
 
-  await page.getByText('Tematy z podstawy programowej').click();
-  await page.getByRole('button', { name: 'Funkcje', exact: true }).click();
+  // The Curriculum opens over the whole screen; choosing a section closes it.
+  await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
+  const curriculum = page.getByRole('dialog', { name: 'Tematy z podstawy programowej' });
+  await expect(curriculum.getByRole('button', { name: 'Stereometria' })).toBeVisible();
+  await curriculum.getByRole('searchbox', { name: 'Szukaj tematu' }).fill('Funkcje');
+  await curriculum.getByRole('button', { name: 'Funkcje', exact: true }).click();
+  await expect(curriculum).toBeHidden();
   await expect(items(page)).toHaveCount(1);
+
+  // The chosen section is dropped from the page itself.
+  await page.getByRole('button', { name: 'Wyczyść filtr tematu' }).click();
+  await expect(items(page)).toHaveCount(7);
+
+  await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
+  await curriculum.getByRole('button', { name: 'Funkcje', exact: true }).click();
+  await expect(items(page)).toHaveCount(1);
+  await page.getByRole('button', { name: 'Tematy z podstawy programowej' }).click();
+  await curriculum.getByRole('button', { name: 'Wyczyść filtr' }).click();
+  await expect(items(page)).toHaveCount(7);
 });
 
-test('Retire and Restore move an Item out of the list and back', async ({ page }) => {
+test('deleting an Item takes it out of the list, and the Teacher can bring it back', async ({
+  page,
+}) => {
   await page.goto('/bank');
   await page.getByRole('searchbox', { name: 'Szukaj zadań' }).fill('układ równań');
   await expect(items(page)).toHaveCount(1);
   await items(page).getByRole('link').click();
 
-  await page.getByRole('button', { name: 'Wycofaj' }).click();
-  await expect(page.getByText('wycofane').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Usuń zadanie' }).click();
+  await expect(page.getByText('Usunąć to zadanie?')).toBeVisible();
+  await page.getByRole('button', { name: 'Anuluj' }).click();
+  await expect(page.getByText('Usunąć to zadanie?')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Usuń zadanie' }).click();
+  await page.getByRole('button', { name: 'Tak, usuń' }).click();
+  await expect(page).toHaveURL(/\/bank$/);
   await expect(items(page)).toHaveCount(0);
 
+  await page.goBack();
+  await expect(page.getByText('usunięte').first()).toBeVisible();
   await page.getByRole('button', { name: 'Przywróć' }).click();
-  await expect(page.getByRole('button', { name: 'Wycofaj' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Usuń zadanie' })).toBeVisible();
   await expect(items(page)).toHaveCount(1);
 });
 

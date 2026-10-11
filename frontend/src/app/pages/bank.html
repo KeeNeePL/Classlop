@@ -27,14 +27,6 @@
           </button>
         }
       </div>
-      <label class="field">
-        Rodzaj
-        <select (change)="setFormat($event)" [value]="criteria().format ?? ''">
-          <option value="">wszystkie</option>
-          <option value="closed">zamknięte</option>
-          <option value="open">otwarte</option>
-        </select>
-      </label>
       @if (store.filters(); as f) {
         <label class="field">
           Nie zadane klasie
@@ -46,44 +38,24 @@
           </select>
         </label>
       }
-    </cl-panel>
-
-    <details class="topics">
-      <summary>
-        Tematy z podstawy programowej
-        @if (criteria().section || criteria().topic) {
-          <cl-badge tone="warn">filtr</cl-badge>
-        }
-      </summary>
-      <button
-        type="button"
-        class="all"
-        [class.on]="!criteria().section && !criteria().topic"
-        (click)="store.change({ section: null, topic: null })"
-      >
-        Wszystkie działy
-      </button>
-      @for (s of store.filters()?.sections ?? []; track s.id) {
-        <button
-          type="button"
-          class="section"
-          [class.on]="criteria().section === s.id"
-          (click)="store.change({ section: s.id, topic: null })"
-        >
-          {{ s.name }}
+      <div class="topic-filter">
+        <button type="button" class="btn ghost" (click)="openTopics(topicsDialog)">
+          Tematy z podstawy programowej
         </button>
-        @for (t of s.topics; track t.id) {
-          <button
-            type="button"
-            class="topic"
-            [class.on]="criteria().topic === t.id"
-            (click)="store.change({ topic: t.id, section: null })"
-          >
-            <cl-math [text]="t.name" />
-          </button>
+        @if (chosen(); as c) {
+          <span class="chosen">
+            <cl-math [text]="c.name" />
+            <button
+              type="button"
+              aria-label="Wyczyść filtr tematu"
+              (click)="store.change({ section: null, topic: null })"
+            >
+              ×
+            </button>
+          </span>
         }
-      }
-    </details>
+      </div>
+    </cl-panel>
 
     @if (store.results(); as page) {
       <p class="count" aria-live="polite">
@@ -105,14 +77,13 @@
             >
               <span class="text"><cl-math [text]="item.version.text" /></span>
               <span class="tags">
-                <cl-badge>{{ format[item.version.item_format] }}</cl-badge>
                 <cl-badge>{{ difficulty[item.version.difficulty] }}</cl-badge>
                 <cl-badge>{{ item.version.points }} pkt</cl-badge>
                 @if (item.flagged) {
                   <cl-badge tone="warn">do sprawdzenia</cl-badge>
                 }
                 @if (item.retired) {
-                  <cl-badge tone="danger">wycofane</cl-badge>
+                  <cl-badge tone="danger">usunięte</cl-badge>
                 }
               </span>
             </a>
@@ -147,3 +118,55 @@
     <router-outlet />
   </section>
 </div>
+
+<dialog
+  #topicsDialog
+  class="topics"
+  aria-labelledby="topics-title"
+  (click)="$event.target === topicsDialog && topicsDialog.close()"
+>
+  <header>
+    <h2 id="topics-title">Tematy z podstawy programowej</h2>
+    <input
+      type="search"
+      placeholder="Szukaj tematu"
+      aria-label="Szukaj tematu"
+      [value]="topicQuery()"
+      (input)="topicQuery.set($any($event.target).value)"
+    />
+    <button
+      type="button"
+      class="btn ghost"
+      (click)="pick(topicsDialog, { section: null, topic: null })"
+    >
+      Wyczyść filtr
+    </button>
+    <button type="button" class="btn" (click)="topicsDialog.close()">Zamknij</button>
+  </header>
+  <div class="columns">
+    @for (s of sections(); track s.id) {
+      <section>
+        <button
+          type="button"
+          class="section"
+          [class.on]="criteria().section === s.id"
+          (click)="pick(topicsDialog, { section: s.id, topic: null })"
+        >
+          {{ s.name }}
+        </button>
+        @for (t of s.topics; track t.id) {
+          <button
+            type="button"
+            class="topic"
+            [class.on]="criteria().topic === t.id"
+            (click)="pick(topicsDialog, { section: null, topic: t.id })"
+          >
+            <cl-math [text]="t.name" />
+          </button>
+        }
+      </section>
+    } @empty {
+      <p>Nic nie pasuje do „{{ topicQuery() }}”.</p>
+    }
+  </div>
+</dialog>

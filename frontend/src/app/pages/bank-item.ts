@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, linkedSignal, resource, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { Api } from '../api/api';
 import {
@@ -19,7 +19,7 @@ import { Badge } from '../ui/badge';
 import { MathText } from '../ui/math';
 import { Panel } from '../ui/panel';
 import { Percent } from '../ui/percent';
-import { BankStore, DIFFICULTY, FORMAT } from './bank-store';
+import { BankStore, DIFFICULTY } from './bank-store';
 
 const REQUIREMENTS: ItemVersion['general_requirements'] = ['I', 'II', 'III', 'IV'];
 
@@ -94,6 +94,7 @@ export class BankItem {
   private readonly api = inject(Api);
   private readonly bank = inject(BankStore);
   private readonly home = inject(HomeStore);
+  private readonly router = inject(Router);
   private readonly id = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map((p) => p.get('zadanie') ?? '')),
     { requireSync: true },
@@ -117,13 +118,16 @@ export class BankItem {
     source: this.id,
     computation: () => null,
   });
+  protected readonly confirming = linkedSignal<string, boolean>({
+    source: this.id,
+    computation: () => false,
+  });
   protected readonly busy = signal(false);
 
   protected readonly sections = computed(() => this.bank.filters()?.sections ?? []);
   protected readonly requirements = REQUIREMENTS;
   protected readonly levels = Object.keys(DIFFICULTY) as ItemVersion['difficulty'][];
   protected readonly difficulty = DIFFICULTY;
-  protected readonly format = FORMAT;
   protected readonly date = shortDate;
   protected readonly options = (v: ItemVersion) => Object.entries(v.options ?? {});
   protected readonly percent = (average: number) => Math.round(average * 100);
@@ -176,8 +180,12 @@ export class BankItem {
     });
   }
 
-  protected retire(d: ItemDetail): Promise<void> {
-    return this.act(retireApiBankItemsItemIdRetirePost, d);
+  /** Deleting takes the Item out of the bank; the Assignments that used it keep it. */
+  protected async remove(d: ItemDetail): Promise<void> {
+    await this.run(async () => {
+      await this.api.invoke(retireApiBankItemsItemIdRetirePost, { item_id: d.item.id });
+    });
+    if (!this.error()) await this.router.navigate(['/bank']);
   }
 
   protected restore(d: ItemDetail): Promise<void> {

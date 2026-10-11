@@ -5,11 +5,10 @@
   <cl-panel>
     <div class="top">
       <div class="tags">
-        <cl-badge>{{ format[v.item_format] }}</cl-badge>
         <cl-badge>{{ difficulty[v.difficulty] }}</cl-badge>
         <cl-badge>{{ v.points }} pkt</cl-badge>
         @if (d.item.retired) {
-          <cl-badge tone="danger">wycofane</cl-badge>
+          <cl-badge tone="danger">usunięte</cl-badge>
         }
         <span class="muted">wersja {{ v.number }}</span>
       </div>
@@ -24,9 +23,22 @@
             Przywróć
           </button>
         } @else {
-          <button type="button" class="btn ghost" [disabled]="busy()" (click)="retire(d)">
-            Wycofaj
-          </button>
+          @if (confirming()) {
+            <span class="ask">Usunąć to zadanie?</span>
+            <button type="button" class="btn danger" [disabled]="busy()" (click)="remove(d)">
+              Tak, usuń
+            </button>
+            <button type="button" class="btn ghost" (click)="confirming.set(false)">Anuluj</button>
+          } @else {
+            <button
+              type="button"
+              class="btn ghost"
+              [disabled]="busy()"
+              (click)="confirming.set(true)"
+            >
+              Usuń zadanie
+            </button>
+          }
         }
       </div>
     </div>

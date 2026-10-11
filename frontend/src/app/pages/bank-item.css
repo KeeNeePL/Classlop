@@ -225,3 +225,13 @@ legend {
 .points {
   width: 70px;
 }
+
+.ask {
+  font-weight: 600;
+}
+
+.btn.danger {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}

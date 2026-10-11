@@ -11,7 +11,6 @@ export interface Criteria {
   section: string | null;
   topic: string | null;
   difficulty: Difficulty[];
-  format: Item['version']['item_format'] | null;
   neverUsedWith: string | null;
   page: number;
 }
@@ -24,17 +23,11 @@ export const DIFFICULTY: Record<Item['version']['difficulty'], string> = {
   hard: 'trudne',
 };
 
-export const FORMAT: Record<Item['version']['item_format'], string> = {
-  closed: 'zamknięte',
-  open: 'otwarte',
-};
-
 const NONE: Criteria = {
   q: '',
   section: null,
   topic: null,
   difficulty: [],
-  format: null,
   neverUsedWith: null,
   page: 1,
 };
@@ -54,7 +47,6 @@ export class BankStore {
         section: c.section ? [c.section] : [],
         topic: c.topic ? [c.topic] : [],
         difficulty: c.difficulty,
-        item_format: c.format,
         never_used_with_class: c.neverUsedWith,
         page: c.page,
         size: SIZE,
