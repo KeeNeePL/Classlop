@@ -53,6 +53,12 @@ def test_an_exercise_becomes_an_exemplar_with_latex_answer_and_solution():
     assert e.level == 3
 
 
+def test_a_script_or_denominator_the_editor_dropped_is_left_empty():
+    broken = math("<msup><mi>x</mi></msup><mo>+</mo><mfrac><mrow><mn>1</mn></mrow></mfrac>")
+    (e,) = split_exercises([page(exercise(1, 1, f"<p>Oblicz {broken}.</p>"))], "PABC")
+    assert e.text == r"Oblicz $x^{}+\frac{1}{}$."
+
+
 def test_sub_parts_stay_with_their_exercise():
     body = "<p>Rozwiąż:</p><ol><li>pierwsze</li><li>drugie</li></ol>"
     e, _ = split_exercises([page(exercise(1, 1, body), exercise(2, 1, "<p>Inne.</p>"))], "PABC")
