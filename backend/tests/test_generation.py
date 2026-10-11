@@ -179,12 +179,16 @@ def _objects(schema: dict):
             yield from _objects(value)
 
 
-@pytest.mark.parametrize("schema", [Draft, Ranking])
-def test_the_model_replies_fit_strict_structured_output(schema):
-    # Strict mode takes only objects with fixed keys, all of them required.
+def assert_strict(schema) -> None:
+    """Strict structured output takes only objects with fixed keys, all of them required."""
     for obj in _objects(to_strict_json_schema(schema)):
         assert obj.get("additionalProperties") is False
         assert sorted(obj.get("required", [])) == sorted(obj.get("properties", {}))
+
+
+@pytest.mark.parametrize("schema", [Draft, Ranking])
+def test_the_model_replies_fit_strict_structured_output(schema):
+    assert_strict(schema)
 
 
 async def test_a_closed_item_lands_with_its_options_by_letter(fake_llm, fake_tagger):

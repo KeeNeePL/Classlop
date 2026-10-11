@@ -11,12 +11,12 @@ from contextlib import suppress
 import pytest
 from opensearchpy import NotFoundError
 from PIL import Image, ImageDraw
-from test_generation import FakeTagger, tags
+from test_generation import FakeTagger, assert_strict, tags
 from test_items import fake_vector, open_content
 
 from classlop import items
 from classlop.items import embedding, index
-from classlop.items.generation import Draft
+from classlop.items.generation import Draft, Option
 from classlop.items.upload import Exercise, PageReading
 from classlop.shared import jobs, llm, queue, search, storage, worker
 from classlop.shared.migrate import migrate
@@ -43,6 +43,10 @@ async def stack():
     index._created.clear()
 
 
+def test_the_page_reading_fits_strict_structured_output():
+    assert_strict(PageReading)
+
+
 def exercise(label, text, confidence=0.95, **kw) -> Exercise:
     return Exercise(label=label, text=text, confidence=confidence, box=[0.1, 0.1, 0.9, 0.4], **kw)
 
@@ -67,7 +71,7 @@ class FakeVision:
                 item_format="closed",
                 text=given["text"],
                 points=1,
-                options={"A": "$1$", "B": "$2$"},
+                options=[Option(letter="A", text="$1$"), Option(letter="B", text="$2$")],
                 correct_options=["B"],
             )
         return Draft(
