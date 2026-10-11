@@ -22,7 +22,13 @@ def refusing() -> Iterator[None]:
         raise HTTPException(401) from e
     except teams.NotOwner as e:
         raise HTTPException(403) from e
-    except (ValueError, teams.ClassReadOnly, teams.AlreadyLinked, grading.TooEarly) as e:
+    except (
+        ValueError,
+        teams.ClassReadOnly,
+        teams.AlreadyLinked,
+        teams.TimetableExists,
+        grading.TooEarly,
+    ) as e:
         raise HTTPException(409, str(e) or None) from e
 
 

@@ -1758,6 +1758,169 @@
         }
       }
     },
+    "/api/classes/{class_id}/timetable": {
+      "get": {
+        "summary": "Timetable",
+        "operationId": "timetable_api_classes__class_id__timetable_get",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timetable"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Enter Timetable",
+        "operationId": "enter_timetable_api_classes__class_id__timetable_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTimetable"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/breaks": {
+      "post": {
+        "summary": "Cancel Break",
+        "operationId": "cancel_break_api_classes__class_id__breaks_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Break"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/classes/{class_id}/timetable/change": {
+      "post": {
+        "summary": "Change Slot",
+        "operationId": "change_slot_api_classes__class_id__timetable_change_post",
+        "parameters": [
+          {
+            "name": "class_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Class Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlotChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Healthz",
@@ -2104,6 +2267,26 @@
         ],
         "title": "BankFilters",
         "description": "What the screen offers to filter and tag by: the Curriculum, the General requirements and the\nClasses."
+      },
+      "Break": {
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "title": "First"
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first",
+          "last"
+        ],
+        "title": "Break"
       },
       "Candidate": {
         "properties": {
@@ -3322,6 +3505,29 @@
         ],
         "title": "NewStudent"
       },
+      "NewTimetable": {
+        "properties": {
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklySlot"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Slots"
+          },
+          "school_year_end": {
+            "type": "string",
+            "format": "date",
+            "title": "School Year End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slots",
+          "school_year_end"
+        ],
+        "title": "NewTimetable"
+      },
       "NewWorkForm": {
         "properties": {
           "class_name": {
@@ -3909,6 +4115,54 @@
           "got"
         ],
         "title": "Shortfall"
+      },
+      "Slot": {
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "title": "Weekday"
+          },
+          "start": {
+            "type": "string",
+            "format": "time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "time",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekday",
+          "start",
+          "end"
+        ],
+        "title": "Slot",
+        "description": "A weekly Timetable slot; weekday 0 is Monday, times are Warsaw wall-clock."
+      },
+      "SlotChange": {
+        "properties": {
+          "old": {
+            "$ref": "#/components/schemas/WeeklySlot"
+          },
+          "new": {
+            "$ref": "#/components/schemas/WeeklySlot"
+          },
+          "from_date": {
+            "type": "string",
+            "format": "date",
+            "title": "From Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old",
+          "new",
+          "from_date"
+        ],
+        "title": "SlotChange"
       },
       "StudentChoice": {
         "properties": {
@@ -4511,6 +4765,43 @@
         "type": "object",
         "title": "Times"
       },
+      "Timetable": {
+        "properties": {
+          "school_year_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "School Year End"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/Slot"
+            },
+            "type": "array",
+            "title": "Slots"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingLesson"
+            },
+            "type": "array",
+            "title": "Lessons"
+          }
+        },
+        "type": "object",
+        "required": [
+          "school_year_end",
+          "slots",
+          "lessons"
+        ],
+        "title": "Timetable"
+      },
       "TopicBar": {
         "properties": {
           "earned": {
@@ -4608,6 +4899,48 @@
         ],
         "title": "TypeProgress",
         "description": "Progress on one Assignment type; `average` is its points earned over available."
+      },
+      "UpcomingLesson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "cancelled": {
+            "type": "boolean",
+            "title": "Cancelled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "start",
+          "end",
+          "topic",
+          "cancelled"
+        ],
+        "title": "UpcomingLesson"
       },
       "UsageEntry": {
         "properties": {
@@ -4709,6 +5042,34 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WeeklySlot": {
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Weekday"
+          },
+          "start": {
+            "type": "string",
+            "format": "time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "time",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekday",
+          "start",
+          "end"
+        ],
+        "title": "WeeklySlot",
+        "description": "A slot as the Teacher enters it; weekday 0 is Monday, times are Warsaw wall-clock."
       }
     }
   }

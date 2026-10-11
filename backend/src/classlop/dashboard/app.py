@@ -18,6 +18,7 @@ from classlop.dashboard import (
     overview,
     student,
     submission,
+    timetable,
 )
 from classlop.shared import db, search, storage
 from classlop.shared.settings import get_settings
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(submission.router)
     app.include_router(student.router)
     app.include_router(new_work.router)
+    app.include_router(timetable.router)
 
     @app.get("/healthz")
     async def healthz(response: Response) -> dict[str, str]:

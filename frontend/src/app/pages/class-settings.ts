@@ -17,11 +17,12 @@ import { Candidate, ClassSettings, Member } from '../api/models';
 import { HomeStore } from '../shell/home-store';
 import { Badge } from '../ui/badge';
 import { Panel } from '../ui/panel';
+import { ClassTimetable } from './class-timetable';
 import { StudentPicker } from './student-picker';
 
-/** The Class page's Ustawienia klasy tab: its name, its Students, and deleting it. */
+/** The Class page's Ustawienia klasy tab: its name, its Students, its Timetable, and deleting it. */
 @Component({
-  imports: [Badge, FormsModule, Panel, StudentPicker],
+  imports: [Badge, ClassTimetable, FormsModule, Panel, StudentPicker],
   templateUrl: './class-settings.html',
   styleUrl: './class-settings.css',
 })

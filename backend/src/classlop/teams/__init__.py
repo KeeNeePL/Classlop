@@ -92,6 +92,7 @@ __all__ = [
     "refresh_attendance",
     "set_lateness_threshold",
     "list_lessons",
+    "list_slots",
     "list_classes",
     "list_owned_teams",
     "list_students",
@@ -176,6 +177,11 @@ async def rename_class(class_id: str, name: str) -> Class:
 async def add_timetable(class_id: str, slots: list[Slot], school_year_end: date) -> None:
     """Enter the Class's Timetable: each slot becomes a recurring Teams event."""
     await backend().add_timetable(class_id, slots, school_year_end)
+
+
+async def list_slots(class_id: str) -> list[Slot]:
+    """The current Timetable slots, by weekday and start."""
+    return await backend().list_slots(class_id)
 
 
 async def add_lesson(class_id: str, start: datetime, end: datetime, topic: str) -> Lesson:

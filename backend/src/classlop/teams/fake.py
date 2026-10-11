@@ -330,6 +330,10 @@ class FakeTeams(FakeGiving, FakeHandIns, FakeReturning, FakeLifecycle, FakeRemin
         event_id = self._event(class_id, self._classes[class_id].name)
         self._series[class_id].append([event_id, slot, first, None])
 
+    async def list_slots(self, class_id: str) -> list[Slot]:
+        current = [x[1] for x in self._series[class_id] if x[3] is None]
+        return sorted(current, key=lambda s: (s.weekday, s.start))
+
     @writable
     async def change_slot(self, class_id: str, old: Slot, new: Slot, from_date: date) -> None:
         series = next((x for x in self._series[class_id] if x[1] == old and x[3] is None), None)
