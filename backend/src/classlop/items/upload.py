@@ -4,7 +4,8 @@ vision call that finds the exercises (sub-parts together) and performs the Extra
 with a confidence and a bounding box. The crop is saved beside the file. Each exercise is skipped
 with its reason, or completed (answer, Model solution, points, Rubric), tagged and checked for a
 near-duplicate: a close one waits as a pending record, any other becomes an Item, Flagged when the
-Extraction was unsure. The summary lands in the Chat as a message. Graph state holds ids only."""
+Extraction was unsure. The summary lands in the Chat as a message. Graph state holds ids and
+each exercise's outcome, never the content."""
 
 import asyncio
 import base64
@@ -67,8 +68,6 @@ matematyka jako LaTeX w znakach $. Treści nie zmieniaj. Zadanie zamknięte: opt
 correct_options, bez answer i rubric. Zadanie otwarte: answer, model_solution i rubric jako
 poziomy punktacji CKE rosnące do points, bez options. Dopisz to, czego brakuje (odpowiedź,
 rozwiązanie wzorcowe, punkty, rubrykę). Odpowiedź, rozwiązanie i punkty od nauczyciela zachowaj."""
-
-SkipReason = Literal["unreadable", "figure_dependent", "no_basic_topic", "incomplete"]
 
 
 class Exercise(BaseModel):
