@@ -24,6 +24,7 @@ from pydantic import Field
 from sqlalchemy import event, select
 
 from classlop import grading, items
+from classlop.grading.models import GradedSubmission
 from classlop.items import CurriculumTopic, ItemVersion, RubricLevel
 from classlop.shared import llm, queue, storage
 from classlop.shared.db import engine, sessions
@@ -1506,7 +1507,7 @@ async def test_results_carry_overrides_and_zatwierdz(bank, fake_llm):
     assert [(i.ai_points, i.override, i.points) for i in approved.items] == [(0, 1, 1)]
 
 
-async def test_a_failed_grading_comes_back_failed_with_no_items(bank, fake_llm):
+async def test_results_bring_a_failed_grading_back_failed_with_no_items(bank, fake_llm):
     assignment_id = uuid.uuid4()
     await hand_in(bank, [closed()], assignment_id=assignment_id, attempt=3)
 
@@ -1536,3 +1537,16 @@ async def test_results_take_the_same_queries_for_one_assignment_or_many(bank, fa
         return len(seen)
 
     assert await queries(many) == await queries(one)
+
+
+async def test_results_leave_out_results_stored_without_an_assignment(bank, fake_llm):
+    assignment_id = uuid.uuid4()
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    kept = await hand_in(bank, [closed()], assignment_id=assignment_id)
+    fake_llm.transcribes(read(1, chosen="B", transcription="B"))
+    old = await hand_in(bank, [closed()], assignment_id=assignment_id)
+    # As graded before results stored their Assignment.
+    async with sessions().begin() as session:
+        (await session.get_one(GradedSubmission, old)).assignment_id = None
+
+    assert [r.submission_id for r in await grading.results([assignment_id])] == [kept[0]]

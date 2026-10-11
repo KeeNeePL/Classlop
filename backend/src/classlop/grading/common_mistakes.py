@@ -13,6 +13,7 @@ from classlop.grading.models import (
     GradedItem,
     GradedSubmission,
     Override,
+    newest_hand_ins,
 )
 from classlop.shared import jobs, llm
 from classlop.shared.db import sessions
@@ -113,12 +114,7 @@ async def superseded(assignment_id: uuid.UUID, requested_at: datetime) -> bool:
 
 
 async def recompute(assignment_id: uuid.UUID) -> None:
-    latest = (
-        select(GradedSubmission.submission_id, func.max(GradedSubmission.handed_in_at).label("at"))
-        .where(GradedSubmission.assignment_id == assignment_id)
-        .group_by(GradedSubmission.submission_id)
-        .subquery()
-    )
+    newest = newest_hand_ins(GradedSubmission.assignment_id == assignment_id)
     async with sessions()() as session:
         rows = await session.execute(
             select(
@@ -130,10 +126,10 @@ async def recompute(assignment_id: uuid.UUID) -> None:
                 Override.points,
             )
             .join(
-                latest,
+                newest,
                 and_(
-                    GradedItem.submission_id == latest.c.submission_id,
-                    GradedItem.handed_in_at == latest.c.at,
+                    GradedItem.submission_id == newest.c.submission_id,
+                    GradedItem.handed_in_at == newest.c.at,
                 ),
             )
             .outerjoin(Override, GradedItem.override_record)
