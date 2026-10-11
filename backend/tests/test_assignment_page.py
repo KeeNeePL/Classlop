@@ -8,7 +8,9 @@ from e2e_app import create
 from fastapi.testclient import TestClient
 
 from classlop import teams
+from classlop.dashboard import invented
 from classlop.dashboard.app import create_app
+from classlop.shared.jobs import SignInRequired
 
 # Closed, so its figures show; the newest, 2c-4, is still open.
 PAGE = "/api/classes/2c/assignments/2c-3"
@@ -37,7 +39,7 @@ def test_the_page_is_ready_for_the_screen_and_marked_invented(web):
     assert not view["deletable"] and not view["changeable"]
 
 
-def test_an_open_assignment_shows_hand_ins_only(web):
+def test_an_open_assignment_shows_no_points_before_the_due_time(web):
     view = web.get("/api/classes/2c/assignments/2c-4").json()
 
     assert not view["figures"] and view["changeable"]
@@ -71,6 +73,9 @@ def test_the_csv_downloads_one_row_per_recipient(web):
     graded = next(r for r in rows[1:] if r[5] == "ocenione")
     assert graded[2] == "6" and graded[3].endswith("%") and graded[4] in "123456"
     assert graded[6] in ("tak", "nie")
+    # The Class's order, for typing into the e-gradebook, not flagged first as on the page.
+    names = [r[0] for r in rows[1:]]
+    assert names == [n for n in invented.NAMES if n in names]
 
 
 def test_zmien_termin_changes_the_times_through_teams(web, monkeypatch):
@@ -118,6 +123,7 @@ def test_usun_prace_deletes_through_teams(web, monkeypatch):
         (ValueError("an Assignment that has been handed in cannot be deleted"), 409),
         (teams.ClassReadOnly(), 409),
         (LookupError("a1"), 404),
+        (SignInRequired(), 401),
     ],
 )
 def test_what_teams_refuses_comes_back_as_an_http_error(web, monkeypatch, error, status):

@@ -114,23 +114,23 @@
         <dt>Oddane</dt>
         <dd>{{ v.counts.handed_in }}/{{ v.counts.total }}</dd>
       </div>
-      <div>
-        <dt>Spóźnione</dt>
-        <dd>{{ v.counts.late }}</dd>
-      </div>
-      <div>
-        <dt>Brak pracy</dt>
-        <dd>{{ v.counts.missing }}</dd>
-      </div>
-      <div>
-        <dt>Zwolnieni</dt>
-        <dd>{{ v.counts.excused }}</dd>
-      </div>
-      <div>
-        <dt>Czeka na sprawdzenie</dt>
-        <dd>{{ v.counts.held }}</dd>
-      </div>
       @if (v.figures) {
+        <div>
+          <dt>Spóźnione</dt>
+          <dd>{{ v.counts.late }}</dd>
+        </div>
+        <div>
+          <dt>Brak pracy</dt>
+          <dd>{{ v.counts.missing }}</dd>
+        </div>
+        <div>
+          <dt>Zwolnieni</dt>
+          <dd>{{ v.counts.excused }}</dd>
+        </div>
+        <div>
+          <dt>Czeka na sprawdzenie</dt>
+          <dd>{{ v.counts.held }}</dd>
+        </div>
         <div>
           <dt>Średnia</dt>
           <dd>{{ v.average == null ? '—' : v.average + '%' }}</dd>
@@ -181,7 +181,7 @@
             <ul class="mistakes">
               @for (m of i.mistakes; track m.description) {
                 <li>
-                  {{ m.description }} <span class="muted">({{ m.count }} prac)</span>
+                  {{ m.description }} <span class="muted">({{ works(m.count) }})</span>
                 </li>
               }
             </ul>
@@ -220,7 +220,7 @@
               <div>
                 <cl-badge [tone]="tone(r)">{{ state(r) }}</cl-badge>
                 @if (r.flagged && !r.held) {
-                  <cl-badge tone="warn">do sprawdzenia</cl-badge>
+                  <cl-badge tone="warn">do przejrzenia</cl-badge>
                 }
                 @if (r.late) {
                   <cl-badge>spóźniona</cl-badge>
@@ -230,7 +230,7 @@
             @if (r.percent != null) {
               <td>{{ r.earned }}/{{ r.available }}</td>
               <td><cl-percent [value]="r.percent" /></td>
-              <td class="grade">{{ r.grade }}</td>
+              <td class="grade">{{ r.suggested_grade }}</td>
             } @else {
               <td class="muted">—</td>
               <td></td>

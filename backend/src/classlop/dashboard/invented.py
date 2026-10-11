@@ -31,7 +31,7 @@ NAMES = [
 ]
 TYPES: list[AssignmentType] = ["homework", "quiz", "exam", "quiz", "homework"]
 TITLES = ["Zbiory liczbowe", "Wzory skróconego mnożenia", "Równania", "Układy równań", "Funkcje"]
-MISTAKES = [
+DESCRIPTIONS = [
     "Błąd znaku przy przenoszeniu wyrazów na drugą stronę",
     "Pominięte założenie, że mianownik jest różny od zera",
     "Błąd rachunkowy w ostatnim kroku",
@@ -139,7 +139,7 @@ def common_mistakes(assignment: Assignment) -> list[grading.ItemMistakes]:
     for number, kinds in ((1, 3), (3, 1)):
         mistakes = [
             grading.Mistake(description=d, submission_ids=rng.sample(ids, (6, 4, 3)[k]))
-            for k, d in enumerate(MISTAKES[:kinds])
+            for k, d in enumerate(DESCRIPTIONS[:kinds])
         ]
         found.append(
             grading.ItemMistakes(

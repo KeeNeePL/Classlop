@@ -7,7 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from classlop.dashboard.reports.grades import THRESHOLDS, suggested_grade
-from classlop.dashboard.reports.progress import counted, overall
+from classlop.dashboard.reports.progress import counted, overall, scored
 from classlop.dashboard.reports.records import (
     Assignment,
     AssignmentState,
@@ -39,11 +39,12 @@ class SummaryRow(BaseModel):
     earned: int | None
     available: int | None
     percent: int | None
-    grade: int | None
+    suggested_grade: int | None
 
 
 class Counts(BaseModel):
     handed_in: int
+    # Excused Students count in no report, so not here either.
     total: int
     late: int
     missing: int
@@ -51,19 +52,14 @@ class Counts(BaseModel):
     held: int
 
 
-class CommonMistake(BaseModel):
-    description: str
-    count: int
-
-
 class ItemSummary(BaseModel):
     number: int
     points: int
     average: int | None
-    mistakes: list[CommonMistake]
+    mistakes: list[Mistake]
 
 
-class Choice(BaseModel):
+class StudentChoice(BaseModel):
     id: str
     name: str
 
@@ -77,7 +73,7 @@ class AssignmentSummary(BaseModel):
     due: datetime
     close: datetime
     points: int
-    # From the due time on; before it, only the hand-ins are counted.
+    # Points and averages, from the due time on; before it, only what was handed in is counted.
     figures: bool
     average: int | None
     counts: Counts
@@ -92,11 +88,7 @@ class AssignmentSummary(BaseModel):
     # "Zmień termin" and "Dodaj uczniów" only while Scheduled or Open.
     changeable: bool
     # The Class's Students without a Submission, for "Dodaj uczniów".
-    addable: list[Choice]
-
-
-def scored(s: Submission) -> bool:
-    return s.state in GRADED and not s.held
+    addable: list[StudentChoice]
 
 
 def flagged(s: Submission) -> bool:
@@ -116,16 +108,19 @@ def row(s: Submission, student: Student, figures: bool, thresholds: Sequence[int
         earned=result.earned if result else None,
         available=result.available if result else None,
         percent=result.percent if result else None,
-        grade=suggested_grade(result.earned, result.available, thresholds) if result else None,
+        suggested_grade=(
+            suggested_grade(result.earned, result.available, thresholds) if result else None
+        ),
     )
 
 
 def histogram(submissions: Sequence[Submission]) -> list[int]:
+    """On the percent the Teacher sees, so a Student shown at 90% is in the 90-100 bin."""
     bins = [0] * BINS
     for s in submissions:
-        result = overall(s.items)
-        if scored(s) and result.available:
-            bins[min(BINS - 1, BINS * result.earned // result.available)] += 1
+        percent = overall(s.items).percent
+        if scored(s) and percent is not None:
+            bins[min(BINS - 1, percent // 10)] += 1
     return bins
 
 
@@ -136,7 +131,7 @@ def assignment_summary(
     now: datetime,
     thresholds: Sequence[int] = THRESHOLDS,
 ) -> AssignmentSummary:
-    names = {s.id: s for s in students}
+    by_id = {s.id: s for s in students}
     order = {s.id: n for n, s in enumerate(students)}
     # Flagged first; otherwise in the order of the Class's Students.
     submissions = sorted(
@@ -149,11 +144,7 @@ def assignment_summary(
             number=i.number,
             points=i.points,
             average=overall(x for x in graded if x.number == i.number).percent,
-            mistakes=[
-                CommonMistake(description=m.description, count=m.count)
-                for m in mistakes
-                if figures and m.number == i.number
-            ][:MISTAKES],
+            mistakes=[m for m in mistakes if figures and m.number == i.number][:MISTAKES],
         )
         for i in assignment.items
     ]
@@ -172,20 +163,20 @@ def assignment_summary(
         average=overall(graded).percent,
         counts=Counts(
             handed_in=sum(s.state in HANDED_IN for s in submissions),
-            total=len(submissions),
+            total=sum(s.state != "excused" for s in submissions),
             late=sum(s.late and s.state in HANDED_IN for s in submissions),
             missing=sum(s.state == "missing" for s in submissions),
             excused=sum(s.state == "excused" for s in submissions),
             held=sum(s.held and s.state in GRADED for s in submissions),
         ),
-        rows=[row(s, names[s.student_id], figures, thresholds) for s in submissions],
+        rows=[row(s, by_id[s.student_id], figures, thresholds) for s in submissions],
         items=items,
         thresholds=list(thresholds),
         histogram=histogram(submissions) if figures else [0] * BINS,
         deletable=not any(s.state in HANDED_IN for s in submissions),
         changeable=changeable,
         addable=[
-            Choice(id=s.id, name=s.name)
+            StudentChoice(id=s.id, name=s.name)
             for s in students
             if changeable and not s.former and s.id not in recipients
         ],

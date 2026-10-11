@@ -36,7 +36,8 @@ const STATE: Record<SummaryRow['state'], string> = {
 
 const HINTS = {
   summary:
-    'Do terminu oddania widać tylko, ile prac oddano. Od terminu: średni wynik klasy i rozkład ' +
+    'Do terminu oddania widać tylko, ile prac oddano; uczniowie zwolnieni się nie liczą. Od ' +
+    'terminu: spóźnione, brakujące i czekające prace, średni wynik klasy i rozkład ' +
     'wyników uczniów w przedziałach co 10 punktów procentowych; kreski z liczbą to progi ' +
     'proponowanych ocen. Prace czekające na sprawdzenie, nieoddane i zwolnione się nie liczą.',
   items:
@@ -44,7 +45,8 @@ const HINTS = {
     'najmniej trzech pracach (najwyżej trzy na zadanie).',
   students:
     'Na górze prace do sprawdzenia: te, przy których AI nie jest pewne odczytu lub oceny ' +
-    '(czekają na sprawdzenie i nie wróciły jeszcze do ucznia), i te z rysunkiem. Proponowana ' +
+    '(czekają na sprawdzenie i nie wróciły jeszcze do ucznia), i te z rysunkiem, które warto ' +
+    'przejrzeć. Proponowana ' +
     'ocena wynika z progów w Ustawieniach; widzisz ją tylko ty.',
 };
 
@@ -97,6 +99,9 @@ export class AssignmentPage {
   ];
 
   protected readonly state = (r: SummaryRow) => (r.held ? 'czeka na sprawdzenie' : STATE[r.state]);
+  /** "6 prac", "4 prace", "3 prace". */
+  protected readonly works = (n: number) =>
+    `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'prace' : 'prac'}`;
   protected readonly tone = (r: SummaryRow) =>
     r.held ? 'warn' : r.state === 'missing' ? 'danger' : r.percent != null ? 'ok' : '';
 

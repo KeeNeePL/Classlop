@@ -24,7 +24,8 @@ test('an Assignment opens from the Class overview, shows its summary and downloa
 
   const items = page.getByRole('list', { name: 'Zadania' });
   await expect(items.getByText('Zadanie 1')).toBeVisible();
-  await expect(items.getByText(/\(\d+ prac\)/).first()).toBeVisible();
+  await expect(items.getByText('(6 prac)').first()).toBeVisible();
+  await expect(items.getByText('(4 prace)').first()).toBeVisible();
 
   // Held Submissions come first and wait for the Teacher, with no points yet.
   const rows = page.getByRole('row');
@@ -43,11 +44,15 @@ test('an Assignment opens from the Class overview, shows its summary and downloa
   expect(csv).toContain('czeka na sprawdzenie');
 });
 
-test('an open Assignment shows hand-ins only and can still change', async ({ page }) => {
+test('before its due time an Assignment counts only what was handed in, and can still change', async ({
+  page,
+}) => {
   await page.goto('/klasy/2c/prace/2c-4');
 
   await expect(page.getByRole('heading', { name: 'Funkcje' })).toBeVisible();
   await expect(page.getByText(/Wyniki pojawią się w terminie oddania/)).toBeVisible();
+  await expect(page.getByText('Oddane', { exact: true })).toBeVisible();
+  await expect(page.getByText('Brak pracy', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Zmień termin' })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Zmień termin' }).click();

@@ -131,7 +131,7 @@
     "/api/classes/{class_id}/assignments/{assignment_id}/csv": {
       "get": {
         "summary": "Assignment Csv",
-        "description": "One row per recipient, for typing the grades into the e-gradebook. Semicolons and a BOM,\nso Excel opens it in Polish.",
+        "description": "One row per recipient in the Class's order, for typing the grades into the e-gradebook.\nSemicolons and a BOM, so Excel opens it in Polish.",
         "operationId": "assignment_csv_api_classes__class_id__assignments__assignment_id__csv_get",
         "parameters": [
           {
@@ -418,7 +418,7 @@
           },
           "addable": {
             "items": {
-              "$ref": "#/components/schemas/Choice"
+              "$ref": "#/components/schemas/StudentChoice"
             },
             "type": "array",
             "title": "Addable"
@@ -573,24 +573,6 @@
         ],
         "title": "Attention"
       },
-      "Choice": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "Choice"
-      },
       "ClassLink": {
         "properties": {
           "id": {
@@ -613,24 +595,6 @@
           "graded"
         ],
         "title": "ClassLink"
-      },
-      "CommonMistake": {
-        "properties": {
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          }
-        },
-        "type": "object",
-        "required": [
-          "description",
-          "count"
-        ],
-        "title": "CommonMistake"
       },
       "Counts": {
         "properties": {
@@ -799,7 +763,7 @@
           },
           "mistakes": {
             "items": {
-              "$ref": "#/components/schemas/CommonMistake"
+              "$ref": "#/components/schemas/Mistake"
             },
             "type": "array",
             "title": "Mistakes"
@@ -831,6 +795,30 @@
           "sign_in_lapsed"
         ],
         "title": "MeView"
+      },
+      "Mistake": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "description",
+          "count"
+        ],
+        "title": "Mistake",
+        "description": "A Common mistake on one Item, as `grading` found it."
       },
       "OverviewResponse": {
         "properties": {
@@ -959,6 +947,24 @@
         ],
         "title": "SectionBar"
       },
+      "StudentChoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StudentChoice"
+      },
       "StudentRow": {
         "properties": {
           "id": {
@@ -1065,7 +1071,7 @@
             ],
             "title": "Percent"
           },
-          "grade": {
+          "suggested_grade": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1074,7 +1080,7 @@
                 "type": "null"
               }
             ],
-            "title": "Grade"
+            "title": "Suggested Grade"
           }
         },
         "type": "object",
@@ -1089,7 +1095,7 @@
           "earned",
           "available",
           "percent",
-          "grade"
+          "suggested_grade"
         ],
         "title": "SummaryRow"
       },

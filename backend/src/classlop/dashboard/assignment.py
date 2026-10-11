@@ -13,13 +13,14 @@ from pydantic import BaseModel
 
 from classlop import grading, teams
 from classlop.dashboard import auth, invented
-from classlop.dashboard.reports import AssignmentSummary, Mistake, assignment_summary
+from classlop.dashboard.reports import AssignmentSummary, Mistake, Student, assignment_summary
+from classlop.shared.jobs import SignInRequired
 
 router = APIRouter()
 
 STATES = {
     "not_handed_in": "nie oddano",
-    "handed_in": "oddano",
+    "handed_in": "oddano, ocenia AI",
     "graded": "ocenione",
     "returned": "zwrócone",
     "missing": "brak pracy",
@@ -41,7 +42,8 @@ def mistakes(found: list[grading.ItemMistakes]) -> list[Mistake]:
     ]
 
 
-def page(class_id: str, assignment_id: str) -> AssignmentPage:
+def page(class_id: str, assignment_id: str) -> tuple[AssignmentPage, tuple[Student, ...]]:
+    """The page, and the Class's Students in their order."""
     now = datetime.now(UTC)
     if (name := invented.class_name(class_id, now)) is None:
         raise HTTPException(404)
@@ -50,14 +52,14 @@ def page(class_id: str, assignment_id: str) -> AssignmentPage:
     if found is None:
         raise HTTPException(404)
     view = assignment_summary(found, data.students, mistakes(invented.common_mistakes(found)), now)
-    return AssignmentPage(**view.model_dump(), class_name=name, invented=True)
+    return AssignmentPage(**view.model_dump(), class_name=name, invented=True), data.students
 
 
 @router.get("/api/classes/{class_id}/assignments/{assignment_id}")
 async def assignment(
     class_id: str, assignment_id: str, _: Annotated[auth.Me, Depends(auth.teacher)]
 ) -> AssignmentPage:
-    return page(class_id, assignment_id)
+    return page(class_id, assignment_id)[0]
 
 
 @router.get(
@@ -68,15 +70,16 @@ async def assignment(
 async def assignment_csv(
     class_id: str, assignment_id: str, _: Annotated[auth.Me, Depends(auth.teacher)]
 ) -> Response:
-    """One row per recipient, for typing the grades into the e-gradebook. Semicolons and a BOM,
-    so Excel opens it in Polish."""
-    view = page(class_id, assignment_id)
+    """One row per recipient in the Class's order, for typing the grades into the e-gradebook.
+    Semicolons and a BOM, so Excel opens it in Polish."""
+    view, students = page(class_id, assignment_id)
+    order = {s.id: n for n, s in enumerate(students)}
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
     writer.writerow(
         ["Uczeń", "Punkty", "Maks.", "Procent", "Proponowana ocena", "Stan", "Spóźniona"]
     )
-    for r in view.rows:
+    for r in sorted(view.rows, key=lambda r: order[r.student_id]):
         scored = r.percent is not None
         writer.writerow(
             [
@@ -84,7 +87,7 @@ async def assignment_csv(
                 r.earned if scored else "",
                 r.available if scored else "",
                 f"{r.percent}%" if scored else "",
-                r.grade if scored else "",
+                r.suggested_grade if scored else "",
                 HELD if r.held else STATES[r.state],
                 "tak" if r.late else "nie",
             ]
@@ -112,6 +115,9 @@ async def through_teams(change: Awaitable[object]) -> Response:
         await change
     except LookupError as e:
         raise HTTPException(404) from e
+    except SignInRequired as e:
+        # The screen's interceptor answers a 401 with "Zaloguj się ponownie".
+        raise HTTPException(401) from e
     except (ValueError, teams.ClassReadOnly) as e:
         raise HTTPException(409, str(e) or None) from e
     return Response(status_code=204)

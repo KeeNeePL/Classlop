@@ -71,7 +71,12 @@ def test_a_held_submission_waits_for_the_teacher_and_stays_out_of_the_figures():
     view = summary(sub("s1", 4, 6), sub("s2", 0, 0, held=True, spot_check=True))
 
     held = view.rows[0]
-    assert (held.name, held.held, held.percent, held.grade) == ("Uczeń 2", True, None, None)
+    assert (held.name, held.held, held.percent, held.suggested_grade) == (
+        "Uczeń 2",
+        True,
+        None,
+        None,
+    )
     assert view.average == 100
     assert view.counts.held == 1
     assert sum(view.histogram) == 1
@@ -84,7 +89,7 @@ def test_once_approved_a_held_submission_counts():
     assert sum(view.histogram) == 2
 
 
-def test_before_the_due_time_only_hand_ins_are_counted():
+def test_before_the_due_time_only_what_was_handed_in_is_counted():
     mistakes = [Mistake(number=1, description="zły znak", count=3)]
     view = summary(
         sub("s1", 4, 6),
@@ -134,7 +139,8 @@ def test_state_counts_name_late_missing_excused_and_held():
     )
 
     c = view.counts
-    assert (c.handed_in, c.total, c.late, c.missing, c.excused, c.held) == (3, 5, 2, 1, 1, 1)
+    # Excused leaves the total: 3 of the 4 expected were handed in.
+    assert (c.handed_in, c.total, c.late, c.missing, c.excused, c.held) == (3, 4, 2, 1, 1, 1)
     assert [r.late for r in view.rows if r.student_id in ("s1", "s2", "s3")] == [True, True, False]
 
 
@@ -157,7 +163,7 @@ def test_flagged_submissions_come_first_then_the_class_order():
 def test_the_suggested_grade_follows_the_thresholds_on_the_real_ratio():
     subs = [sub(f"s{n}", *pts) for n, pts in enumerate([(0, 0), (3, 0), (4, 1), (4, 4)], 1)]
     view = summary(*subs, sub("s5", 4, 5))
-    assert [r.grade for r in view.rows] == [1, 2, 3, 4, 5]
+    assert [r.suggested_grade for r in view.rows] == [1, 2, 3, 4, 5]
     assert view.thresholds == [30, 50, 70, 85, 100]
 
     strict = assignment_summary(
@@ -167,7 +173,7 @@ def test_the_suggested_grade_follows_the_thresholds_on_the_real_ratio():
         AFTER,
         thresholds=(30, 50, 70, 95, 100),
     )
-    assert [r.grade for r in strict.rows] == [6, 4]
+    assert [r.suggested_grade for r in strict.rows] == [6, 4]
     assert strict.thresholds == [30, 50, 70, 95, 100]
 
 
