@@ -237,3 +237,16 @@ async def test_the_submission_view_of_an_own_class_shows_its_held_items(klass):
         (1, 1, "$x = 1$")
     ]
     assert (view["earned"], view["available"]) == (1, 2)
+
+
+async def test_the_submission_view_links_the_handed_in_photos(klass, monkeypatch):
+    monkeypatch.setattr(storage, "presigned_url", lambda key: f"https://files.example/{key}")
+    (handed_in,) = [
+        s for s in await klass.fake.list_submissions(klass.assignment_id) if s.handed_in_at
+    ]
+    bartek = klass.student("Bartek Nowicki")
+
+    view = klass.get(f"assignments/{klass.assignment_id}/submissions/{bartek}")
+
+    (key,) = handed_in.files
+    assert view["files"] == [{"name": "strona-1.jpg", "url": f"https://files.example/{key}"}]

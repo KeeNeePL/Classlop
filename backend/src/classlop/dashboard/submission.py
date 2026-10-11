@@ -15,6 +15,7 @@ from classlop.dashboard.classes import TheTeams
 from classlop.dashboard.reports import assignment_summary
 from classlop.dashboard.reports.records import SubmissionState
 from classlop.items import ItemVersion
+from classlop.shared import storage
 
 router = APIRouter()
 Teacher = Annotated[auth.Me, Depends(auth.teacher)]
@@ -40,6 +41,11 @@ class ItemView(BaseModel):
     edited: bool
     mistake: str | None
     verification_note: str | None
+
+
+class HandInFile(BaseModel):
+    name: str
+    url: str
 
 
 class Neighbour(BaseModel):
@@ -69,6 +75,8 @@ class SubmissionPage(BaseModel):
     available: int
     # #7: the Teacher's changes open at the due time; `grading` refuses earlier ones.
     changeable: bool
+    # The hand-in's files as the Student uploaded them, oldest first.
+    files: list[HandInFile]
     items: list[ItemView]
     # The Submissions before and after this one in the Assignment page's order.
     previous: Neighbour | None
@@ -110,7 +118,7 @@ async def submission(
     graded: Grader,
 ) -> SubmissionPage:
     now = datetime.now(UTC)
-    (data, versions, results), made_up = await class_read.read(class_id, t, pool, graded)
+    (data, versions, results, files), made_up = await class_read.read(class_id, t, pool, graded)
     assignment = next((a for a in data.assignments if a.id == assignment_id), None)
     if assignment is None:
         raise HTTPException(404)
@@ -147,6 +155,11 @@ async def submission(
         earned=sum(i.points for i in items) if items else None,
         available=sum(i.points for i in assignment.items),
         changeable=now >= assignment.due,
+        files=[
+            # A key ends in the upload's time stamp, a dash and the file's name.
+            HandInFile(name=key.rsplit("/", 1)[-1].split("-", 1)[1], url=storage.presigned_url(key))
+            for key in files.get((assignment_id, student_id), [])
+        ],
         items=items,
         previous=order[at - 1] if at else None,
         next=order[at + 1] if at is not None and at + 1 < len(order) else None,

@@ -76,6 +76,7 @@ export class SubmissionPage {
     this.params().praca,
   ]);
   protected readonly link = (student: string) => [...this.back(), student];
+  protected readonly photo = (name: string) => /\.(jpe?g|png|gif|webp|bmp)$/i.test(name);
 
   protected readonly editing = signal<Editing | null>(null);
   protected readonly draft = signal('');

@@ -97,4 +97,5 @@ async def _own(got: teams.ClassRead, pool: Bank, graded: Grader) -> Read:
             for lesson_id, a in got.attendance.items()
         ),
     )
-    return Read(data, versions, current)
+    files = {(s.assignment_id, s.student_id): s.files for s in got.submissions if s.files}
+    return Read(data, versions, current, files)

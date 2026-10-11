@@ -92,6 +92,8 @@ class Read(NamedTuple):
     versions: dict[str, list[ItemVersion]]
     # The current result of each Submission that has one, by its Assignment's and Student's ids.
     results: dict[tuple[str, str], grading.Result]
+    # Each hand-in's copies in storage, by its Assignment's and Student's ids.
+    files: dict[tuple[str, str], list[str]]
 
 
 def assignment_uuid(assignment_id: str) -> uuid.UUID:
@@ -139,7 +141,7 @@ async def read(class_id: str, now: datetime, bank: Bank, grader: Grader) -> Read
                 current[a.id, s.student_id] = result
             submissions.append(with_result(s, current.get((a.id, s.student_id)), by_id[a.id]))
         assignments.append(a.model_copy(update={"submissions": tuple(submissions)}))
-    return Read(data.model_copy(update={"assignments": tuple(assignments)}), by_id, current)
+    return Read(data.model_copy(update={"assignments": tuple(assignments)}), by_id, current, {})
 
 
 def with_result(
