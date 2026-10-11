@@ -13,7 +13,7 @@
       (input)="type($any($event.target).value)"
     />
 
-    <div class="filters">
+    <cl-panel class="filters">
       <div class="levels" role="group" aria-label="Trudność">
         @for (level of levels; track level) {
           <button
@@ -27,7 +27,7 @@
           </button>
         }
       </div>
-      <label>
+      <label class="field">
         Rodzaj
         <select (change)="setFormat($event)" [value]="criteria().format ?? ''">
           <option value="">wszystkie</option>
@@ -36,7 +36,7 @@
         </select>
       </label>
       @if (store.filters(); as f) {
-        <label>
+        <label class="field">
           Nie zadane klasie
           <select (change)="setNeverUsedWith($event)" [value]="criteria().neverUsedWith ?? ''">
             <option value="">dowolnej</option>
@@ -62,7 +62,7 @@
         />
         Pokaż wycofane
       </label>
-    </div>
+    </cl-panel>
 
     <details class="topics">
       <summary>
@@ -102,11 +102,11 @@
     </details>
 
     @if (store.results(); as page) {
-      <p class="muted count" aria-live="polite">
+      <p class="count" aria-live="polite">
         @if (page.total === 0) {
           Nic nie znaleziono.
         } @else {
-          Znaleziono: {{ page.total }}
+          Znaleziono: <b>{{ page.total }}</b>
         }
       </p>
       <ol aria-label="Zadania">
@@ -117,6 +117,7 @@
               [routerLink]="['/bank', item.id]"
               routerLinkActive="on"
               [class.retired]="item.retired"
+              [class.flagged]="item.flagged"
             >
               <span class="text"><cl-math [text]="item.version.text" /></span>
               <span class="tags">
@@ -144,7 +145,7 @@
           >
             Poprzednia
           </button>
-          <span class="muted">Strona {{ criteria().page }} z {{ pages() }}</span>
+          <span>Strona {{ criteria().page }} z {{ pages() }}</span>
           <button
             type="button"
             class="btn ghost"

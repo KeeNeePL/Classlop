@@ -20,7 +20,7 @@ test('the Teacher searches the bank and opens an Item', async ({ page }) => {
   await items(page).getByRole('link').click();
 
   await expect(page).toHaveURL(/\/bank\/[0-9a-f-]{36}$/);
-  await expect(page.getByText('Rozwiąż równanie')).toBeVisible();
+  await expect(page.locator('.detail .statement')).toContainText('Rozwiąż równanie');
   await expect(page.getByRole('heading', { name: 'Rozwiązanie wzorcowe' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Kryteria oceniania' })).toBeVisible();
   await expect(page.getByRole('cell', { name: 'Oba pierwiastki.' })).toBeVisible();

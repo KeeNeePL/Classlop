@@ -7,9 +7,9 @@ import { Component } from '@angular/core';
     :host {
       display: block;
       background: var(--card);
-      border: 1px solid var(--line);
+      border: 1.5px solid var(--edge);
       border-radius: 4px;
-      padding: 14px 16px;
+      padding: 16px 18px;
     }
   `,
 })

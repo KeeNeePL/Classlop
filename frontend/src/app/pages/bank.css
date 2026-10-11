@@ -4,7 +4,7 @@ header {
 
 .bank {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-columns: 350px minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -14,37 +14,54 @@ header {
   gap: 12px;
 }
 
+/* Everything you can type in or click sits on solid paper with an edge that shows on the grid. */
 .search {
   font: inherit;
+  font-size: 16px;
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
+  padding: 10px 14px;
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
   background: var(--card);
   color: var(--ink);
 }
 
-.filters {
-  display: grid;
-  gap: 8px;
-  font-size: 13px;
+.search:focus {
+  border-color: var(--pen);
+  outline: 2px solid var(--pen);
+  outline-offset: 0;
 }
 
-.filters label {
+.filters {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.field {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
 }
 
-.filters .check {
-  justify-content: flex-start;
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pen);
 }
 
 select {
   font: inherit;
-  padding: 3px 6px;
-  border: 1px solid var(--line);
+  padding: 4px 8px;
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
   background: var(--card);
   color: var(--ink);
@@ -56,33 +73,40 @@ select {
 }
 
 .chip {
+  flex: 1;
   font: inherit;
   font-size: 13px;
-  padding: 2px 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1.5px solid var(--edge);
+  border-radius: 14px;
   background: var(--card);
-  color: var(--muted);
+  color: var(--ink);
   cursor: pointer;
 }
 
+.chip:hover {
+  border-color: var(--pen);
+}
+
 .chip.on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--card);
+  background: var(--pen);
+  border-color: var(--pen);
+  color: #fff;
 }
 
 .topics {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 13px;
 }
 
 .topics summary {
   cursor: pointer;
   font-weight: 600;
+  font-size: 14px;
 }
 
 .topics[open] {
@@ -98,7 +122,7 @@ select {
   border: 0;
   background: none;
   color: var(--ink);
-  padding: 3px 6px;
+  padding: 4px 8px;
   cursor: pointer;
   border-radius: 3px;
 }
@@ -113,11 +137,11 @@ select {
 
 .topics .section {
   font-weight: 700;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .topics .topic {
-  padding-left: 16px;
+  padding-left: 18px;
   color: var(--muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -126,8 +150,9 @@ select {
 }
 
 .count {
-  margin: 0;
-  font-size: 13px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink);
 }
 
 ol {
@@ -140,12 +165,17 @@ ol {
 
 .card {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 12px 14px;
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
   color: var(--ink);
+}
+
+/* Something to check is marked in the margin, as the Do zrobienia queue does. */
+.card.flagged {
+  border-left: 4px solid #d8b800;
 }
 
 .card:hover {
@@ -154,7 +184,7 @@ ol {
 
 .card.on {
   border-color: var(--pen);
-  box-shadow: inset 3px 0 0 var(--pen);
+  box-shadow: 0 0 0 1px var(--pen);
 }
 
 .card.retired .text {
@@ -178,9 +208,10 @@ ol {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 14px;
 }
 
 .pager button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }

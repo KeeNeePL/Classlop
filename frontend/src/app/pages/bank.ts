@@ -3,11 +3,12 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Item } from '../api/models';
 import { Badge } from '../ui/badge';
 import { MathText } from '../ui/math';
+import { Panel } from '../ui/panel';
 import { BankStore, Criteria, DIFFICULTY, FORMAT, SIZE } from './bank-store';
 
 /** The Bank zadań: search and filters on the left, the chosen Item on the right. */
 @Component({
-  imports: [Badge, MathText, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [Badge, MathText, Panel, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './bank.html',
   styleUrl: './bank.css',
 })
@@ -46,5 +47,9 @@ export class Bank {
 }
 
 /** The right-hand side of the bank before an Item is chosen. */
-@Component({ template: '<p class="muted">Wybierz zadanie z listy.</p>' })
+@Component({
+  imports: [Panel],
+  template: '<cl-panel><p>Wybierz zadanie z listy.</p></cl-panel>',
+  styles: 'p { margin: 0; }',
+})
 export class BankEmpty {}

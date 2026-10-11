@@ -182,7 +182,6 @@
         </div>
       </div>
     } @else {
-      <h2>Treść</h2>
       <p class="statement"><cl-math [text]="v.text" /></p>
 
       @if (v.item_format === 'closed') {
@@ -212,7 +211,9 @@
           <tbody>
             @for (level of v.rubric; track level.points) {
               <tr>
-                <td>{{ level.points }}</td>
+                <td>
+                  <span class="pts">{{ level.points }}</span>
+                </td>
                 <td><cl-math [text]="level.description" /></td>
               </tr>
             }
@@ -222,10 +223,6 @@
 
       <h2>Tagi</h2>
       <dl class="tagged">
-        <dt>Trudność</dt>
-        <dd>{{ difficulty[v.difficulty] }}</dd>
-        <dt>Punkty</dt>
-        <dd>{{ v.points }}</dd>
         <dt>Wymagania ogólne</dt>
         <dd>{{ v.general_requirements.join(', ') }}</dd>
         <dt>Tematy</dt>

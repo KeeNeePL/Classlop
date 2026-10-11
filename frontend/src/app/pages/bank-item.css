@@ -3,13 +3,18 @@
   gap: 16px;
 }
 
+/* Sections of the Item are told apart by a rule above each, not by shouting. */
 h2 {
   font-size: 15px;
-  margin: 16px 0 6px;
+  margin: 20px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .usage h2 {
   margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 p {
@@ -52,11 +57,12 @@ p {
 
 .flag {
   background: var(--marker);
+  border: 1px solid #d8b800;
 }
 
 .offer {
-  background: var(--grid);
-  border: 1px solid var(--line);
+  background: #eef2fb;
+  border: 1px solid var(--edge);
 }
 
 .error {
@@ -64,8 +70,13 @@ p {
   font-weight: 600;
 }
 
+/* The task as it would stand in the exercise book: set off by the red margin line. */
 .statement {
-  font-size: 17px;
+  font-size: 19px;
+  line-height: 1.55;
+  margin: 18px 0 0;
+  padding: 4px 0 4px 16px;
+  border-left: 3px solid var(--red);
 }
 
 .options {
@@ -94,13 +105,26 @@ th {
 
 th,
 td {
-  padding: 6px 8px 6px 0;
-  border-bottom: 1px solid var(--grid);
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
 .rubric td:first-child {
-  width: 70px;
+  width: 56px;
+}
+
+/* Points as the teacher writes them in the margin. */
+.pts {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--pen);
+  border-radius: 50%;
+  color: var(--pen);
+  font-family: var(--display);
+  font-weight: 700;
 }
 
 .tagged {
@@ -148,8 +172,8 @@ td {
 .edit select {
   font: inherit;
   font-weight: 400;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
+  padding: 6px 10px;
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
   background: var(--card);
   color: var(--ink);
@@ -165,7 +189,7 @@ td {
 }
 
 fieldset {
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--edge);
   border-radius: 4px;
   display: grid;
   gap: 6px;
