@@ -315,3 +315,29 @@ async def pick_items(
     )
     ids = [uuid.UUID(hit["_source"]["item_id"]) for hit in result["hits"]["hits"]]
     return await get_items(ids)
+
+
+async def nearest_item(content: ItemContent) -> tuple[uuid.UUID, float] | None:
+    """The closest live Item in the bank and its cosine; k-NN scores (1 + cosine) / 2."""
+    vector = (await embedding.embed([searchable_text(content)]))[0]
+    await create_index()
+    result = await client().search(
+        index=get_settings().items_index,
+        body={
+            "size": 1,
+            "_source": ["item_id"],
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": vector,
+                        "k": 1,
+                        "filter": {"bool": {"filter": [{"term": {"retired": False}}]}},
+                    }
+                }
+            },
+        },
+    )
+    hits = result["hits"]["hits"]
+    if not hits:
+        return None
+    return uuid.UUID(hits[0]["_source"]["item_id"]), 2 * hits[0]["_score"] - 1

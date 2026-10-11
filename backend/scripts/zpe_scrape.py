@@ -14,6 +14,7 @@ import argparse
 import io
 import json
 import re
+import sys
 import time
 import zipfile
 from pathlib import Path
@@ -73,6 +74,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--skip-title", default="rozszerz")
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")
     zpe = Throttled(args.delay)
 
     materials = {m["id"]: m for m in search(zpe)}
@@ -85,7 +87,11 @@ def main() -> None:
         folder = args.out / material["id"]
         if (folder / "meta.json").exists():
             continue
-        epub = zpe.get(f"https://zpe.gov.pl/package/epub/{material['id']}").content
+        try:
+            epub = zpe.get(f"https://zpe.gov.pl/package/epub/{material['id']}").content
+        except httpx.HTTPStatusError as error:
+            print("skipped", material["id"], material["title"], error.response.status_code)
+            continue
         with zipfile.ZipFile(io.BytesIO(epub)) as z:
             (folder / "pages").mkdir(parents=True, exist_ok=True)
             names = sorted(n for n in z.namelist() if n.endswith(".html") and "tree" not in n)

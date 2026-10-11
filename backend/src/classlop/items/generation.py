@@ -17,7 +17,7 @@ from langgraph.types import Send
 from pydantic import BaseModel, Field, ValidationError, model_validator
 from sqlalchemy import select
 
-from classlop.items import embedding, exemplars, index, records, tagging
+from classlop.items import exemplars, index, records, tagging
 from classlop.items.curriculum import curriculum
 from classlop.items.models import ExemplarRow
 from classlop.items.types import Difficulty, ItemContent, ItemFormat, RubricLevel
@@ -149,27 +149,8 @@ async def _exemplar_texts(ids: list[str]) -> list[dict]:
 
 
 async def _nearest_cosine(content: ItemContent) -> float:
-    """Cosine of the closest live Item in the bank; k-NN scores (1 + cosine) / 2."""
-    vector = (await embedding.embed([index.searchable_text(content)]))[0]
-    await index.create_index()
-    result = await client().search(
-        index=get_settings().items_index,
-        body={
-            "size": 1,
-            "_source": False,
-            "query": {
-                "knn": {
-                    "embedding": {
-                        "vector": vector,
-                        "k": 1,
-                        "filter": {"bool": {"filter": [{"term": {"retired": False}}]}},
-                    }
-                }
-            },
-        },
-    )
-    hits = result["hits"]["hits"]
-    return 2 * hits[0]["_score"] - 1 if hits else -1.0
+    nearest = await index.nearest_item(content)
+    return nearest[1] if nearest else -1.0
 
 
 class Run:
