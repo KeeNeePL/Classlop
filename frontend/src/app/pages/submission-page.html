@@ -40,6 +40,20 @@
     }
   </p>
 
+  @if (v.files.length) {
+    <section class="files" aria-label="Oddana praca">
+      @for (f of v.files; track f.url) {
+        @if (photo(f.name)) {
+          <a [href]="f.url" target="_blank" rel="noopener">
+            <img [src]="f.url" [alt]="f.name" />
+          </a>
+        } @else {
+          <a [href]="f.url" target="_blank" rel="noopener">{{ f.name }}</a>
+        }
+      }
+    </section>
+  }
+
   @if (!v.changeable) {
     <p class="muted">
       Punkty, odczyt i uwagi można zmieniać od terminu oddania, {{ warsaw(v.due) }}.

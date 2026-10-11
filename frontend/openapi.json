@@ -3740,6 +3740,24 @@
         "title": "HandIn",
         "description": "Which hand-in of the Submission the change is to: the one the page showed."
       },
+      "HandInFile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "title": "HandInFile"
+      },
       "Home": {
         "properties": {
           "entries": {
@@ -6041,6 +6059,13 @@
             "type": "boolean",
             "title": "Changeable"
           },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/HandInFile"
+            },
+            "type": "array",
+            "title": "Files"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ItemView"
@@ -6094,6 +6119,7 @@
           "earned",
           "available",
           "changeable",
+          "files",
           "items",
           "previous",
           "next",
