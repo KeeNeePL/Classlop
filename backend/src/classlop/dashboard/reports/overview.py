@@ -49,6 +49,13 @@ class StudentRow(BaseModel):
     name: str
     former: bool
     percent: int | None
+    # Of the Assignments given to the Student, Excused ones left out.
+    handed_in: int
+    given: int
+    # Lessons the Student was Absent from, of every Lesson.
+    absent: int
+    # The Wymagają uwagi reasons, for every Student.
+    reasons: list[str]
 
 
 class Attention(BaseModel):
@@ -148,20 +155,27 @@ def class_overview(data: ClassData, sections: Sequence[CurriculumSection]) -> Cl
         s.id: overall(counted(x for x in submissions if x.student_id == s.id))
         for s in data.students
     }
-    students = [
-        StudentRow(id=s.id, name=s.name, former=s.former, percent=results[s.id].percent)
-        for s in data.students
-    ]
+    students = []
+    for s in data.students:
+        own = [x for x in submissions if x.student_id == s.id and x.state != "excused"]
+        students.append(
+            StudentRow(
+                id=s.id,
+                name=s.name,
+                former=s.former,
+                percent=results[s.id].percent,
+                handed_in=sum(x.state in HANDED_IN for x in own),
+                given=len(own),
+                absent=sum(s.id in lesson.absent for lesson in data.lessons),
+                reasons=reasons(s, data, results[s.id]),
+            )
+        )
     flagged = [
         Attention(
-            student_id=s.id,
-            name=s.name,
-            former=s.former,
-            reasons=why,
-            percent=results[s.id].percent,
+            student_id=r.id, name=r.name, former=r.former, reasons=r.reasons, percent=r.percent
         )
-        for s in data.students
-        if (why := reasons(s, data, results[s.id]))
+        for r in students
+        if r.reasons
     ]
     # Worst first: most reasons, then the lowest result.
     flagged.sort(key=lambda a: (-len(a.reasons), 101 if a.percent is None else a.percent, a.name))

@@ -92,14 +92,6 @@ h2 {
   cursor: pointer;
 }
 
-.student {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 2fr;
-  gap: 16px;
-  align-items: center;
-  padding: 4px 0;
-}
-
 ul,
 ol {
   list-style: none;
