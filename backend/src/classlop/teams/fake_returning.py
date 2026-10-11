@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from classlop import grading
 from classlop.shared import jobs, schedule, storage
 from classlop.shared.jobs import SignInRequired
-from classlop.teams import feedback, ids
+from classlop.teams import cards, feedback, ids
 from classlop.teams.fake_giving import Share
 from classlop.teams.fake_handins import File
 from classlop.teams.types import Assignment, Student, Submission
@@ -162,9 +162,7 @@ class FakeReturning:
             content = self._drive[folder][file_name].content
             self._chat_attached.setdefault(student.user_id, []).append((name, content))
         self._chat_log.setdefault(student.user_id, []).append(
-            feedback.message_html(
-                assignment, found.comment, corrected, uuid.uuid4().hex if key else None
-            )
+            cards.readable(feedback.message(assignment, found.comment, corrected, []))
         )
         sent.sent = True
         self._order.setdefault(submission.id, []).append(key)

@@ -3,9 +3,8 @@ what it says. The real area and FakeTeams share them, so the rules and the words
 
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from html import escape
 
-from classlop.teams import assignments, submissions
+from classlop.teams import assignments, cards, submissions
 from classlop.teams.types import Assignment, Student, Submission
 
 ADVANCE = timedelta(hours=24)
@@ -52,10 +51,18 @@ def count_text(count: int) -> str:
     return f"{count} {noun}"
 
 
-def post_html(a: Assignment, count: int) -> str:
+def post(a: Assignment, count: int) -> dict:
     """The post in General: which work, when it is due and how many have not handed in."""
-    return (
-        f"<p><b>Przypomnienie:</b> {escape(a.title)}, termin oddania: "
-        f"{assignments.local_time(a.due_at)}.</p>"
-        f"<p>Jeszcze nie oddało: {count_text(count)}.</p>"
+    return cards.message(
+        f"Przypomnienie: {a.title}. Jeszcze nie oddało: {count_text(count)}.",
+        "Przypomnienie",
+        a.title,
+        [
+            cards.facts(
+                [
+                    ("Termin oddania", assignments.local_time(a.due_at)),
+                    ("Jeszcze nie oddało", count_text(count)),
+                ]
+            )
+        ],
     )

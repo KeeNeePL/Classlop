@@ -2,9 +2,8 @@
 the words Students read, so they cannot drift."""
 
 from datetime import datetime
-from html import escape
 
-from classlop.teams import assignments, submissions
+from classlop.teams import assignments, cards, submissions
 from classlop.teams.types import Assignment, Submission
 
 
@@ -41,11 +40,22 @@ def check_deletable(submissions: list[Submission], uploaded: set[str]) -> None:
         raise ValueError("an Assignment that has been handed in cannot be deleted")
 
 
-def due_moved_html(due_at: datetime) -> str:
+def due_moved(a: Assignment) -> dict:
     """The reply in the post's thread."""
-    return f"<p>Zmiana terminu: nowy termin oddania to {assignments.local_time(due_at)}.</p>"
+    due = assignments.local_time(a.due_at)
+    return cards.message(
+        f"Zmiana terminu: nowy termin oddania to {due}.",
+        "Zmiana terminu",
+        a.title,
+        [cards.facts([("Nowy termin oddania", due)])],
+    )
 
 
-def cancelled_html(title: str) -> str:
+def cancelled(title: str) -> dict:
     """The chat message to each recipient of a deleted Assignment."""
-    return f"<p>Praca «{escape(title)}» została anulowana.</p>"
+    return cards.message(
+        f"Praca «{title}» została anulowana.",
+        "Praca anulowana",
+        title,
+        [cards.text("Tej pracy nie trzeba już oddawać.")],
+    )

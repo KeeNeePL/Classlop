@@ -18,7 +18,7 @@ from classlop.shared.jobs import SignInRequired
 from classlop.shared.settings import get_settings
 from classlop.teams import assignments, ids
 from classlop.teams.assignment_records import AssignmentRecord, SubmissionRecord
-from classlop.teams.graph import BASE, GraphClient, attachment_id, html_body, or_gone
+from classlop.teams.graph import BASE, GraphClient, attachment_id, or_gone
 from classlop.teams.lifecycle import check_writable, writable
 from classlop.teams.models import StudentRecord
 from classlop.teams.types import Assignment, AssignmentSpec, Class, Student, Submission
@@ -243,21 +243,14 @@ class Giving:
                 headers={"Content-Type": "application/pdf"},
             )
         ).json()
-        attachment = attachment_id(file)
+        pdf = {
+            "id": attachment_id(file),
+            "contentType": "reference",
+            "contentUrl": file["webUrl"],
+            "name": file["name"],
+        }
         post = await self._graph.send(
-            "POST",
-            f"{channel}/messages",
-            {
-                "body": html_body(assignments.post_html(_assignment(row), attachment)),
-                "attachments": [
-                    {
-                        "id": attachment,
-                        "contentType": "reference",
-                        "contentUrl": file["webUrl"],
-                        "name": file["name"],
-                    }
-                ],
-            },
+            "POST", f"{channel}/messages", assignments.post(_assignment(row), pdf)
         )
         await self._save_assignment(
             row.id,
@@ -366,7 +359,7 @@ class Giving:
         notice = await self._graph.send(
             "POST",
             f"/chats/{submission.chat_id}/messages",
-            {"body": html_body(assignments.notice_html(assignment, submission.folder_url or ""))},
+            assignments.notice(assignment, submission.folder_url or ""),
         )
         await self._save_submission(submission, notice_id=notice["id"])
 

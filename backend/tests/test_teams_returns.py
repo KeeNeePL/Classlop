@@ -2,6 +2,7 @@
 FakeGraph and against FakeTeams. Grading's side is a stand-in at `grading.result`: the test says
 what the result of a hand-in is, then tells `teams` it changed, as grading's job does."""
 
+import json
 import uuid
 from datetime import timedelta
 
@@ -15,7 +16,7 @@ from classlop.shared import storage
 from classlop.shared.db import sessions
 from classlop.shared.jobs import SignInRequired
 from classlop.shared.models import Job, Schedule
-from classlop.teams import handlers, ids
+from classlop.teams import feedback, handlers, ids
 from classlop.teams.lifecycle import schedule_names
 
 COMMENT = "Dobra robota, popraw znak w zadaniu 2."
@@ -514,3 +515,35 @@ async def test_a_lapsed_sign_in_raises_what_parks_a_job(tenant, gave, clock, gra
     ):
         with pytest.raises(SignInRequired):
             await call
+
+
+def test_the_feedback_card_lays_out_the_comment():
+    comment = "\n\n".join(
+        [
+            "Rozwiązanie zadania 1 jest poprawne.",
+            "Zadanie 1: 2/2 pkt – poprawnie\nZadanie 2: 0/3 pkt",
+            "Do powtórki:\n- Postać kanoniczna",
+            grading.AI_LINE,
+        ]
+    )
+
+    message = feedback.message(_spec(), comment, corrected=False, files=[])
+
+    [card] = [json.loads(x["content"]) for x in message["attachments"]]
+    blocks = card["body"][2:]
+    assert blocks[0]["text"] == "Rozwiązanie zadania 1 jest poprawne."
+    assert blocks[1]["facts"] == [
+        {"title": "Zadanie 1", "value": "2/2 pkt – poprawnie"},
+        {"title": "Zadanie 2", "value": "0/3 pkt"},
+    ]
+    assert [b["text"] for b in blocks[2:4]] == ["Do powtórki", "• Postać kanoniczna"]
+    assert blocks[4] == {
+        "type": "TextBlock",
+        "text": grading.AI_LINE,
+        "wrap": True,
+        "size": "Small",
+        "isSubtle": True,
+        "separator": True,
+        "spacing": "Medium",
+    }
+    assert message["body"]["content"].startswith("<p>Ocena pracy: Funkcje liniowe</p>")
